@@ -21,7 +21,7 @@ dependencies:
 
   # networking
   dio: ^5.4.0
-  retrofit: ^4.1.0
+  # retrofit added in Phase 3 when data sources are implemented
 
   # dependency injection
   get_it: ^7.6.7
@@ -31,9 +31,9 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   hive_flutter: ^1.1.0
 
-  # firebase
-  firebase_core: ^2.27.0
-  firebase_messaging: ^14.7.0
+  # firebase (configured in Phase 9 — packages declared early for DI scaffolding)
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
 
   # maps & location
   geolocator: ^11.0.0
@@ -54,7 +54,7 @@ dev_dependencies:
 
   # code generation
   build_runner: ^2.4.9
-  retrofit_generator: ^8.1.0
+  # retrofit_generator added in Phase 3
   injectable_generator: ^2.4.1
   json_serializable: ^6.8.0
   envied_generator: ^0.5.4
