@@ -36,7 +36,7 @@ class _SplashPageState extends State<SplashPage>
     _controller.forward();
 
     Future.delayed(const Duration(milliseconds: 2600), () {
-      if (mounted) context.go('/login');
+      if (mounted) context.go('/');
     });
   }
 
