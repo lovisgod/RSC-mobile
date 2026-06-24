@@ -9,7 +9,7 @@ abstract final class AppTheme {
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       primary: AppColors.primary,
-      secondary: AppColors.secondary,
+      secondary: AppColors.navy,
       surface: AppColors.surface,
       error: AppColors.error,
     ),
@@ -33,7 +33,7 @@ abstract final class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceVariant,
+      fillColor: AppColors.background,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
