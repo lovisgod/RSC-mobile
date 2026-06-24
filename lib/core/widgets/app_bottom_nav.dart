@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_assets.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_colors.dart';
 
@@ -32,10 +33,10 @@ class AppBottomNav extends StatelessWidget {
           height: 64,
           child: Row(
             children: [
-              _buildItem(0, Icons.home_outlined, AppStrings.tabHome),
-              _buildItem(1, Icons.search_outlined, AppStrings.tabSearch),
-              _buildItem(2, Icons.shopping_bag_outlined, AppStrings.tabCart),
-              _buildItem(3, Icons.location_on_outlined, AppStrings.tabTrack),
+              _buildItem(0, AppAssets.iconHome, AppStrings.tabHome),
+              _buildItem(1, AppAssets.iconSearch, AppStrings.tabSearch),
+              _buildItem(2, AppAssets.iconCart, AppStrings.tabCart),
+              _buildItem(3, AppAssets.iconTrack, AppStrings.tabTrack),
               _buildProfileItem(),
             ],
           ),
@@ -44,7 +45,7 @@ class AppBottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildItem(int index, IconData icon, String label) {
+  Widget _buildItem(int index, String assetPath, String label) {
     final bool isActive = activeIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -55,11 +56,7 @@ class AppBottomNav extends StatelessWidget {
           children: [
             _buildPill(
               isActive: isActive,
-              child: Icon(
-                icon,
-                size: 22,
-                color: isActive ? AppColors.navActive : AppColors.navInactive,
-              ),
+              child: Image.asset(assetPath, width: 28, height: 28),
             ),
             const SizedBox(height: 2),
             Text(
@@ -98,11 +95,7 @@ class AppBottomNav extends StatelessWidget {
               ),
             ),
           )
-        : Icon(
-            Icons.person_outline,
-            size: 22,
-            color: isActive ? AppColors.navActive : AppColors.navInactive,
-          );
+        : Image.asset(AppAssets.iconProfile, width: 28, height: 28);
 
     return Expanded(
       child: GestureDetector(

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_bottom_nav.dart';
-import '../../auth/presentation/pages/login_page.dart';
+import '../../auth/presentation/screens/auth_flow_screen.dart';
 import '../../cart/presentation/screens/cart_placeholder_screen.dart';
 import '../../home/presentation/screens/home_placeholder_screen.dart';
 import '../../profile/presentation/screens/profile_placeholder_screen.dart';
@@ -27,7 +27,7 @@ class ShellScreen extends StatelessWidget {
             children: [
               state.isAuthenticated
                   ? const HomePlaceholderScreen()
-                  : const LoginPage(),
+                  : const AuthFlowScreen(),
               const SearchPlaceholderScreen(),
               const CartPlaceholderScreen(),
               const TrackPlaceholderScreen(),

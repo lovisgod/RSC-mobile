@@ -13,6 +13,10 @@ class AuthInitial extends AuthState {
   const AuthInitial();
 }
 
+class AuthLoading extends AuthState {
+  const AuthLoading();
+}
+
 class AuthAuthenticated extends AuthState {
   final User user;
   const AuthAuthenticated(this.user);
@@ -23,4 +27,33 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
+}
+
+class AuthOtpSent extends AuthState {
+  final String phone;
+  final String name;
+  final String email;
+  final String password;
+
+  const AuthOtpSent({
+    required this.phone,
+    required this.name,
+    required this.email,
+    required this.password,
+  });
+
+  @override
+  List<Object?> get props => [phone, name, email, password];
+}
+
+class AuthRegisterSuccess extends AuthState {
+  const AuthRegisterSuccess();
+}
+
+class AuthFailure extends AuthState {
+  final String message;
+  const AuthFailure(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }
