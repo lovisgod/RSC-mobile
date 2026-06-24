@@ -66,7 +66,7 @@ class _SplashPageState extends State<SplashPage>
                         style: TextStyle(
                           fontSize: 52,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.secondary,
+                          color: AppColors.navy,
                           letterSpacing: -1,
                         ),
                       ),
