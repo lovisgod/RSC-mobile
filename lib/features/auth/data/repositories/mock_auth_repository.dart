@@ -1,7 +1,8 @@
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/mock/mock_data.dart';
+import '../../../../core/mock/mock_delays.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../models/user_model.dart';
 
 class MockAuthRepository implements AuthRepository {
   @override
@@ -16,15 +17,9 @@ class MockAuthRepository implements AuthRepository {
       throw const AuthException('Password must be at least 6 characters');
     }
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(MockDelays.medium);
 
-    final isEmail = identifier.contains('@');
-    return UserModel(
-      id: 'mock_user_001',
-      name: 'Enobong Ndedde',
-      phone: isEmail ? '+2348012345678' : identifier,
-      email: isEmail ? identifier : 'user@rscfood.com',
-    );
+    return MockData.currentUser;
   }
 
   @override
@@ -44,13 +39,8 @@ class MockAuthRepository implements AuthRepository {
       throw const AuthException('Password must be at least 6 characters');
     }
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(MockDelays.medium);
 
-    return UserModel(
-      id: 'mock_user_002',
-      name: name.trim(),
-      phone: phone.trim(),
-      email: email.trim().toLowerCase(),
-    );
+    return MockData.currentUser;
   }
 }
