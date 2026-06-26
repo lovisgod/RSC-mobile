@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../auth/domain/entities/user.dart';
+import '../../../auth/domain/entities/user_entity.dart';
 
 abstract class AuthState extends Equatable {
   const AuthState();
@@ -17,41 +17,58 @@ class AuthLoading extends AuthState {
   const AuthLoading();
 }
 
-class AuthAuthenticated extends AuthState {
-  final User user;
-  const AuthAuthenticated(this.user);
+class AuthUnauthenticated extends AuthState {
+  const AuthUnauthenticated();
+}
+
+class RegisterSuccess extends AuthState {
+  final String customerId;
+  final int otpExpiresInSeconds;
+  final Map<String, bool> verificationChannels;
+  final String phone;
+  final String email;
+
+  const RegisterSuccess({
+    required this.customerId,
+    required this.otpExpiresInSeconds,
+    required this.verificationChannels,
+    required this.phone,
+    required this.email,
+  });
+
+  @override
+  List<Object?> get props => [customerId];
+}
+
+class OtpVerifySuccess extends AuthState {
+  final String customerId;
+  final Map<String, bool> verificationChannels;
+
+  const OtpVerifySuccess({
+    required this.customerId,
+    required this.verificationChannels,
+  });
+
+  @override
+  List<Object?> get props => [customerId];
+}
+
+class LoginSuccess extends AuthState {
+  final UserEntity user;
+
+  const LoginSuccess(this.user);
 
   @override
   List<Object?> get props => [user.id];
 }
 
-class AuthUnauthenticated extends AuthState {
-  const AuthUnauthenticated();
-}
-
-class AuthOtpSent extends AuthState {
-  final String phone;
-  final String name;
-  final String email;
-  final String password;
-
-  const AuthOtpSent({
-    required this.phone,
-    required this.name,
-    required this.email,
-    required this.password,
-  });
-
-  @override
-  List<Object?> get props => [phone, name, email, password];
-}
-
-class AuthRegisterSuccess extends AuthState {
-  const AuthRegisterSuccess();
+class LogoutSuccess extends AuthState {
+  const LogoutSuccess();
 }
 
 class AuthFailure extends AuthState {
   final String message;
+
   const AuthFailure(this.message);
 
   @override

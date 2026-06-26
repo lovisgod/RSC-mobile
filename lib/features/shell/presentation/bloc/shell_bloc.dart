@@ -19,9 +19,11 @@ class ShellBloc extends Bloc<ShellEvent, ShellState> {
       (authState) => add(ShellAuthStateChanged(authState)),
     );
 
-    // Sync immediately if auth state is already known (resumed session)
+    // Sync if auth state is already resolved (e.g. resumed session)
     final current = _authBloc.state;
-    if (current is AuthAuthenticated || current is AuthUnauthenticated) {
+    if (current is LoginSuccess ||
+        current is AuthUnauthenticated ||
+        current is LogoutSuccess) {
       add(ShellAuthStateChanged(current));
     }
   }
@@ -34,11 +36,19 @@ class ShellBloc extends Bloc<ShellEvent, ShellState> {
     ShellAuthStateChanged event,
     Emitter<ShellState> emit,
   ) {
-    if (event.authState is AuthAuthenticated) {
-      final user = (event.authState as AuthAuthenticated).user;
-      emit(state.copyWith(isAuthenticated: true, currentUser: user, activeTabIndex: 0));
-    } else if (event.authState is AuthUnauthenticated) {
-      emit(state.copyWith(isAuthenticated: false, clearUser: true, activeTabIndex: 4));
+    final authState = event.authState;
+    if (authState is LoginSuccess) {
+      emit(state.copyWith(
+        isAuthenticated: true,
+        userId: authState.user.id,
+        activeTabIndex: 0,
+      ));
+    } else if (authState is AuthUnauthenticated || authState is LogoutSuccess) {
+      emit(state.copyWith(
+        isAuthenticated: false,
+        clearUser: true,
+        activeTabIndex: 4,
+      ));
     }
   }
 

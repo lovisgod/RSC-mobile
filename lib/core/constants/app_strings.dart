@@ -34,31 +34,31 @@ abstract final class AppStrings {
   static const String loginFooterText = "Don't have an account?";
   static const String registerFooterText = 'Already have an account?';
 
-  // ─── Auth — messages ─────────────────────────────────────────────────────
-  static const String registerSuccessMsg =
-      'Account created successfully! Please log in.';
-
-  // ─── OTP verification ────────────────────────────────────────────────────
-  static const String otpTitle = 'Enter Verification Code';
-  static const String otpSubtitleStart = 'We sent a 4-digit code to ';
-  static const String otpSubtitleEnd =
-      '. Enter it below to complete verification.';
-  static const String btnVerifyAndProceed = 'Verify & Proceed';
+  // ─── OTP verification screen ──────────────────────────────────────────────
+  static const String otpTitle = 'Verify Your Account';
+  static const String otpSubtitle = 'Enter the 6-digit code sent to your phone and email';
+  static const String otpChannelPhone = 'Phone';
+  static const String otpChannelEmail = 'Email';
+  static const String otpCodeExpiresIn = 'Code expires in ';
+  static const String otpCodeExpired = 'Code expired';
+  static const String btnVerify = 'Verify';
+  static const String btnResendCode = 'Resend Code';
+  static const String otpVerifySuccessMsg = 'Account verified! Please log in.';
+  static const String snackVerifyingOtp = 'Verifying code...';
+  static const String snackResendingOtp = 'Resending code...';
+  static const String snackOtpResent = 'A new code has been sent.';
 
   // ─── Snackbar messages ────────────────────────────────────────────────────
   static const String snackLoggingIn = 'Logging in...';
   static const String snackCreatingAccount = 'Creating your account...';
-  static const String snackSendingOtp = 'Sending OTP...';
-  static const String snackOtpResent = 'OTP resent successfully!';
+  static const String snackSendingOtp = 'Sending verification code...';
 
   // ─── Validation errors ────────────────────────────────────────────────────
   static const String errorFieldRequired = 'This field is required';
-  static const String errorPasswordMin =
-      'Password must be at least 6 characters';
+  static const String errorPasswordMin = 'Password must be at least 6 characters';
   static const String errorPasswordsMismatch = 'Passwords do not match';
   static const String errorInvalidEmail = 'Enter a valid email address';
-  static const String errorPhoneTooShort =
-      'Phone number must be at least 11 digits';
-  static const String errorPhoneInvalidChars =
-      'Phone number contains invalid characters';
+  static const String errorPhoneTooShort = 'Phone number must be at least 11 digits';
+  static const String errorPhoneInvalidChars = 'Phone number contains invalid characters';
+  static const String errorInactiveAccount = 'Please verify your account first';
 }

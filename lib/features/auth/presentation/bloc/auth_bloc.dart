@@ -1,46 +1,119 @@
 // ignore_for_file: prefer_initializing_formals
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../../../../core/constants/app_constants.dart';
-import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/storage/local_storage.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
+import '../../domain/usecases/verify_otp_usecase.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final LoginUseCase _loginUseCase;
   final RegisterUseCase _registerUseCase;
-  final FlutterSecureStorage _storage;
+  final VerifyOtpUseCase _verifyOtpUseCase;
+  final LoginUseCase _loginUseCase;
+  final LogoutUseCase _logoutUseCase;
+  final LocalStorage _localStorage;
 
   AuthBloc({
-    required LoginUseCase loginUseCase,
     required RegisterUseCase registerUseCase,
-    required FlutterSecureStorage storage,
-  })  : _loginUseCase = loginUseCase,
-        _registerUseCase = registerUseCase,
-        _storage = storage,
+    required VerifyOtpUseCase verifyOtpUseCase,
+    required LoginUseCase loginUseCase,
+    required LogoutUseCase logoutUseCase,
+    required LocalStorage localStorage,
+  })  : _registerUseCase = registerUseCase,
+        _verifyOtpUseCase = verifyOtpUseCase,
+        _loginUseCase = loginUseCase,
+        _logoutUseCase = logoutUseCase,
+        _localStorage = localStorage,
         super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheckRequested);
-    on<AuthLoginRequested>(_onLoginRequested);
-    on<AuthRegisterRequested>(_onRegisterRequested);
-    on<AuthOtpVerifyRequested>(_onOtpVerifyRequested);
-    on<AuthLoggedIn>(_onLoggedIn);
-    on<AuthLoggedOut>(_onLoggedOut);
+    on<RegisterSubmitted>(_onRegisterSubmitted);
+    on<OtpSubmitted>(_onOtpSubmitted);
+    on<OtpResendRequested>(_onOtpResendRequested);
+    on<LoginSubmitted>(_onLoginSubmitted);
+    on<LogoutRequested>(_onLogoutRequested);
+
+    // Restore session on startup without waiting for an external dispatch
+    add(const AuthCheckRequested());
   }
 
   Future<void> _onCheckRequested(
     AuthCheckRequested event,
     Emitter<AuthState> emit,
   ) async {
-    // Phase 4: check stored tokens, restore session
-    emit(const AuthUnauthenticated());
+    final user = await _localStorage.getUser();
+    if (user != null) {
+      emit(LoginSuccess(user));
+    } else {
+      emit(const AuthUnauthenticated());
+    }
   }
 
-  Future<void> _onLoginRequested(
-    AuthLoginRequested event,
+  Future<void> _onRegisterSubmitted(
+    RegisterSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final result = await _registerUseCase(
+        name: event.name,
+        phone: event.phone,
+        email: event.email,
+        password: event.password,
+      );
+      emit(RegisterSuccess(
+        customerId: result.customerId,
+        otpExpiresInSeconds: result.otpExpiresInSeconds,
+        verificationChannels: result.verificationChannels,
+        phone: event.phone,
+        email: event.email,
+      ));
+    } on AuthException catch (e) {
+      emit(AuthFailure(e.message));
+    } catch (_) {
+      emit(const AuthFailure('Registration failed. Please try again.'));
+    }
+  }
+
+  Future<void> _onOtpSubmitted(
+    OtpSubmitted event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final result = await _verifyOtpUseCase(
+        customerId: event.customerId,
+        channel: event.channel,
+        phone: event.phone,
+        email: event.email,
+        code: event.code,
+      );
+      emit(OtpVerifySuccess(
+        customerId: result.customerId,
+        verificationChannels: result.verificationChannels,
+      ));
+    } on AuthException catch (e) {
+      emit(AuthFailure(e.message));
+    } catch (_) {
+      emit(const AuthFailure('Verification failed. Please try again.'));
+    }
+  }
+
+  Future<void> _onOtpResendRequested(
+    OtpResendRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    // TODO: call resend endpoint when available from backend team
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    emit(const AuthFailure('Resend not available yet. Please try again later.'));
+  }
+
+  Future<void> _onLoginSubmitted(
+    LoginSubmitted event,
     Emitter<AuthState> emit,
   ) async {
     emit(const AuthLoading());
@@ -49,8 +122,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         identifier: event.identifier,
         password: event.password,
       );
-      await _persistUser(user.id, user.name, user.phone, user.email);
-      emit(AuthAuthenticated(user));
+      await _localStorage.saveUser(user);
+      emit(LoginSuccess(user));
     } on AuthException catch (e) {
       emit(AuthFailure(e.message));
     } catch (_) {
@@ -58,75 +131,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onRegisterRequested(
-    AuthRegisterRequested event,
+  Future<void> _onLogoutRequested(
+    LogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
     try {
-      // Phase 2 mock: simulate OTP dispatch to phone
-      await Future<void>.delayed(const Duration(milliseconds: 1000));
-      emit(AuthOtpSent(
-        phone: event.phone,
-        name: event.name,
-        email: event.email,
-        password: event.password,
-      ));
-    } on AuthException catch (e) {
-      emit(AuthFailure(e.message));
+      await _logoutUseCase();
     } catch (_) {
-      emit(const AuthFailure('Failed to send OTP. Please try again.'));
+      // Clear locally even if the server call fails
     }
-  }
-
-  Future<void> _onOtpVerifyRequested(
-    AuthOtpVerifyRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(const AuthLoading());
-    try {
-      if (event.otp.length != AppConstants.otpLength) {
-        throw const AuthException('Enter a valid 6-digit code');
-      }
-      // Phase 2 mock: simulate OTP verification + account creation
-      await Future<void>.delayed(const Duration(milliseconds: 1000));
-      await _registerUseCase(
-        name: event.name,
-        email: event.email,
-        phone: event.phone,
-        password: event.password,
-      );
-      emit(const AuthRegisterSuccess());
-    } on AuthException catch (e) {
-      emit(AuthFailure(e.message));
-    } catch (_) {
-      emit(const AuthFailure('Verification failed. Please try again.'));
-    }
-  }
-
-  void _onLoggedIn(AuthLoggedIn event, Emitter<AuthState> emit) {
-    emit(AuthAuthenticated(event.user));
-  }
-
-  Future<void> _onLoggedOut(
-    AuthLoggedOut event,
-    Emitter<AuthState> emit,
-  ) async {
-    await _storage.deleteAll();
-    emit(const AuthUnauthenticated());
-  }
-
-  Future<void> _persistUser(
-    String id,
-    String name,
-    String phone,
-    String? email,
-  ) async {
-    await _storage.write(key: StorageKeys.userId, value: id);
-    await _storage.write(key: StorageKeys.userName, value: name);
-    await _storage.write(key: StorageKeys.userPhone, value: phone);
-    if (email != null) {
-      await _storage.write(key: StorageKeys.userEmail, value: email);
-    }
+    await _localStorage.clearAll();
+    emit(const LogoutSuccess());
   }
 }

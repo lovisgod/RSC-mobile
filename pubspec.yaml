@@ -21,6 +21,9 @@ dependencies:
 
   # networking
   dio: ^5.4.0
+  cookie_jar: ^4.0.8
+  dio_cookie_manager: ^3.1.1
+  path_provider: ^2.1.0
   # retrofit added in Phase 3 when data sources are implemented
 
   # dependency injection

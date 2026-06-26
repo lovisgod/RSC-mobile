@@ -1,5 +1,3 @@
-import '../../../auth/domain/entities/user.dart';
-
 abstract class AuthEvent {
   const AuthEvent();
 }
@@ -8,51 +6,51 @@ class AuthCheckRequested extends AuthEvent {
   const AuthCheckRequested();
 }
 
-class AuthLoginRequested extends AuthEvent {
+class RegisterSubmitted extends AuthEvent {
+  final String name;
+  final String phone;
+  final String email;
+  final String password;
+
+  const RegisterSubmitted({
+    required this.name,
+    required this.phone,
+    required this.email,
+    required this.password,
+  });
+}
+
+class OtpSubmitted extends AuthEvent {
+  final String customerId;
+  final String channel; // 'phone' | 'email'
+  final String? phone;
+  final String? email;
+  final String code;
+
+  const OtpSubmitted({
+    required this.customerId,
+    required this.channel,
+    this.phone,
+    this.email,
+    required this.code,
+  });
+}
+
+class OtpResendRequested extends AuthEvent {
+  final String customerId;
+  const OtpResendRequested(this.customerId);
+}
+
+class LoginSubmitted extends AuthEvent {
   final String identifier;
   final String password;
 
-  const AuthLoginRequested({
+  const LoginSubmitted({
     required this.identifier,
     required this.password,
   });
 }
 
-class AuthRegisterRequested extends AuthEvent {
-  final String name;
-  final String email;
-  final String phone;
-  final String password;
-
-  const AuthRegisterRequested({
-    required this.name,
-    required this.email,
-    required this.phone,
-    required this.password,
-  });
-}
-
-class AuthOtpVerifyRequested extends AuthEvent {
-  final String otp;
-  final String name;
-  final String email;
-  final String phone;
-  final String password;
-
-  const AuthOtpVerifyRequested({
-    required this.otp,
-    required this.name,
-    required this.email,
-    required this.phone,
-    required this.password,
-  });
-}
-
-class AuthLoggedIn extends AuthEvent {
-  final User user;
-  const AuthLoggedIn(this.user);
-}
-
-class AuthLoggedOut extends AuthEvent {
-  const AuthLoggedOut();
+class LogoutRequested extends AuthEvent {
+  const LogoutRequested();
 }

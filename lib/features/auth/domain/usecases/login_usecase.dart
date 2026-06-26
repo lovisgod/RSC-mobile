@@ -1,4 +1,4 @@
-import '../entities/user.dart';
+import '../entities/user_entity.dart';
 import '../repositories/auth_repository.dart';
 
 class LoginUseCase {
@@ -6,7 +6,7 @@ class LoginUseCase {
 
   const LoginUseCase(this._repository);
 
-  Future<User> call({
+  Future<UserEntity> call({
     required String identifier,
     required String password,
   }) =>

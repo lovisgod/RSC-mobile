@@ -1,17 +1,16 @@
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:injectable/injectable.dart';
 
 import '../constants/api_constants.dart';
-import '../constants/storage_keys.dart';
 import '../errors/exceptions.dart';
 
-@lazySingleton
 class DioClient {
   late final Dio _dio;
+  final PersistCookieJar cookieJar;
 
-  DioClient(FlutterSecureStorage secureStorage) {
+  DioClient(this.cookieJar) {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
@@ -26,7 +25,7 @@ class DioClient {
     );
 
     _dio.interceptors.addAll([
-      _AuthInterceptor(secureStorage),
+      CookieManager(cookieJar),
       _ErrorInterceptor(),
       if (kDebugMode) LogInterceptor(requestBody: true, responseBody: true),
     ]);
@@ -35,69 +34,84 @@ class DioClient {
   Dio get dio => _dio;
 }
 
-class _AuthInterceptor extends Interceptor {
-  final FlutterSecureStorage _secureStorage;
-
-  _AuthInterceptor(this._secureStorage);
-
-  @override
-  Future<void> onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) async {
-    final token = await _secureStorage.read(key: StorageKeys.accessToken);
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
-    }
-    handler.next(options);
-  }
-}
-
 class _ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     switch (err.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
+        handler.next(err.copyWith(
+          error: const NetworkException(
+            'Connection timed out. Check your internet.',
+          ),
+        ));
+
       case DioExceptionType.receiveTimeout:
-        handler.next(
-          err.copyWith(error: const NetworkException('Connection timed out')),
-        );
+        handler.next(err.copyWith(
+          error: const NetworkException(
+            'Server took too long to respond.',
+          ),
+        ));
 
       case DioExceptionType.connectionError:
-        handler.next(
-          err.copyWith(error: const NetworkException('No internet connection')),
-        );
+        handler.next(err.copyWith(
+          error: const NetworkException('No internet connection.'),
+        ));
 
       case DioExceptionType.badResponse:
-        final statusCode = err.response?.statusCode;
-        final message = _extractMessage(err.response);
-        if (statusCode == 401) {
-          handler.next(err.copyWith(error: const UnauthorizedException()));
-        } else if (statusCode == 404) {
-          handler.next(err.copyWith(error: const NotFoundException()));
-        } else {
-          handler.next(
-            err.copyWith(
-              error: ServerException(message: message, statusCode: statusCode),
-            ),
-          );
+        final status = err.response?.statusCode;
+        switch (status) {
+          case 502:
+            handler.next(err.copyWith(
+              error: const ServerException(
+                message: 'Could not send verification code. Please try again.',
+                statusCode: 502,
+              ),
+            ));
+          case 401:
+            final msg = _extractFirstError(err.response);
+            handler.next(err.copyWith(
+              error: ServerException(message: msg, statusCode: 401),
+            ));
+          case 409:
+            final msg = _extractFirstError(err.response);
+            handler.next(err.copyWith(
+              error: ServerException(message: msg, statusCode: 409),
+            ));
+          default:
+            final msg = _extractFirstError(err.response);
+            handler.next(err.copyWith(
+              error: ServerException(
+                message: msg,
+                statusCode: status,
+              ),
+            ));
         }
 
       default:
-        handler.next(
-          err.copyWith(
-            error: ServerException(message: err.message ?? 'Unknown error'),
+        handler.next(err.copyWith(
+          error: const ServerException(
+            message: 'Something went wrong. Please try again.',
           ),
-        );
+        ));
     }
   }
 
-  String _extractMessage(Response<dynamic>? response) {
+  String _extractFirstError(Response<dynamic>? response) {
     try {
-      final data = response?.data;
-      if (data is Map) return (data['message'] as String?) ?? 'Server error';
+      final body = response?.data;
+      if (body is Map) {
+        final data = body['data'];
+        if (data is Map) {
+          final errors = data['errors'];
+          if (errors is List && errors.isNotEmpty) {
+            return errors.first.toString();
+          }
+        }
+        final message = body['message'];
+        if (message is String && message.isNotEmpty) return message;
+      }
     } catch (_) {}
-    return 'Server error';
+    return 'Something went wrong. Please try again.';
   }
 }
