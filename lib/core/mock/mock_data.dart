@@ -121,6 +121,7 @@ abstract final class MockData {
       price: 2500.00,
       imageUrl: 'https://via.placeholder.com/400x300',
       isAvailable: true,
+      allergenNote: 'Peanut-free option available upon kitchen request.',
       modifierGroups: [
         ModifierGroup(
           id: 'mg-suya-protein',

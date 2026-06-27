@@ -1,4 +1,4 @@
-import '../entities/user.dart';
+import '../entities/register_result.dart';
 import '../repositories/auth_repository.dart';
 
 class RegisterUseCase {
@@ -6,16 +6,16 @@ class RegisterUseCase {
 
   const RegisterUseCase(this._repository);
 
-  Future<User> call({
+  Future<RegisterResult> call({
     required String name,
-    required String email,
     required String phone,
+    required String email,
     required String password,
   }) =>
       _repository.register(
         name: name,
-        email: email,
         phone: phone,
+        email: email,
         password: password,
       );
 }

@@ -1,5 +1,3 @@
-import '../../../auth/domain/entities/user.dart';
-
 abstract class AuthEvent {
   const AuthEvent();
 }
@@ -8,51 +6,91 @@ class AuthCheckRequested extends AuthEvent {
   const AuthCheckRequested();
 }
 
-class AuthLoginRequested extends AuthEvent {
+class RegisterSubmitted extends AuthEvent {
+  final String name;
+  final String phone;
+  final String email;
+  final String password;
+
+  const RegisterSubmitted({
+    required this.name,
+    required this.phone,
+    required this.email,
+    required this.password,
+  });
+}
+
+class OtpSubmitted extends AuthEvent {
+  final String customerId;
+  final String channel; // 'phone' | 'email'
+  final String? phone;
+  final String? email;
+  final String code;
+
+  const OtpSubmitted({
+    required this.customerId,
+    required this.channel,
+    this.phone,
+    this.email,
+    required this.code,
+  });
+}
+
+class OtpResendRequested extends AuthEvent {
+  final String channel;
+  final String phone;
+  final String email;
+  const OtpResendRequested({
+    required this.channel,
+    required this.phone,
+    required this.email,
+  });
+}
+
+class LoginSubmitted extends AuthEvent {
   final String identifier;
   final String password;
 
-  const AuthLoginRequested({
+  const LoginSubmitted({
     required this.identifier,
     required this.password,
   });
 }
 
-class AuthRegisterRequested extends AuthEvent {
-  final String name;
-  final String email;
-  final String phone;
-  final String password;
+class LogoutRequested extends AuthEvent {
+  const LogoutRequested();
+}
 
-  const AuthRegisterRequested({
-    required this.name,
-    required this.email,
-    required this.phone,
-    required this.password,
+class ForgotPasswordSubmitted extends AuthEvent {
+  final String identifier;
+  const ForgotPasswordSubmitted({required this.identifier});
+}
+
+class ResetPasswordOtpSubmitted extends AuthEvent {
+  final String identifier;
+  final String otpCode;
+  const ResetPasswordOtpSubmitted({
+    required this.identifier,
+    required this.otpCode,
   });
 }
 
-class AuthOtpVerifyRequested extends AuthEvent {
-  final String otp;
-  final String name;
-  final String email;
-  final String phone;
-  final String password;
-
-  const AuthOtpVerifyRequested({
-    required this.otp,
-    required this.name,
-    required this.email,
-    required this.phone,
-    required this.password,
+class ResetPasswordSubmitted extends AuthEvent {
+  final String identifier;
+  final String otpCode;
+  final String newPassword;
+  const ResetPasswordSubmitted({
+    required this.identifier,
+    required this.otpCode,
+    required this.newPassword,
   });
 }
 
-class AuthLoggedIn extends AuthEvent {
-  final User user;
-  const AuthLoggedIn(this.user);
-}
-
-class AuthLoggedOut extends AuthEvent {
-  const AuthLoggedOut();
+class ChangePasswordSubmitted extends AuthEvent {
+  final String currentPassword;
+  final String newPassword;
+  const ChangePasswordSubmitted({
+    required this.currentPassword,
+    required this.newPassword,
+  });
 }

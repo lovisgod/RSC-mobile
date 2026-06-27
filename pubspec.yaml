@@ -14,6 +14,8 @@ dependencies:
 
   # state management
   flutter_bloc: ^8.1.5
+  bloc_concurrency: ^0.2.1
+  stream_transform: ^2.1.0
   equatable: ^2.0.5
 
   # navigation
@@ -21,6 +23,9 @@ dependencies:
 
   # networking
   dio: ^5.4.0
+  cookie_jar: ^4.0.8
+  dio_cookie_manager: ^3.1.1
+  path_provider: ^2.1.0
   # retrofit added in Phase 3 when data sources are implemented
 
   # dependency injection
@@ -45,6 +50,7 @@ dependencies:
   # utils
   intl: ^0.19.0
   cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
   envied: ^0.5.4
 
 dev_dependencies:
@@ -68,3 +74,4 @@ flutter:
     - rsc-assets/icons/png/shopping-cart_1f6d2.png
     - rsc-assets/icons/png/round-pushpin_1f4cd.png
     - rsc-assets/icons/png/bust-in-silhouette_1f464.png
+    - rsc-assets/images/confetti.png

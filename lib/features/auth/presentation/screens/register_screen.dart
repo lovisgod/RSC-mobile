@@ -11,12 +11,16 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import '../widgets/otp_verification_sheet.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key, required this.onGoToLogin});
+  const RegisterScreen({
+    super.key,
+    required this.onGoToLogin,
+    required this.onGoToOtp,
+  });
 
   final void Function({String? successMessage}) onGoToLogin;
+  final void Function(RegisterSuccess) onGoToOtp;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -77,9 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phoneErr = AppStrings.errorFieldRequired;
     } else {
       final digits = phone.replaceAll(RegExp(r'\D'), '');
-      if (digits.length < 11) {
-        phoneErr = AppStrings.errorPhoneTooShort;
-      }
+      if (digits.length < 11) phoneErr = AppStrings.errorPhoneTooShort;
     }
     if (pw.isEmpty) {
       pwErr = AppStrings.errorFieldRequired;
@@ -109,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _submit(BuildContext context) {
     if (!_validate()) return;
-    context.read<AuthBloc>().add(AuthRegisterRequested(
+    context.read<AuthBloc>().add(RegisterSubmitted(
           name: _nameCtrl.text.trim(),
           email: _emailCtrl.text.trim().toLowerCase(),
           phone: _phoneCtrl.text.trim(),
@@ -120,48 +122,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthBloc, AuthState>(
-      listenWhen: (previous, current) =>
-          (current is AuthLoading && previous is! AuthOtpSent) ||
-          current is AuthOtpSent ||
-          (current is AuthFailure && previous is! AuthOtpSent),
+      listenWhen: (_, current) =>
+          current is AuthLoading ||
+          current is RegisterSuccess ||
+          current is AuthFailure,
       listener: (context, state) {
         if (state is AuthLoading) {
           AppSnackbar.show(
             context,
-            message: AppStrings.snackSendingOtp,
+            message: AppStrings.snackCreatingAccount,
             emoji: '📱',
             type: AppSnackbarType.loading,
             persistent: true,
           );
-        } else if (state is AuthOtpSent) {
+        } else if (state is RegisterSuccess) {
           AppSnackbar.dismiss();
-          final authBloc = context.read<AuthBloc>();
-          showGeneralDialog<void>(
-            context: context,
-            barrierDismissible: false,
-            barrierLabel: '',
-            barrierColor: Colors.transparent,
-            transitionDuration: const Duration(milliseconds: 320),
-            transitionBuilder: (_, anim, _, child) {
-              final curved = CurvedAnimation(
-                parent: anim,
-                curve: Curves.easeOutCubic,
-              );
-              return ScaleTransition(
-                scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
-                child: FadeTransition(opacity: anim, child: child),
-              );
-            },
-            pageBuilder: (dialogCtx, _, _) => BlocProvider<AuthBloc>.value(
-              value: authBloc,
-              child: OtpVerificationSheet(
-                otpState: state,
-                onSuccess: () {
-                  if (mounted) widget.onGoToLogin();
-                },
-              ),
-            ),
-          );
+          widget.onGoToOtp(state);
         } else if (state is AuthFailure) {
           AppSnackbar.dismiss();
           AppSnackbar.show(
@@ -184,7 +160,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   const SizedBox(height: 48),
 
-                  // ── Logo ────────────────────────────────────────────────
                   const _AuthLogo(),
                   const SizedBox(height: 8),
                   Text(
@@ -196,7 +171,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 40),
 
-                  // ── Full Name ────────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelFullName),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -207,15 +181,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     errorText: _nameError,
                     enabled: !isLoading,
                     onChanged: (_) {
-                      if (_nameError != null) {
-                        setState(() => _nameError = null);
-                      }
+                      if (_nameError != null) setState(() => _nameError = null);
                     },
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ── Email ────────────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelEmail),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -228,15 +199,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     errorText: _emailError,
                     enabled: !isLoading,
                     onChanged: (_) {
-                      if (_emailError != null) {
-                        setState(() => _emailError = null);
-                      }
+                      if (_emailError != null) setState(() => _emailError = null);
                     },
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ── Phone ────────────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelPhone),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -248,15 +216,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     errorText: _phoneError,
                     enabled: !isLoading,
                     onChanged: (_) {
-                      if (_phoneError != null) {
-                        setState(() => _phoneError = null);
-                      }
+                      if (_phoneError != null) setState(() => _phoneError = null);
                     },
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ── Password ─────────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelPassword),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -286,7 +251,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 20),
 
-                  // ── Confirm Password ─────────────────────────────────────
                   const _FieldLabel(AppStrings.labelConfirmPassword),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -317,7 +281,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ── Button ──────────────────────────────────────────────
                   AppButton(
                     label: AppStrings.btnRegister,
                     isLoading: isLoading,
@@ -327,7 +290,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ── Footer ──────────────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -338,9 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(width: 4),
                       GestureDetector(
-                        onTap: isLoading
-                            ? null
-                            : () => widget.onGoToLogin(),
+                        onTap: isLoading ? null : () => widget.onGoToLogin(),
                         child: Text(
                           AppStrings.btnLogin,
                           style: AppTextStyles.bodyBold
@@ -361,7 +321,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
-// ── Private shared widgets ──────────────────────────────────────────────────
+// ── Shared private widgets ──────────────────────────────────────────────────
 
 class _AuthLogo extends StatelessWidget {
   const _AuthLogo();

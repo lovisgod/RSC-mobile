@@ -1,14 +1,12 @@
-import '../../../auth/domain/entities/user.dart';
-
 class ShellState {
   final int activeTabIndex;
   final bool isAuthenticated;
-  final User? currentUser;
+  final String? userId;
 
   const ShellState({
     required this.activeTabIndex,
     required this.isAuthenticated,
-    this.currentUser,
+    this.userId,
   });
 
   factory ShellState.initial() => const ShellState(
@@ -16,18 +14,19 @@ class ShellState {
         isAuthenticated: false,
       );
 
-  String? get userInitials => currentUser?.initials;
+  // Populated when profile is fetched — null until then
+  String? get userInitials => null;
 
   ShellState copyWith({
     int? activeTabIndex,
     bool? isAuthenticated,
-    User? currentUser,
+    String? userId,
     bool clearUser = false,
   }) {
     return ShellState(
       activeTabIndex: activeTabIndex ?? this.activeTabIndex,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      currentUser: clearUser ? null : (currentUser ?? this.currentUser),
+      userId: clearUser ? null : (userId ?? this.userId),
     );
   }
 }

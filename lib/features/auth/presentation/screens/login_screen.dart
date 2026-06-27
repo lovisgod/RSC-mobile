@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -43,7 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
     String? pwErr;
 
     if (id.isEmpty) idErr = AppStrings.errorFieldRequired;
-
     if (pw.isEmpty) {
       pwErr = AppStrings.errorFieldRequired;
     } else if (pw.length < 6) {
@@ -60,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _submit(BuildContext context) {
     if (!_validate()) return;
-    context.read<AuthBloc>().add(AuthLoginRequested(
+    context.read<AuthBloc>().add(LoginSubmitted(
           identifier: _identifierCtrl.text.trim(),
           password: _passwordCtrl.text,
         ));
@@ -71,8 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listenWhen: (_, current) =>
           current is AuthLoading ||
-          current is AuthFailure ||
-          current is AuthAuthenticated,
+          current is LoginSuccess ||
+          current is AuthFailure,
       listener: (context, state) {
         if (state is AuthLoading) {
           AppSnackbar.show(
@@ -82,15 +84,22 @@ class _LoginScreenState extends State<LoginScreen> {
             type: AppSnackbarType.loading,
             persistent: true,
           );
+        } else if (state is LoginSuccess) {
+          AppSnackbar.dismiss();
+          // ShellBloc reacts to LoginSuccess and navigates to Home tab
         } else if (state is AuthFailure) {
           AppSnackbar.dismiss();
+          final isInactive =
+              state.message.toLowerCase().contains('inactive') ||
+              state.message.toLowerCase().contains('unverified') ||
+              state.message.toLowerCase().contains('not active');
           AppSnackbar.show(
             context,
-            message: state.message,
+            message: isInactive
+                ? AppStrings.errorInactiveAccount
+                : state.message,
             type: AppSnackbarType.error,
           );
-        } else if (state is AuthAuthenticated) {
-          AppSnackbar.dismiss();
         }
       },
       builder: (context, state) {
@@ -106,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 64),
 
-                  // ── Logo ────────────────────────────────────────────────
                   const _AuthLogo(),
                   const SizedBox(height: 8),
                   Text(
@@ -118,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 48),
 
-                  // ── Email / Phone ────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelEmailOrPhone),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -137,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 20),
 
-                  // ── Password ────────────────────────────────────────────
                   const _FieldLabel(AppStrings.labelPassword),
                   const SizedBox(height: 8),
                   AppTextField(
@@ -166,9 +172,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 10),
 
-                  // ── Button ──────────────────────────────────────────────
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: isLoading
+                          ? null
+                          : () => context.push(RouteNames.forgotPassword),
+                      child: Text(
+                        AppStrings.forgotPasswordLink,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
                   AppButton(
                     label: AppStrings.btnLogin,
                     isLoading: isLoading,
@@ -178,7 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ── Footer ──────────────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -210,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ── Private shared widgets ──────────────────────────────────────────────────
+// ── Shared private widgets ──────────────────────────────────────────────────
 
 class _AuthLogo extends StatelessWidget {
   const _AuthLogo();

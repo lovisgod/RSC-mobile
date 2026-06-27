@@ -1,0 +1,1 @@
+enum DeliveryMode { delivery, takeout }

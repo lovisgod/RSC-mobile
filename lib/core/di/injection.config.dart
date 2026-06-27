@@ -12,7 +12,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart' as _i558;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
-import '../network/dio_client.dart' as _i667;
 import '../network/network_info.dart' as _i932;
 import 'injection_module.dart' as _i212;
 
@@ -30,8 +29,6 @@ extension GetItInjectableX on _i174.GetIt {
     final appModule = _$AppModule();
     gh.lazySingleton<_i558.FlutterSecureStorage>(() => appModule.secureStorage);
     gh.lazySingleton<_i932.NetworkInfo>(() => _i932.NetworkInfoImpl());
-    gh.lazySingleton<_i667.DioClient>(
-        () => _i667.DioClient(gh<_i558.FlutterSecureStorage>()));
     return this;
   }
 }
