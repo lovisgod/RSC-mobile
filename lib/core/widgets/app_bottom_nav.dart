@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../features/cart/presentation/cubit/cart_cubit.dart';
+import '../../features/cart/presentation/cubit/cart_state.dart';
 import '../constants/app_assets.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_colors.dart';
@@ -35,7 +38,7 @@ class AppBottomNav extends StatelessWidget {
             children: [
               _buildItem(0, AppAssets.iconHome, AppStrings.tabHome),
               _buildItem(1, AppAssets.iconSearch, AppStrings.tabSearch),
-              _buildItem(2, AppAssets.iconCart, AppStrings.tabCart),
+              _buildCartItem(context),
               _buildItem(3, AppAssets.iconTrack, AppStrings.tabTrack),
               _buildProfileItem(),
             ],
@@ -61,6 +64,67 @@ class AppBottomNav extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? AppColors.navActive : AppColors.navInactive,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartItem(BuildContext context) {
+    final bool isActive = activeIndex == 2;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTabSelected(2),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildPill(
+              isActive: isActive,
+              child: BlocBuilder<CartCubit, CartState>(
+                builder: (context, cartState) {
+                  final count = cartState.cart.totalItemCount;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Image.asset(AppAssets.iconCart, width: 28, height: 28),
+                      if (count > 0)
+                        Positioned(
+                          top: -4,
+                          right: -6,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 9 ? '9+' : '$count',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              AppStrings.tabCart,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,

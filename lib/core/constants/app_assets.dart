@@ -10,4 +10,7 @@ abstract final class AppAssets {
       'rsc-assets/icons/png/round-pushpin_1f4cd.png';
   static const String iconProfile =
       'rsc-assets/icons/png/bust-in-silhouette_1f464.png';
+
+  // ─── Images ──────────────────────────────────────────────────────────────
+  static const String imgConfetti = 'rsc-assets/images/confetti.png';
 }

@@ -11,6 +11,8 @@ class MenuItem {
   final bool isAvailable;
   final List<ModifierGroup> modifierGroups;
 
+  final String? allergenNote;
+
   const MenuItem({
     required this.id,
     required this.categoryId,
@@ -21,5 +23,6 @@ class MenuItem {
     required this.imageUrl,
     required this.isAvailable,
     this.modifierGroups = const [],
+    this.allergenNote,
   });
 }

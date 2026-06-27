@@ -1,4 +1,5 @@
 // ignore_for_file: prefer_initializing_formals
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/exceptions.dart';
@@ -16,6 +17,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase _loginUseCase;
   final LogoutUseCase _logoutUseCase;
   final LocalStorage _localStorage;
+  final PersistCookieJar _cookieJar;
 
   AuthBloc({
     required RegisterUseCase registerUseCase,
@@ -23,11 +25,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required LoginUseCase loginUseCase,
     required LogoutUseCase logoutUseCase,
     required LocalStorage localStorage,
+    required PersistCookieJar cookieJar,
   })  : _registerUseCase = registerUseCase,
         _verifyOtpUseCase = verifyOtpUseCase,
         _loginUseCase = loginUseCase,
         _logoutUseCase = logoutUseCase,
         _localStorage = localStorage,
+        _cookieJar = cookieJar,
         super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheckRequested);
     on<RegisterSubmitted>(_onRegisterSubmitted);
@@ -135,11 +139,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
+    emit(const AuthLoading());
     try {
       await _logoutUseCase();
     } catch (_) {
-      // Clear locally even if the server call fails
+      // Server call may fail — always clear locally
     }
+    try {
+      await _cookieJar.deleteAll();
+    } catch (_) {}
     await _localStorage.clearAll();
     emit(const LogoutSuccess());
   }
