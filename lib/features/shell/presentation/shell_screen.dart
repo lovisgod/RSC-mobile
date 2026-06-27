@@ -25,13 +25,13 @@ class ShellScreen extends StatelessWidget {
           body: IndexedStack(
             index: state.activeTabIndex,
             children: [
-              state.isAuthenticated
-                  ? const HomePlaceholderScreen()
-                  : const AuthFlowScreen(),
+              const HomePlaceholderScreen(),
               const SearchPlaceholderScreen(),
               const CartPlaceholderScreen(),
               const TrackPlaceholderScreen(),
-              const ProfilePlaceholderScreen(),
+              state.isAuthenticated
+                  ? const ProfilePlaceholderScreen()
+                  : const AuthFlowScreen(),
             ],
           ),
           bottomNavigationBar: AppBottomNav(

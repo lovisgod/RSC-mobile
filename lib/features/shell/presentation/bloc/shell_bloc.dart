@@ -36,9 +36,9 @@ class ShellBloc extends Bloc<ShellEvent, ShellState> {
   ) {
     if (event.authState is AuthAuthenticated) {
       final user = (event.authState as AuthAuthenticated).user;
-      emit(state.copyWith(isAuthenticated: true, currentUser: user));
+      emit(state.copyWith(isAuthenticated: true, currentUser: user, activeTabIndex: 0));
     } else if (event.authState is AuthUnauthenticated) {
-      emit(state.copyWith(isAuthenticated: false, clearUser: true));
+      emit(state.copyWith(isAuthenticated: false, clearUser: true, activeTabIndex: 4));
     }
   }
 
