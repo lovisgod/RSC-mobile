@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -10,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/otp_countdown_timer.dart';
+import '../../../../core/widgets/otp_input_row.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -33,44 +32,28 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   final _otpCtrl = TextEditingController();
   final _focusNode = FocusNode();
-
-  late int _secondsLeft;
-  Timer? _timer;
+  final _timerKey = GlobalKey<OtpCountdownTimerState>();
   bool _isExpired = false;
+  bool _isResending = false;
   String _selectedChannel = 'phone';
 
   @override
   void initState() {
     super.initState();
-    _secondsLeft = widget.registerSuccess.otpExpiresInSeconds;
-    _startTimer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
   }
 
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (_secondsLeft > 0) {
-        setState(() => _secondsLeft--);
-      } else {
-        setState(() => _isExpired = true);
-        _timer?.cancel();
-      }
-    });
-  }
-
   @override
   void dispose() {
-    _timer?.cancel();
     _otpCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
   void _submit(BuildContext blocCtx) {
+    _isResending = false;
     final code = _otpCtrl.text;
     if (code.length != AppConstants.otpLength) return;
     blocCtx.read<AuthBloc>().add(OtpSubmitted(
@@ -87,15 +70,12 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _resend(BuildContext blocCtx) {
-    blocCtx
-        .read<AuthBloc>()
-        .add(OtpResendRequested(widget.registerSuccess.customerId));
-  }
-
-  String get _formattedTime {
-    final mins = _secondsLeft ~/ 60;
-    final secs = _secondsLeft % 60;
-    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    _isResending = true;
+    blocCtx.read<AuthBloc>().add(OtpResendRequested(
+          channel: _selectedChannel,
+          phone: widget.registerSuccess.phone,
+          email: widget.registerSuccess.email,
+        ));
   }
 
   @override
@@ -109,12 +89,15 @@ class _OtpScreenState extends State<OtpScreen> {
       listenWhen: (_, current) =>
           current is AuthLoading ||
           current is OtpVerifySuccess ||
+          current is OtpResendSuccess ||
           current is AuthFailure,
       listener: (ctx, state) {
         if (state is AuthLoading) {
           AppSnackbar.show(
             ctx,
-            message: AppStrings.snackVerifyingOtp,
+            message: _isResending
+                ? AppStrings.snackResendingOtp
+                : AppStrings.snackVerifyingOtp,
             emoji: '🔐',
             type: AppSnackbarType.loading,
             persistent: true,
@@ -128,6 +111,20 @@ class _OtpScreenState extends State<OtpScreen> {
             type: AppSnackbarType.success,
           );
           widget.onVerified();
+        } else if (state is OtpResendSuccess) {
+          AppSnackbar.dismiss();
+          AppSnackbar.show(
+            ctx,
+            message: '${AppStrings.newCodeSentTo}${state.channel}',
+            emoji: '✓',
+            type: AppSnackbarType.success,
+          );
+          _timerKey.currentState?.reset(state.otpExpiresInSeconds);
+          setState(() {
+            _isExpired = false;
+            _isResending = false;
+            _otpCtrl.clear();
+          });
         } else if (state is AuthFailure) {
           AppSnackbar.dismiss();
           AppSnackbar.show(
@@ -135,8 +132,10 @@ class _OtpScreenState extends State<OtpScreen> {
             message: state.message,
             type: AppSnackbarType.error,
           );
-          _otpCtrl.clear();
-          setState(() {});
+          if (!_isResending) {
+            _otpCtrl.clear();
+          }
+          setState(() => _isResending = false);
         }
       },
       builder: (ctx, state) {
@@ -219,7 +218,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   const SizedBox(height: 28),
 
                   // ── OTP input ─────────────────────────────────────────────
-                  _OtpInputRow(
+                  OtpInputRow(
                     controller: _otpCtrl,
                     focusNode: _focusNode,
                     enabled: !isLoading,
@@ -229,15 +228,11 @@ class _OtpScreenState extends State<OtpScreen> {
                   const SizedBox(height: 16),
 
                   // ── Countdown ─────────────────────────────────────────────
-                  Text(
-                    _isExpired
-                        ? AppStrings.otpCodeExpired
-                        : '${AppStrings.otpCodeExpiresIn}$_formattedTime',
-                    style: AppTextStyles.caption.copyWith(
-                      color: _isExpired ? AppColors.error : AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
+                  OtpCountdownTimer(
+                    key: _timerKey,
+                    initialSeconds:
+                        widget.registerSuccess.otpExpiresInSeconds,
+                    onExpired: () => setState(() => _isExpired = true),
                   ),
 
                   const SizedBox(height: 28),
@@ -251,6 +246,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         : null,
                     backgroundColor: AppColors.navy,
                   ),
+
 
                   const SizedBox(height: 16),
 
@@ -277,99 +273,6 @@ class _OtpScreenState extends State<OtpScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-// ── OTP input row ───────────────────────────────────────────────────────────
-
-class _OtpInputRow extends StatelessWidget {
-  const _OtpInputRow({
-    required this.controller,
-    required this.focusNode,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = controller.text;
-    return SizedBox(
-      height: 62,
-      child: Stack(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(AppConstants.otpLength, (i) {
-              return _OtpBox(digit: i < text.length ? text[i] : null);
-            }),
-          ),
-          Positioned.fill(
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              enabled: enabled,
-              keyboardType: TextInputType.number,
-              maxLength: AppConstants.otpLength,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: onChanged,
-              style: const TextStyle(color: Colors.transparent, fontSize: 1),
-              cursorColor: Colors.transparent,
-              enableInteractiveSelection: false,
-              decoration: const InputDecoration(
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                border: InputBorder.none,
-                counterText: '',
-                fillColor: Colors.transparent,
-                filled: true,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OtpBox extends StatelessWidget {
-  const _OtpBox({this.digit});
-
-  final String? digit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 58,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: digit != null ? AppColors.navy : AppColors.inputBorder,
-          width: digit != null ? 2.0 : 1.5,
-        ),
-      ),
-      child: Center(
-        child: digit != null
-            ? Text(
-                digit!,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.navy,
-                ),
-              )
-            : const SizedBox.shrink(),
-      ),
     );
   }
 }

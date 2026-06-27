@@ -169,6 +169,8 @@ class _LoggedInBody extends StatelessWidget {
           const SizedBox(height: 4),
           _AddressCard(address: state.defaultAddress),
           const SizedBox(height: 20),
+          const _SecuritySection(),
+          const SizedBox(height: 20),
           const _OrderHistorySection(),
           const SizedBox(height: 20),
           const _LogoutButton(),
@@ -257,6 +259,61 @@ class _AddressCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Security section ──────────────────────────────────────────────────────────
+
+class _SecuritySection extends StatelessWidget {
+  const _SecuritySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          AppStrings.security,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => context.push(RouteNames.changePassword),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              children: [
+                Text('🔒', style: TextStyle(fontSize: 18)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    AppStrings.changePassword,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textHint,
+                  size: 22,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

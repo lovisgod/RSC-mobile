@@ -6,6 +6,10 @@ import '../../features/auth/presentation/pages/otp_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/auth/presentation/screens/auth_flow_screen.dart';
+import '../../features/auth/presentation/screens/change_password_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/new_password_screen.dart';
+import '../../features/auth/presentation/screens/reset_otp_screen.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/cart/domain/entities/cart_entity.dart';
@@ -126,6 +130,39 @@ final GoRouter appRouter = GoRouter(
       path: '/notifications',
       name: 'notifications',
       builder: (context, state) => const NotificationsPage(),
+    ),
+    // ── Password reset flow — full-screen, no bottom nav ─────────────────────
+    GoRoute(
+      path: '/forgot-password',
+      name: 'forgotPassword',
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/reset-otp',
+      name: 'resetOtp',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return ResetOtpScreen(
+          identifier: extra['identifier'] as String,
+          otpExpiresInSeconds: extra['otpExpiresInSeconds'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/new-password',
+      name: 'newPassword',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return NewPasswordScreen(
+          identifier: extra['identifier'] as String,
+          otpCode: extra['otpCode'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/change-password',
+      name: 'changePassword',
+      builder: (_, _) => const ChangePasswordScreen(),
     ),
     GoRoute(
       path: '/profile/orders',

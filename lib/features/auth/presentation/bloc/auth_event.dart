@@ -37,8 +37,14 @@ class OtpSubmitted extends AuthEvent {
 }
 
 class OtpResendRequested extends AuthEvent {
-  final String customerId;
-  const OtpResendRequested(this.customerId);
+  final String channel;
+  final String phone;
+  final String email;
+  const OtpResendRequested({
+    required this.channel,
+    required this.phone,
+    required this.email,
+  });
 }
 
 class LoginSubmitted extends AuthEvent {
@@ -53,4 +59,38 @@ class LoginSubmitted extends AuthEvent {
 
 class LogoutRequested extends AuthEvent {
   const LogoutRequested();
+}
+
+class ForgotPasswordSubmitted extends AuthEvent {
+  final String identifier;
+  const ForgotPasswordSubmitted({required this.identifier});
+}
+
+class ResetPasswordOtpSubmitted extends AuthEvent {
+  final String identifier;
+  final String otpCode;
+  const ResetPasswordOtpSubmitted({
+    required this.identifier,
+    required this.otpCode,
+  });
+}
+
+class ResetPasswordSubmitted extends AuthEvent {
+  final String identifier;
+  final String otpCode;
+  final String newPassword;
+  const ResetPasswordSubmitted({
+    required this.identifier,
+    required this.otpCode,
+    required this.newPassword,
+  });
+}
+
+class ChangePasswordSubmitted extends AuthEvent {
+  final String currentPassword;
+  final String newPassword;
+  const ChangePasswordSubmitted({
+    required this.currentPassword,
+    required this.newPassword,
+  });
 }

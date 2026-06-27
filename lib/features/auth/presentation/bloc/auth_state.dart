@@ -74,3 +74,54 @@ class AuthFailure extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+class ForgotPasswordLoading extends AuthState {
+  const ForgotPasswordLoading();
+}
+
+class ForgotPasswordSuccess extends AuthState {
+  final String identifier;
+  final int otpExpiresInSeconds;
+
+  const ForgotPasswordSuccess({
+    required this.identifier,
+    required this.otpExpiresInSeconds,
+  });
+
+  @override
+  List<Object?> get props => [identifier, otpExpiresInSeconds];
+}
+
+class ResetPasswordOtpVerified extends AuthState {
+  final String identifier;
+  final String otpCode;
+
+  const ResetPasswordOtpVerified({
+    required this.identifier,
+    required this.otpCode,
+  });
+
+  @override
+  List<Object?> get props => [identifier, otpCode];
+}
+
+class ResetPasswordSuccess extends AuthState {
+  const ResetPasswordSuccess();
+}
+
+class OtpResendSuccess extends AuthState {
+  final int otpExpiresInSeconds;
+  final String channel;
+
+  const OtpResendSuccess({
+    required this.otpExpiresInSeconds,
+    required this.channel,
+  });
+
+  @override
+  List<Object?> get props => [otpExpiresInSeconds, channel];
+}
+
+class ChangePasswordSuccess extends AuthState {
+  const ChangePasswordSuccess();
+}

@@ -47,6 +47,7 @@ abstract final class AppStrings {
   static const String snackVerifyingOtp = 'Verifying code...';
   static const String snackResendingOtp = 'Resending code...';
   static const String snackOtpResent = 'A new code has been sent.';
+  static const String newCodeSentTo = 'New code sent to your ';
 
   // ─── Snackbar messages ────────────────────────────────────────────────────
   static const String snackLoggingIn = 'Logging in...';
@@ -201,6 +202,45 @@ abstract final class AppStrings {
   static const String cancelTransaction = 'Cancel Transaction';
   static const String orderPlacedSuccessfully = '🎉 Order placed successfully!';
   static const String paymentFailed = 'Payment failed. Please try again.';
+
+  // ─── Change password (logged-in flow) ────────────────────────────────────
+  static const String changePassword = 'Change Password';
+  static const String security = 'Security';
+  static const String labelCurrentPassword = 'CURRENT PASSWORD';
+  static const String labelConfirmNewPassword = 'CONFIRM NEW PASSWORD';
+  static const String hintCurrentPassword = 'Enter current password';
+  static const String hintNewPasswordMin =
+      'Enter new password (min. 6 characters)';
+  static const String updatePassword = 'Update Password';
+  static const String passwordUpdatedSuccessfully =
+      'Password updated successfully';
+  static const String newPasswordSameAsCurrent =
+      'New password must be different from current password';
+  static const String sessionExpiredLogin =
+      'Session expired. Please log in again.';
+
+  // ─── Forgot / Reset password ──────────────────────────────────────────────
+  static const String forgotPasswordTitle = 'Forgot Password';
+  static const String forgotPasswordLink = 'Forgot Password?';
+  static const String forgotPasswordSubtitle =
+      'Enter your email or phone number and we\'ll send you a reset code.';
+  static const String sendResetCode = 'Send Reset Code';
+  static const String enterResetCode = 'Enter Reset Code';
+  static const String resetOtpSubtitle =
+      'A 6-digit reset code has been sent to your phone and email.';
+  static const String setNewPassword = 'Set New Password';
+  static const String newPasswordSubtitle =
+      'Your new password must be at least 6 characters.';
+  static const String labelNewPassword = 'NEW PASSWORD';
+  static const String hintNewPassword = 'Enter new password';
+  static const String hintConfirmNewPassword = 'Confirm new password';
+  static const String resetPassword = 'Reset Password';
+  static const String passwordResetSuccess =
+      'Password reset successfully! Please log in.';
+  static const String rememberYourPassword = 'Remember your password?';
+  static const String requestNewCode = 'Request a new code';
+  static const String invalidOrExpiredCode =
+      'Invalid or expired code. Please request a new one.';
 
   // ─── Validation errors ────────────────────────────────────────────────────
   static const String errorFieldRequired = 'This field is required';

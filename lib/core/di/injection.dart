@@ -23,9 +23,13 @@ import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/bloc/outlet_detail_bloc.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecases/change_password_usecase.dart';
+import '../../features/auth/domain/usecases/forgot_password_usecase.dart';
 import '../../features/auth/domain/usecases/login_usecase.dart';
 import '../../features/auth/domain/usecases/logout_usecase.dart';
 import '../../features/auth/domain/usecases/register_usecase.dart';
+import '../../features/auth/domain/usecases/resend_otp_usecase.dart';
+import '../../features/auth/domain/usecases/reset_password_usecase.dart';
 import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
@@ -78,6 +82,18 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<LogoutUseCase>(
       () => LogoutUseCase(getIt<AuthRepository>()),
+    )
+    ..registerLazySingleton<ForgotPasswordUseCase>(
+      () => ForgotPasswordUseCase(getIt<AuthRepository>()),
+    )
+    ..registerLazySingleton<ResetPasswordUseCase>(
+      () => ResetPasswordUseCase(getIt<AuthRepository>()),
+    )
+    ..registerLazySingleton<ChangePasswordUseCase>(
+      () => ChangePasswordUseCase(getIt<AuthRepository>()),
+    )
+    ..registerLazySingleton<ResendOtpUseCase>(
+      () => ResendOtpUseCase(getIt<AuthRepository>()),
     );
 
   // ── BLoCs ──────────────────────────────────────────────────────────────────
@@ -88,6 +104,10 @@ Future<void> configureDependencies() async {
         verifyOtpUseCase: getIt<VerifyOtpUseCase>(),
         loginUseCase: getIt<LoginUseCase>(),
         logoutUseCase: getIt<LogoutUseCase>(),
+        forgotPasswordUseCase: getIt<ForgotPasswordUseCase>(),
+        resetPasswordUseCase: getIt<ResetPasswordUseCase>(),
+        changePasswordUseCase: getIt<ChangePasswordUseCase>(),
+        resendOtpUseCase: getIt<ResendOtpUseCase>(),
         localStorage: getIt<LocalStorage>(),
         cookieJar: getIt<PersistCookieJar>(),
       ),
