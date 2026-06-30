@@ -140,7 +140,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           outletName: widget.outlet.name,
           outletEmoji: _outletEmoji(widget.outlet.id),
           itemNameSnapshot: widget.menuItem.name,
-          itemImageUrl: widget.menuItem.imageUrl,
+          itemImageUrl: widget.menuItem.imageUrl ?? '',
           unitPrice: unitPrice,
           basePrice: widget.menuItem.price,
           quantity: _quantity,

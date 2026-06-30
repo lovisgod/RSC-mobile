@@ -15,6 +15,9 @@ abstract final class ApiConstants {
   static const String resetPassword = '/api/v1/auth/reset-password';
   static const String changePassword = '/api/v1/auth/change-password';
 
+  // Outlets (public — outlets with their nested menu in one payload)
+  static const String outlets = '/api/v1/outlets';
+
   // Menu
   static const String categories = '/api/v1/menu/categories';
   static const String menuItems = '/api/v1/menu/items';

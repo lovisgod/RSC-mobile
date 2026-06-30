@@ -11,8 +11,8 @@ import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
-import '../../features/home/data/repositories/mock_home_repository.dart';
-import '../../features/search/data/repositories/mock_search_repository.dart';
+import '../../features/home/data/repositories/home_repository_impl.dart';
+import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/search/domain/repositories/search_repository.dart';
 import '../../features/search/domain/usecases/search_items_usecase.dart';
 import '../../features/search/presentation/bloc/search_bloc.dart';
@@ -118,8 +118,12 @@ Future<void> configureDependencies() async {
     );
 
   // ── Home feature ───────────────────────────────────────────────────────────
+  // HomeRepositoryImpl is a singleton: it caches the outlets payload in memory
+  // and is shared by home, outlet-detail, and search.
   getIt
-    ..registerLazySingleton<HomeRepository>(() => const MockHomeRepository())
+    ..registerLazySingleton<HomeRepository>(
+      () => HomeRepositoryImpl(getIt<DioClient>()),
+    )
     ..registerLazySingleton<GetOutletsUseCase>(
       () => GetOutletsUseCase(getIt<HomeRepository>()),
     )
@@ -137,7 +141,7 @@ Future<void> configureDependencies() async {
   // ── Search feature ─────────────────────────────────────────────────────────
   getIt
     ..registerLazySingleton<SearchRepository>(
-      () => const MockSearchRepository(),
+      () => SearchRepositoryImpl(getIt<HomeRepository>()),
     )
     ..registerLazySingleton<SearchItemsUseCase>(
       () => SearchItemsUseCase(getIt<SearchRepository>()),

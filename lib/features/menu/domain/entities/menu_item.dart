@@ -6,9 +6,15 @@ class MenuItem {
   final String outletId;
   final String name;
   final String description;
+
+  /// Major-unit price (already converted from `priceMinor / 100` in the model).
   final double price;
-  final String imageUrl;
+
+  /// Null when the backend has no image for this item — the UI falls back to a
+  /// deterministic placeholder emoji (see PlaceholderImageUtil / emojiForItemName).
+  final String? imageUrl;
   final bool isAvailable;
+  final int sortOrder;
   final List<ModifierGroup> modifierGroups;
 
   final String? allergenNote;
@@ -22,6 +28,7 @@ class MenuItem {
     required this.price,
     required this.imageUrl,
     required this.isAvailable,
+    this.sortOrder = 0,
     this.modifierGroups = const [],
     this.allergenNote,
   });
