@@ -3,16 +3,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/profile.dart';
+import '../cubit/address_cubit.dart';
+import '../cubit/address_state.dart';
 import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
 import '../cubit/profile_cubit.dart';
@@ -27,26 +29,38 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  late final AddressCubit _addressCubit;
+
   @override
   void initState() {
     super.initState();
     context.read<ProfileCubit>().loadProfile();
+    _addressCubit = getIt<AddressCubit>()..loadAddresses();
+  }
+
+  @override
+  void dispose() {
+    _addressCubit.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      builder: (context, state) {
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(child: _ProfileHeader(state: state)),
-              SliverToBoxAdapter(child: _LoggedInBody(state: state)),
-            ],
-          ),
-        );
-      },
+    return BlocProvider.value(
+      value: _addressCubit,
+      child: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _ProfileHeader(state: state)),
+                SliverToBoxAdapter(child: _LoggedInBody(state: state)),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -189,7 +203,9 @@ class _LoggedInBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          _AddressCard(address: state.defaultAddress),
+          const _AddressCard(),
+          const SizedBox(height: 8),
+          const _ManageAddressesLink(),
           const SizedBox(height: 20),
           const _SecuritySection(),
           const SizedBox(height: 20),
@@ -204,82 +220,113 @@ class _LoggedInBody extends StatelessWidget {
 }
 
 class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.address});
-
-  final String address;
+  const _AddressCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            AppStrings.defaultDeliveryAddress,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textLabel,
-              letterSpacing: 0.5,
-            ),
+    return BlocBuilder<AddressCubit, AddressState>(
+      builder: (context, addressState) {
+        final defaultAddress = addressState.defaultAddress;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(height: 12),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    address,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+              const Text(
+                AppStrings.defaultDeliveryAddress,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textLabel,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => AppSnackbar.show(
-                  context,
-                  message: AppStrings.comingSoon,
-                  emoji: '🛠️',
-                  type: AppSnackbarType.info,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.navy,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    AppStrings.setDefault,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        defaultAddress?.displayAddress ??
+                            AppStrings.noDefaultAddressSet,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: defaultAddress != null
+                              ? AppColors.textPrimary
+                              : AppColors.textHint,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () =>
+                        context.push(RouteNames.manageAddresses).then((_) {
+                          if (context.mounted) {
+                            context.read<AddressCubit>().loadAddresses();
+                          }
+                        }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.navy,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        defaultAddress != null
+                            ? AppStrings.setDefault
+                            : AppStrings.addAddress,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+class _ManageAddressesLink extends StatelessWidget {
+  const _ManageAddressesLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(RouteNames.manageAddresses).then((_) {
+        if (context.mounted) {
+          context.read<AddressCubit>().loadAddresses();
+        }
+      }),
+      child: const Text(
+        AppStrings.manageAddresses,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }

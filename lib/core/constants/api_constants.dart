@@ -34,6 +34,13 @@ abstract final class ApiConstants {
   static const String userMe = '/api/v1/users/me';
   static const String uploadAvatar = '/api/v1/users/me/avatar';
 
+  // Delivery addresses
+  static const String deliveryAddresses = '/api/v1/delivery/addresses';
+  static String deliveryAddressById(String id) =>
+      '/api/v1/delivery/addresses/$id';
+  static String setDefaultAddressPath(String id) =>
+      '/api/v1/delivery/addresses/$id/default';
+
   // Notifications
   static const String notifications = '/api/v1/notifications';
   static const String registerFcmToken = '/api/v1/notifications/fcm-token';

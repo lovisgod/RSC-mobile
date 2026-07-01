@@ -60,6 +60,7 @@ abstract final class AppStrings {
   // ─── Home screen ──────────────────────────────────────────────────────────
   static const String deliveringTo = 'DELIVERING TO';
   static const String deliveryAddress = 'Lagos, Nigeria';
+  static const String addDeliveryAddress = 'Add a delivery address';
   static const String rscFoodKitchens = 'RSC Food Kitchens';
   static const String freeDeliveryToday = 'Free Delivery Today!';
   static const String freeDeliverySubtitle = 'On all orders above ₦2,000';
@@ -163,6 +164,41 @@ abstract final class AppStrings {
   static const String chooseFromGallery = '🖼️ Choose from Gallery';
   static const String profilePhotoUpdated = '✓ Profile photo updated';
   static const String uploadingPhoto = 'Uploading photo...';
+
+  // ─── Delivery addresses ───────────────────────────────────────────────────
+  static const String deliveryAddresses = 'Delivery Addresses';
+  static const String manageAddresses = 'Manage Addresses →';
+  static const String addAddress = 'Add Address';
+  static const String editAddress = 'Edit Address';
+  static const String deleteAddress = 'Delete Address';
+  static const String edit = 'Edit';
+  static const String delete = 'Delete';
+  static const String noSavedAddresses = 'No saved addresses';
+  static const String addAddressToStart =
+      'Add a delivery address to get started';
+  static const String setAsDefault = 'Set as Default';
+  static const String setAsDefaultAddress = 'Set as default address';
+  static const String defaultAddressBadge = 'Default';
+  static const String addressSaved = '✓ Address saved successfully';
+  static const String addressUpdated = '✓ Address updated successfully';
+  static const String addressDeleted = 'Address deleted';
+  static const String defaultAddressUpdated = 'Default address updated';
+  static const String noDefaultAddressSet = 'No default address set';
+  static const String removeAddressConfirmPrefix = 'Remove ';
+  static const String removeAddressConfirmSuffix = ' address?';
+  static const String addressLabelSection = 'ADDRESS LABEL';
+  static const String addressLine = 'ADDRESS LINE';
+  static const String hintAddressLine = 'e.g. 12 Admiralty Way, Lekki Phase 1';
+  static const String labelCity = 'CITY';
+  static const String labelState = 'STATE';
+  static const String hintCity = 'Lagos';
+  static const String hintState = 'Lagos';
+  static const String saveAddress = 'Save Address';
+  static const String labelHome = 'Home';
+  static const String labelWork = 'Work';
+  static const String labelOther = 'Other';
+  static const String coordinatesAutoSet =
+      '📍 Location coordinates auto-set for Victoria Island area';
 
   // ─── Order status labels ──────────────────────────────────────────────────
   static const String statusDelivered = 'Delivered';

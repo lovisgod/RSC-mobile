@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/mock/mock_user.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -13,9 +12,11 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../cart/domain/entities/cart_item_entity.dart';
+import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
 import '../../../profile/domain/entities/order_history_line_item.dart';
 import '../../../profile/domain/entities/order_history_sub_order.dart';
+import '../../../profile/presentation/cubit/address_cubit.dart';
 import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
@@ -46,6 +47,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     context.read<CheckoutCubit>().initCheckout(widget.cart);
+    context.read<AddressCubit>().loadAddresses();
   }
 
   @override
@@ -58,8 +60,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _useDefaultAddress() {
-    context.read<CheckoutCubit>().useDefaultAddress();
-    _deliveryAddressCtrl.text = MockUser.defaultAddress;
+    final defaultAddress = context.read<AddressCubit>().state.defaultAddress;
+    if (defaultAddress == null) return;
+
+    context.read<CheckoutCubit>().useDefaultAddress(defaultAddress);
+    _deliveryAddressCtrl.text = defaultAddress.displayAddress;
     _deliveryAddressCtrl.selection = TextSelection.fromPosition(
       TextPosition(offset: _deliveryAddressCtrl.text.length),
     );
@@ -211,6 +216,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: BlocBuilder<CheckoutCubit, CheckoutState>(
                       builder: (context, state) {
                         final cubit = context.read<CheckoutCubit>();
+                        final defaultAddress = context
+                            .watch<AddressCubit>()
+                            .state
+                            .defaultAddress;
                         return SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                           child: Column(
@@ -233,6 +242,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 const SizedBox(height: 10),
                                 _DeliveryAddressCard(
                                   state: state,
+                                  defaultAddress: defaultAddress,
                                   addressCtrl: _deliveryAddressCtrl,
                                   recipientAddressCtrl: _recipientAddressCtrl,
                                   recipientNameCtrl: _recipientNameCtrl,
@@ -499,6 +509,7 @@ class _ToggleTab extends StatelessWidget {
 class _DeliveryAddressCard extends StatelessWidget {
   const _DeliveryAddressCard({
     required this.state,
+    required this.defaultAddress,
     required this.addressCtrl,
     required this.recipientAddressCtrl,
     required this.recipientNameCtrl,
@@ -510,6 +521,7 @@ class _DeliveryAddressCard extends StatelessWidget {
   });
 
   final CheckoutState state;
+  final DeliveryAddressEntity? defaultAddress;
   final TextEditingController addressCtrl;
   final TextEditingController recipientAddressCtrl;
   final TextEditingController recipientNameCtrl;
@@ -561,23 +573,36 @@ class _DeliveryAddressCard extends StatelessWidget {
 
           // Use Default Address button
           GestureDetector(
-            onTap: onUseDefault,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.navyDark,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                AppStrings.useDefaultAddress,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+            onTap: defaultAddress != null ? onUseDefault : null,
+            child: Opacity(
+              opacity: defaultAddress != null ? 1 : 0.5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.navyDark,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  AppStrings.useDefaultAddress,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
           ),
+          if (defaultAddress == null) ...[
+            const SizedBox(height: 6),
+            const Text(
+              AppStrings.noDefaultAddressSet,
+              style: TextStyle(fontSize: 11, color: AppColors.textHint),
+            ),
+          ],
           const SizedBox(height: 12),
 
           const Divider(height: 1, color: AppColors.divider),

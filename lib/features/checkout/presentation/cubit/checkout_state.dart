@@ -1,9 +1,11 @@
+import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 
 class CheckoutState {
   final DeliveryMode selectedMode;
   final String deliveryAddress;
   final bool isUsingDefaultAddress;
+  final DeliveryAddressEntity? selectedAddress;
   final bool isOrderingForSomeoneElse;
   final String recipientAddress;
   final String recipientName;
@@ -18,6 +20,7 @@ class CheckoutState {
     this.selectedMode = DeliveryMode.delivery,
     this.deliveryAddress = '',
     this.isUsingDefaultAddress = false,
+    this.selectedAddress,
     this.isOrderingForSomeoneElse = false,
     this.recipientAddress = '',
     this.recipientName = '',
@@ -41,6 +44,8 @@ class CheckoutState {
     DeliveryMode? selectedMode,
     String? deliveryAddress,
     bool? isUsingDefaultAddress,
+    DeliveryAddressEntity? selectedAddress,
+    bool clearSelectedAddress = false,
     bool? isOrderingForSomeoneElse,
     String? recipientAddress,
     String? recipientName,
@@ -56,6 +61,9 @@ class CheckoutState {
       deliveryAddress: deliveryAddress ?? this.deliveryAddress,
       isUsingDefaultAddress:
           isUsingDefaultAddress ?? this.isUsingDefaultAddress,
+      selectedAddress: clearSelectedAddress
+          ? null
+          : (selectedAddress ?? this.selectedAddress),
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
       recipientAddress: recipientAddress ?? this.recipientAddress,

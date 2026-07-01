@@ -1,4 +1,3 @@
-import '../../../../core/mock/mock_user.dart';
 import '../../domain/entities/profile.dart';
 
 class ProfileState {
@@ -7,7 +6,6 @@ class ProfileState {
   final bool isLoading;
   final bool isUploadingAvatar;
   final String? error;
-  final String defaultAddress;
 
   const ProfileState({
     required this.isLoggedIn,
@@ -15,7 +13,6 @@ class ProfileState {
     this.isLoading = false,
     this.isUploadingAvatar = false,
     this.error,
-    this.defaultAddress = 'No address set',
   });
 
   factory ProfileState.guest() => const ProfileState(isLoggedIn: false);
@@ -26,7 +23,6 @@ class ProfileState {
     bool? isLoading,
     bool? isUploadingAvatar,
     String? error,
-    String? defaultAddress,
   }) {
     return ProfileState(
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
@@ -34,13 +30,9 @@ class ProfileState {
       isLoading: isLoading ?? this.isLoading,
       isUploadingAvatar: isUploadingAvatar ?? this.isUploadingAvatar,
       error: error,
-      defaultAddress: defaultAddress ?? this.defaultAddress,
     );
   }
 
-  factory ProfileState.loaded(Profile profile) => ProfileState(
-    isLoggedIn: true,
-    userProfile: profile,
-    defaultAddress: MockUser.defaultAddress,
-  );
+  factory ProfileState.loaded(Profile profile) =>
+      ProfileState(isLoggedIn: true, userProfile: profile);
 }

@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/mock/mock_user.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
+import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 import 'checkout_state.dart';
 
@@ -20,48 +20,61 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     final vat = subtotal * _vatRate;
     final grandTotal = subtotal + deliveryFee + vat;
 
-    emit(state.copyWith(
-      subtotal: subtotal,
-      deliveryFee: deliveryFee,
-      vat: vat,
-      grandTotal: grandTotal,
-    ));
+    emit(
+      state.copyWith(
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        vat: vat,
+        grandTotal: grandTotal,
+      ),
+    );
 
     final user = await _localStorage.getUser();
     emit(state.copyWith(isLoggedIn: user != null));
   }
 
   void switchMode(DeliveryMode mode) {
-    final deliveryFee =
-        mode == DeliveryMode.delivery ? _deliveryFeeAmount : 0.0;
+    final deliveryFee = mode == DeliveryMode.delivery
+        ? _deliveryFeeAmount
+        : 0.0;
     final grandTotal = state.subtotal + deliveryFee + state.vat;
-    emit(state.copyWith(
-      selectedMode: mode,
-      deliveryFee: deliveryFee,
-      grandTotal: grandTotal,
-    ));
+    emit(
+      state.copyWith(
+        selectedMode: mode,
+        deliveryFee: deliveryFee,
+        grandTotal: grandTotal,
+      ),
+    );
   }
 
   void updateDeliveryAddress(String address) {
-    emit(state.copyWith(
-      deliveryAddress: address,
-      isUsingDefaultAddress: false,
-    ));
+    emit(
+      state.copyWith(
+        deliveryAddress: address,
+        isUsingDefaultAddress: false,
+        clearSelectedAddress: true,
+      ),
+    );
   }
 
-  void useDefaultAddress() {
-    emit(state.copyWith(
-      deliveryAddress: MockUser.defaultAddress,
-      isUsingDefaultAddress: true,
-    ));
+  void useDefaultAddress(DeliveryAddressEntity address) {
+    emit(
+      state.copyWith(
+        deliveryAddress: address.displayAddress,
+        isUsingDefaultAddress: true,
+        selectedAddress: address,
+      ),
+    );
   }
 
   void toggleOrderForSomeoneElse(bool value) {
-    emit(state.copyWith(
-      isOrderingForSomeoneElse: value,
-      recipientAddress: value ? state.recipientAddress : '',
-      recipientName: value ? state.recipientName : '',
-    ));
+    emit(
+      state.copyWith(
+        isOrderingForSomeoneElse: value,
+        recipientAddress: value ? state.recipientAddress : '',
+        recipientName: value ? state.recipientName : '',
+      ),
+    );
   }
 
   void updateRecipientAddress(String address) {

@@ -25,7 +25,9 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/orders/presentation/pages/order_detail_page.dart';
 import '../../features/profile/domain/entities/order_history_entity.dart';
 import '../../features/profile/domain/entities/profile.dart';
+import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/profile/presentation/screens/manage_addresses_screen.dart';
 import '../../features/profile/presentation/screens/order_details_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
 import '../../features/shell/presentation/shell_screen.dart';
@@ -186,6 +188,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final profile = state.extra as Profile;
         return EditProfileScreen(profile: profile);
+      },
+    ),
+    GoRoute(
+      path: '/manage-addresses',
+      name: 'manageAddresses',
+      builder: (context, state) {
+        return BlocProvider(
+          create: (_) => getIt<AddressCubit>(),
+          child: const ManageAddressesScreen(),
+        );
       },
     ),
   ],

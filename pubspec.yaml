@@ -54,6 +54,7 @@ dependencies:
   envied: ^0.5.4
   image_picker: ^1.0.7
   http_parser: ^4.0.2
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

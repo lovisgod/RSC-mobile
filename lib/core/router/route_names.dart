@@ -12,6 +12,7 @@ abstract final class RouteNames {
   static const String newPassword = '/new-password';
   static const String changePassword = '/change-password';
   static const String editProfile = '/edit-profile';
+  static const String manageAddresses = '/manage-addresses';
 
   static String outletDetailPath(String outletId) => '/outlet/$outletId';
   static String itemDetailPath(String outletId, String itemId) =>

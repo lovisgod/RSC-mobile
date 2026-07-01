@@ -47,12 +47,27 @@ class BuildPaymentPayloadUseCase {
       deliveryAddress = checkout.deliveryAddress;
     }
 
+    // A saved address selected via "Use Default Address" carries real
+    // coordinates; manually typed addresses (or the someone-else geofence
+    // flow) fall back to the placeholder until geocoding is added.
+    final selectedAddress = checkout.selectedAddress;
+    final useSelectedCoords =
+        isDelivery &&
+        !checkout.isOrderingForSomeoneElse &&
+        selectedAddress != null;
+    final latitude = useSelectedCoords
+        ? selectedAddress.latitude
+        : _placeholderLatitude;
+    final longitude = useSelectedCoords
+        ? selectedAddress.longitude
+        : _placeholderLongitude;
+
     return InitiatePaymentRequestModel(
       items: items,
       deliveryMode: isDelivery ? _modeDelivery : _modeTakeout,
       deliveryAddress: deliveryAddress,
-      deliveryLatitude: _placeholderLatitude,
-      deliveryLongitude: _placeholderLongitude,
+      deliveryLatitude: latitude,
+      deliveryLongitude: longitude,
     );
   }
 }

@@ -13,11 +13,19 @@ import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
+import '../../features/profile/data/repositories/address_repository_impl.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/repositories/address_repository.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/domain/usecases/create_address_usecase.dart';
+import '../../features/profile/domain/usecases/delete_address_usecase.dart';
+import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
+import '../../features/profile/domain/usecases/update_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_profile_usecase.dart';
 import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
+import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
@@ -122,6 +130,36 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<UploadAvatarUseCase>(
       () => UploadAvatarUseCase(getIt<ProfileRepository>()),
+    );
+
+  // ── Delivery address data layer ─────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<AddressRepository>(
+      () => AddressRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetAddressesUseCase>(
+      () => GetAddressesUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<CreateAddressUseCase>(
+      () => CreateAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<UpdateAddressUseCase>(
+      () => UpdateAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<DeleteAddressUseCase>(
+      () => DeleteAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<SetDefaultAddressUseCase>(
+      () => SetDefaultAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerFactory<AddressCubit>(
+      () => AddressCubit(
+        getIt<GetAddressesUseCase>(),
+        getIt<CreateAddressUseCase>(),
+        getIt<UpdateAddressUseCase>(),
+        getIt<DeleteAddressUseCase>(),
+        getIt<SetDefaultAddressUseCase>(),
+      ),
     );
 
   // ── BLoCs ──────────────────────────────────────────────────────────────────
