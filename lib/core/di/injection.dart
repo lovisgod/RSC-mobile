@@ -12,6 +12,12 @@ import '../../features/checkout/domain/usecases/build_payment_payload_usecase.da
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
+import '../../features/profile/data/datasources/profile_remote_data_source.dart';
+import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../../features/profile/domain/usecases/update_profile_usecase.dart';
+import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
@@ -100,6 +106,24 @@ Future<void> configureDependencies() async {
       () => ResendOtpUseCase(getIt<AuthRepository>()),
     );
 
+  // ── Profile data layer ─────────────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<ProfileRemoteDataSource>(
+      () => ProfileRemoteDataSourceImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<ProfileRepository>(
+      () => ProfileRepositoryImpl(getIt<ProfileRemoteDataSource>()),
+    )
+    ..registerLazySingleton<GetProfileUseCase>(
+      () => GetProfileUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<UpdateProfileUseCase>(
+      () => UpdateProfileUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<UploadAvatarUseCase>(
+      () => UploadAvatarUseCase(getIt<ProfileRepository>()),
+    );
+
   // ── BLoCs ──────────────────────────────────────────────────────────────────
   getIt
     ..registerLazySingleton<AuthBloc>(
@@ -118,7 +142,11 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<ShellBloc>(() => ShellBloc(getIt<AuthBloc>()))
     ..registerLazySingleton<ProfileCubit>(
-      () => ProfileCubit(getIt<LocalStorage>()),
+      () => ProfileCubit(
+        getIt<LocalStorage>(),
+        getIt<GetProfileUseCase>(),
+        getIt<UploadAvatarUseCase>(),
+      ),
     );
 
   // ── Home feature ───────────────────────────────────────────────────────────
@@ -175,9 +203,7 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
     )
-    ..registerFactory<CheckoutCubit>(
-      () => CheckoutCubit(getIt<LocalStorage>()),
-    )
+    ..registerFactory<CheckoutCubit>(() => CheckoutCubit(getIt<LocalStorage>()))
     ..registerFactory<PaymentCubit>(
       () => PaymentCubit(
         getIt<BuildPaymentPayloadUseCase>(),

@@ -24,6 +24,8 @@ import '../../features/menu/domain/entities/outlet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
 import '../../features/profile/domain/entities/order_history_entity.dart';
+import '../../features/profile/domain/entities/profile.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/order_details_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
 import '../../features/shell/presentation/shell_screen.dart';
@@ -53,8 +55,9 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final outlet = state.extra as Outlet;
         return BlocProvider(
-          create: (_) => getIt<OutletDetailBloc>()
-            ..add(OutletDetailFetchRequested(outlet.id)),
+          create: (_) =>
+              getIt<OutletDetailBloc>()
+                ..add(OutletDetailFetchRequested(outlet.id)),
           child: OutletDetailScreen(outlet: outlet),
         );
       },
@@ -175,6 +178,14 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final order = state.extra as OrderHistoryEntity;
         return OrderDetailsScreen(order: order);
+      },
+    ),
+    GoRoute(
+      path: '/edit-profile',
+      name: 'editProfile',
+      builder: (context, state) {
+        final profile = state.extra as Profile;
+        return EditProfileScreen(profile: profile);
       },
     ),
   ],

@@ -9,13 +9,8 @@ class ShellState {
     this.userId,
   });
 
-  factory ShellState.initial() => const ShellState(
-        activeTabIndex: 0,
-        isAuthenticated: false,
-      );
-
-  // Populated when profile is fetched — null until then
-  String? get userInitials => null;
+  factory ShellState.initial() =>
+      const ShellState(activeTabIndex: 0, isAuthenticated: false);
 
   ShellState copyWith({
     int? activeTabIndex,

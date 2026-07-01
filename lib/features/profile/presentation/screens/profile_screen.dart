@@ -7,17 +7,31 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/profile_avatar.dart';
+import '../../../../core/widgets/shimmer_box.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../domain/entities/profile.dart';
 import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
 import '../widgets/order_history_card.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ProfileCubit>().loadProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +60,9 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profile = state.userProfile;
+    final showShimmer = state.isLoading && profile == null;
+
     return Container(
       color: AppColors.surfaceDark,
       child: SafeArea(
@@ -55,59 +72,63 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             children: [
               // Avatar
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+              if (showShimmer)
+                const ShimmerBox(height: 80, width: 80, radius: 40)
+              else
+                ProfileAvatar(
+                  initials: profile?.initials ?? '',
+                  avatarUrl: profile?.avatarUrl,
                 ),
-                child: Center(
-                  child: Text(
-                    state.userInitials,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 14),
 
               // Name
-              Text(
-                state.userName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textOnDark,
+              if (showShimmer)
+                const ShimmerBox(height: 18, width: 140)
+              else
+                Text(
+                  profile?.name ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textOnDark,
+                  ),
                 ),
-              ),
               const SizedBox(height: 4),
 
               // Email
-              Text(
-                state.userEmail,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHint,
+              if (showShimmer)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: ShimmerBox(height: 12, width: 180),
+                )
+              else
+                Text(
+                  profile?.email ?? '',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textHint,
+                  ),
                 ),
-              ),
 
               // Phone
               const SizedBox(height: 2),
-              Text(
-                state.userPhone,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHint,
+              if (showShimmer)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: ShimmerBox(height: 12, width: 120),
+                )
+              else
+                Text(
+                  profile?.displayPhone ?? '',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textHint,
+                  ),
                 ),
-              ),
 
               // Edit Profile pill
               const SizedBox(height: 14),
-              _EditProfilePill(),
+              if (!showShimmer) _EditProfilePill(profile: profile),
             ],
           ),
         ),
@@ -117,15 +138,16 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _EditProfilePill extends StatelessWidget {
+  const _EditProfilePill({required this.profile});
+
+  final Profile? profile;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => AppSnackbar.show(
-        context,
-        message: AppStrings.comingSoon,
-        emoji: '🛠️',
-        type: AppSnackbarType.info,
-      ),
+      onTap: profile == null
+          ? null
+          : () => context.push(RouteNames.editProfile, extra: profile),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -510,9 +532,9 @@ class _LogoutConfirmSheet extends StatelessWidget {
                         isLoading: isLoading,
                         onPressed: isLoading
                             ? null
-                            : () => context
-                                .read<AuthBloc>()
-                                .add(const LogoutRequested()),
+                            : () => context.read<AuthBloc>().add(
+                                const LogoutRequested(),
+                              ),
                       ),
                     ),
                   ],

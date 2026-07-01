@@ -8,7 +8,8 @@ abstract final class ApiConstants {
   // Auth
   static const String register = '/api/v1/auth/register';
   static const String verifyUser = '/api/v1/auth/verify-user';
-  static const String resendVerificationCode = '/api/v1/auth/resend-verification-code';
+  static const String resendVerificationCode =
+      '/api/v1/auth/resend-verification-code';
   static const String login = '/api/v1/auth/login';
   static const String logout = '/api/v1/auth/logout';
   static const String forgotPassword = '/api/v1/auth/forgot-password';
@@ -30,6 +31,8 @@ abstract final class ApiConstants {
 
   // Profile
   static const String profile = '/api/v1/profile';
+  static const String userMe = '/api/v1/users/me';
+  static const String uploadAvatar = '/api/v1/users/me/avatar';
 
   // Notifications
   static const String notifications = '/api/v1/notifications';

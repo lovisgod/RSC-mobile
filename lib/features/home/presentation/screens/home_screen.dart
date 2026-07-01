@@ -6,8 +6,11 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
+import '../../../profile/presentation/cubit/profile_cubit.dart';
+import '../../../profile/presentation/cubit/profile_state.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
@@ -75,8 +78,9 @@ class HomeScreen extends StatelessWidget {
                   if (state is HomeError) {
                     return _ErrorBody(
                       message: state.message,
-                      onRetry: () =>
-                          context.read<HomeBloc>().add(const HomeFetchRequested()),
+                      onRetry: () => context.read<HomeBloc>().add(
+                        const HomeFetchRequested(),
+                      ),
                     );
                   }
                   if (state is HomeLoaded) {
@@ -100,14 +104,18 @@ class _AvatarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        final profile = state.userProfile;
+        if (profile == null) {
+          return Image.asset(AppAssets.iconProfile, width: 40, height: 40);
+        }
+        return ProfileAvatar(
+          initials: profile.initials,
+          avatarUrl: profile.avatarUrl,
+          size: 40,
+        );
+      },
     );
   }
 }
@@ -160,10 +168,7 @@ class _LoadedBody extends StatelessWidget {
               outlet: outlet,
               emoji: _emojis[index % _emojis.length],
               cardColor: _colors[index % _colors.length],
-              onTap: () => context.push(
-                '/outlet/${outlet.id}',
-                extra: outlet,
-              ),
+              onTap: () => context.push('/outlet/${outlet.id}', extra: outlet),
             ),
           );
         }),
@@ -192,10 +197,7 @@ class _PromoBanner extends StatelessWidget {
             right: 0,
             top: 0,
             bottom: 0,
-            child: Image.asset(
-              AppAssets.imgConfetti,
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset(AppAssets.imgConfetti, fit: BoxFit.contain),
           ),
           // Text on left
           Positioned(
@@ -301,7 +303,9 @@ class _ErrorBody extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               AppStrings.errorLoadingOutlets,
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
