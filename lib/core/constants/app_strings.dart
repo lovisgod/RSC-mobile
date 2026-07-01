@@ -202,6 +202,9 @@ abstract final class AppStrings {
   static const String cancelTransaction = 'Cancel Transaction';
   static const String orderPlacedSuccessfully = '🎉 Order placed successfully!';
   static const String paymentFailed = 'Payment failed. Please try again.';
+  static const String paymentInitiatedSuccess =
+      'Payment initiated successfully.';
+  static const String paymentReferenceLabel = 'Reference:';
 
   // ─── Change password (logged-in flow) ────────────────────────────────────
   static const String changePassword = 'Change Password';
