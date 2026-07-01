@@ -22,6 +22,9 @@ abstract final class ApiConstants {
   static const String categories = '/api/v1/menu/categories';
   static const String menuItems = '/api/v1/menu/items';
 
+  // Payments
+  static const String initiatePayment = '/api/v1/payments/initiate';
+
   // Orders
   static const String orders = '/api/v1/orders';
 

@@ -6,6 +6,10 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/cart/presentation/cubit/cart_cubit.dart';
+import '../../features/checkout/data/repositories/payment_repository_impl.dart';
+import '../../features/checkout/domain/repositories/payment_repository.dart';
+import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
+import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
@@ -161,8 +165,23 @@ Future<void> configureDependencies() async {
   );
 
   // ── Checkout feature ────────────────────────────────────────────────────────
-  getIt.registerFactory<CheckoutCubit>(
-    () => CheckoutCubit(getIt<LocalStorage>()),
-  );
-  getIt.registerFactory<PaymentCubit>(() => PaymentCubit());
+  getIt
+    ..registerLazySingleton<PaymentRepository>(
+      () => PaymentRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<BuildPaymentPayloadUseCase>(
+      () => const BuildPaymentPayloadUseCase(),
+    )
+    ..registerLazySingleton<InitiatePaymentUseCase>(
+      () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
+    )
+    ..registerFactory<CheckoutCubit>(
+      () => CheckoutCubit(getIt<LocalStorage>()),
+    )
+    ..registerFactory<PaymentCubit>(
+      () => PaymentCubit(
+        getIt<BuildPaymentPayloadUseCase>(),
+        getIt<InitiatePaymentUseCase>(),
+      ),
+    );
 }
