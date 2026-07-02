@@ -6,15 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/errors/exceptions.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../domain/entities/profile.dart';
-import '../../domain/usecases/update_profile_usecase.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
 
@@ -31,7 +29,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
-  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -54,37 +51,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _emailCtrl.text.trim() != widget.profile.email ||
       _phoneCtrl.text.trim() != widget.profile.displayPhone;
 
-  Future<void> _submit() async {
-    setState(() => _isSubmitting = true);
-    try {
-      await getIt<UpdateProfileUseCase>()(
-        _nameCtrl.text.trim(),
-        _phoneCtrl.text.trim().replaceAll(RegExp(r'[^\d]'), ''),
-        _emailCtrl.text.trim(),
-      );
-
-      if (!mounted) return;
-
-      AppSnackbar.show(
-        context,
-        message: AppStrings.profileUpdated,
-        emoji: '',
-        backgroundColor: AppColors.navy,
-      );
-      context.read<ProfileCubit>().loadProfile();
-      context.pop();
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.show(
-        context,
-        message: e is AuthException
-            ? e.message
-            : 'Failed to update profile. Please try again.',
-        type: AppSnackbarType.error,
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
+  void _submit() {
+    context.read<ProfileCubit>().updateProfile(
+      _nameCtrl.text.trim(),
+      _phoneCtrl.text.trim().replaceAll(RegExp(r'[^\d]'), ''),
+      _emailCtrl.text.trim(),
+    );
   }
 
   Future<void> _showImageSourceSheet() async {
@@ -161,13 +133,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ProfileCubit, ProfileState>(
+    return BlocConsumer<ProfileCubit, ProfileState>(
+      listenWhen: (previous, current) =>
+          (!previous.requiresOtpVerification &&
+              current.requiresOtpVerification) ||
+          (previous.isLoading && !current.isLoading),
+      listener: (context, state) {
+        if (state.requiresOtpVerification) {
+          context.push(
+            RouteNames.profileVerifyOtp,
+            extra: {'otpExpiresInSeconds': state.otpExpiresInSeconds},
+          );
+        } else if (state.error != null) {
+          AppSnackbar.show(
+            context,
+            message: state.error!,
+            type: AppSnackbarType.error,
+          );
+        } else {
+          AppSnackbar.show(
+            context,
+            message: AppStrings.profileUpdated,
+            emoji: '',
+            backgroundColor: AppColors.navy,
+          );
+          context.pop();
+        }
+      },
       buildWhen: (previous, current) =>
           previous.userProfile?.avatarUrl != current.userProfile?.avatarUrl ||
-          previous.isUploadingAvatar != current.isUploadingAvatar,
+          previous.isUploadingAvatar != current.isUploadingAvatar ||
+          previous.isLoading != current.isLoading,
       builder: (context, profileState) {
         final currentProfile = profileState.userProfile ?? widget.profile;
         final isUploadingAvatar = profileState.isUploadingAvatar;
+        final isSubmitting = profileState.isLoading;
 
         return Scaffold(
           backgroundColor: AppColors.surface,
@@ -183,7 +183,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: _isSubmitting ? null : () => context.pop(),
+                        onTap: isSubmitting ? null : () => context.pop(),
                         child: Container(
                           width: 36,
                           height: 36,
@@ -280,7 +280,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     controller: _nameCtrl,
                     hint: AppStrings.hintFullName,
                     textInputAction: TextInputAction.next,
-                    enabled: !_isSubmitting,
+                    enabled: !isSubmitting,
                     onChanged: (_) => setState(() {}),
                   ),
 
@@ -294,7 +294,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     hint: AppStrings.hintEmail,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    enabled: !_isSubmitting,
+                    enabled: !isSubmitting,
                     onChanged: (_) => setState(() {}),
                   ),
 
@@ -308,19 +308,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     hint: AppStrings.hintPhone,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.done,
-                    enabled: !_isSubmitting,
+                    enabled: !isSubmitting,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) =>
-                        _hasChanges && !_isSubmitting ? _submit() : null,
+                        _hasChanges && !isSubmitting ? _submit() : null,
                   ),
 
                   const SizedBox(height: 36),
 
                   AppButton(
                     label: AppStrings.saveChanges,
-                    isLoading: _isSubmitting,
+                    isLoading: isSubmitting,
                     backgroundColor: AppColors.navy,
-                    onPressed: _hasChanges && !_isSubmitting ? _submit : null,
+                    onPressed: _hasChanges && !isSubmitting ? _submit : null,
                   ),
 
                   const SizedBox(height: 32),

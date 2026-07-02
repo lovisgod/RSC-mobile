@@ -5,6 +5,8 @@ class ProfileState {
   final Profile? userProfile;
   final bool isLoading;
   final bool isUploadingAvatar;
+  final bool requiresOtpVerification;
+  final int otpExpiresInSeconds;
   final String? error;
 
   const ProfileState({
@@ -12,6 +14,8 @@ class ProfileState {
     this.userProfile,
     this.isLoading = false,
     this.isUploadingAvatar = false,
+    this.requiresOtpVerification = false,
+    this.otpExpiresInSeconds = 0,
     this.error,
   });
 
@@ -22,6 +26,8 @@ class ProfileState {
     Profile? userProfile,
     bool? isLoading,
     bool? isUploadingAvatar,
+    bool? requiresOtpVerification,
+    int? otpExpiresInSeconds,
     String? error,
   }) {
     return ProfileState(
@@ -29,6 +35,9 @@ class ProfileState {
       userProfile: userProfile ?? this.userProfile,
       isLoading: isLoading ?? this.isLoading,
       isUploadingAvatar: isUploadingAvatar ?? this.isUploadingAvatar,
+      requiresOtpVerification:
+          requiresOtpVerification ?? this.requiresOtpVerification,
+      otpExpiresInSeconds: otpExpiresInSeconds ?? this.otpExpiresInSeconds,
       error: error,
     );
   }

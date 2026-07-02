@@ -39,9 +39,7 @@ abstract final class AppStrings {
   // ─── OTP verification screen ──────────────────────────────────────────────
   static const String otpTitle = 'Verify Your Account';
   static const String otpSubtitle =
-      'Enter the 6-digit code sent to your phone and email';
-  static const String otpChannelPhone = 'Phone';
-  static const String otpChannelEmail = 'Email';
+      'Enter the 6-digit verification code sent to your phone and email.';
   static const String otpCodeExpiresIn = 'Code expires in ';
   static const String otpCodeExpired = 'Code expired';
   static const String btnVerify = 'Verify';
@@ -164,6 +162,14 @@ abstract final class AppStrings {
   static const String chooseFromGallery = '🖼️ Choose from Gallery';
   static const String profilePhotoUpdated = '✓ Profile photo updated';
   static const String uploadingPhoto = 'Uploading photo...';
+  static const String verifyChange = 'Verify Change';
+  static const String verifyYourChange = 'Verify Your Change';
+  static const String verifyChangeSubtitle =
+      'Enter the 6-digit code sent to your phone and email to confirm the update.';
+  static const String goBackToResendCode =
+      'Go back and save your changes again to resend the code.';
+  static const String didntReceiveCode = "Didn't receive a code?";
+  static const String resend = 'Resend';
 
   // ─── Delivery addresses ───────────────────────────────────────────────────
   static const String deliveryAddresses = 'Delivery Addresses';
@@ -231,7 +237,8 @@ abstract final class AppStrings {
   static const String grandTotal = 'Grand Total';
   static const String proceedToPayment = 'Proceed to Payment 🚀';
   static const String paymentComingSoon = 'Payment coming soon 🚀';
-  static const String pleaseLoginToOrder = 'Please log in to place an order';
+  static const String pleaseLoginToOrder =
+      'Please log in to place your order 👋';
   static const String pleaseEnterDeliveryAddress =
       'Please enter a delivery address';
 
@@ -257,6 +264,7 @@ abstract final class AppStrings {
   static const String paymentInitiatedSuccess =
       'Payment initiated successfully.';
   static const String paymentReferenceLabel = 'Reference:';
+  static const String initiatingPayment = 'Initiating payment...';
 
   // ─── Change password (logged-in flow) ────────────────────────────────────
   static const String changePassword = 'Change Password';

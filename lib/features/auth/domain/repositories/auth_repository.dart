@@ -12,13 +12,7 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<VerifyOtpResult> verifyOtp({
-    required String customerId,
-    required String channel,
-    String? phone,
-    String? email,
-    required String code,
-  });
+  Future<VerifyOtpResult> verifyOtp(String code);
 
   Future<UserEntity> login({
     required String identifier,

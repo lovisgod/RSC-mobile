@@ -21,19 +21,9 @@ class RegisterSubmitted extends AuthEvent {
 }
 
 class OtpSubmitted extends AuthEvent {
-  final String customerId;
-  final String channel; // 'phone' | 'email'
-  final String? phone;
-  final String? email;
   final String code;
 
-  const OtpSubmitted({
-    required this.customerId,
-    required this.channel,
-    this.phone,
-    this.email,
-    required this.code,
-  });
+  const OtpSubmitted({required this.code});
 }
 
 class OtpResendRequested extends AuthEvent {
@@ -51,10 +41,7 @@ class LoginSubmitted extends AuthEvent {
   final String identifier;
   final String password;
 
-  const LoginSubmitted({
-    required this.identifier,
-    required this.password,
-  });
+  const LoginSubmitted({required this.identifier, required this.password});
 }
 
 class LogoutRequested extends AuthEvent {

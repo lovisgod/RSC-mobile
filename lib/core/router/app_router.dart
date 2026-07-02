@@ -30,6 +30,7 @@ import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/manage_addresses_screen.dart';
 import '../../features/profile/presentation/screens/order_details_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
+import '../../features/profile/presentation/screens/profile_verify_otp_screen.dart';
 import '../../features/shell/presentation/shell_screen.dart';
 import '../di/injection.dart';
 
@@ -197,6 +198,16 @@ final GoRouter appRouter = GoRouter(
         return BlocProvider(
           create: (_) => getIt<AddressCubit>(),
           child: const ManageAddressesScreen(),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile-verify-otp',
+      name: 'profileVerifyOtp',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return ProfileVerifyOtpScreen(
+          otpExpiresInSeconds: extra['otpExpiresInSeconds'] as int,
         );
       },
     ),

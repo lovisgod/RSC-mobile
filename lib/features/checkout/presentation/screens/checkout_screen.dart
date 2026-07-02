@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../cart/domain/entities/cart_item_entity.dart';
@@ -94,22 +95,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    final result = state.initiateResult;
-    if (result != null) {
-      AppSnackbar.show(
-        context,
-        message:
-            '${AppStrings.paymentInitiatedSuccess} '
-            '${AppStrings.paymentReferenceLabel} ${result.reference}',
-        type: AppSnackbarType.success,
-      );
+    if (state.status == PaymentStatus.initiated) {
+      _openMomentSheet(state);
     }
   }
 
-  // Retained for the follow-up that wires the real Paystack/Moment UI; not
-  // auto-triggered during this validation phase.
-  // ignore: unused_element
-  Future<void> _showPaymentSheet(double amount) async {
+  /// Opens the Moment sheet using the same [PaymentCubit] instance that ran
+  /// the initiate call — never a fresh one — so the sheet's own processing
+  /// simulation shares state with the screen.
+  Future<void> _openMomentSheet(PaymentState paymentState) async {
     final cartItems = context.read<CartCubit>().state.cart.items;
     final checkoutState = context.read<CheckoutCubit>().state;
 
@@ -119,9 +113,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider(
-        create: (_) => getIt<PaymentCubit>(),
-        child: MomentPaymentSheet(amount: amount),
+      builder: (_) => BlocProvider.value(
+        value: context.read<PaymentCubit>(),
+        child: MomentPaymentSheet(
+          amount: checkoutState.grandTotal,
+          reference: paymentState.initiateResult?.reference,
+          accessCode: paymentState.initiateResult?.accessCode,
+        ),
       ),
     );
 
@@ -201,9 +199,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: BlocListener<PaymentCubit, PaymentState>(
-        listenWhen: (prev, curr) =>
-            curr.initiateResult != prev.initiateResult ||
-            (curr.status == PaymentStatus.failed && prev.status != curr.status),
+        listenWhen: (prev, curr) => prev.status != curr.status,
         listener: _onPaymentState,
         child: Stack(
           children: [
@@ -327,28 +323,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             BlocSelector<PaymentCubit, PaymentState, bool>(
               selector: (state) => state.status == PaymentStatus.initiating,
               builder: (_, isInitiating) => isInitiating
-                  ? const _InitiatingOverlay()
+                  ? const LoadingOverlay(label: AppStrings.initiatingPayment)
                   : const SizedBox.shrink(),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Initiating overlay ────────────────────────────────────────────────────────
-
-class _InitiatingOverlay extends StatelessWidget {
-  const _InitiatingOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: ColoredBox(
-        color: Colors.black.withValues(alpha: 0.45),
-        child: const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       ),
     );
@@ -815,15 +793,27 @@ class _ProceedButton extends StatelessWidget {
   final CheckoutState state;
   final VoidCallback onActiveTap;
 
+  void _onGuestTap(BuildContext context) {
+    AppSnackbar.show(
+      context,
+      message: AppStrings.pleaseLoginToOrder,
+      emoji: '',
+      backgroundColor: AppColors.navy,
+    );
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (context.mounted) {
+        context.read<ShellBloc>().add(const ShellTabChanged(4));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isActive = state.isLoggedIn && state.isFormValid;
+    final bool formInvalid = state.isLoggedIn && !state.isFormValid;
+    final bool isActive = !formInvalid;
 
     String? hintText;
-    if (!state.isLoggedIn) {
-      hintText = AppStrings.pleaseLoginToOrder;
-    } else if (!state.isFormValid &&
-        state.selectedMode == DeliveryMode.delivery) {
+    if (formInvalid && state.selectedMode == DeliveryMode.delivery) {
       hintText = AppStrings.pleaseEnterDeliveryAddress;
     }
 
@@ -832,21 +822,18 @@ class _ProceedButton extends StatelessWidget {
       children: [
         AppButton(
           label: AppStrings.proceedToPayment,
-          backgroundColor: state.isLoggedIn
-              ? AppColors.navy
-              : AppColors.textHint,
-          onPressed: isActive ? onActiveTap : null,
+          backgroundColor: formInvalid ? AppColors.textHint : AppColors.navy,
+          onPressed: !isActive
+              ? null
+              : state.isLoggedIn
+              ? onActiveTap
+              : () => _onGuestTap(context),
         ),
         if (hintText != null) ...[
           const SizedBox(height: 8),
           Text(
             hintText,
-            style: TextStyle(
-              fontSize: 12,
-              color: state.isLoggedIn
-                  ? AppColors.error
-                  : AppColors.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 12, color: AppColors.error),
             textAlign: TextAlign.center,
           ),
         ],

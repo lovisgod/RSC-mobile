@@ -13,4 +13,6 @@ abstract class ProfileRepository {
   );
 
   Future<Profile> uploadAvatar(File imageFile);
+
+  Future<Profile> verifyProfileChange(String code);
 }

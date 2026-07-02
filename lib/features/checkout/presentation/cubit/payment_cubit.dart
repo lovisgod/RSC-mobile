@@ -13,7 +13,7 @@ import 'payment_state.dart';
 
 class PaymentCubit extends Cubit<PaymentState> {
   PaymentCubit(this._buildPayload, this._initiatePayment)
-      : super(const PaymentState());
+    : super(const PaymentState());
 
   final BuildPaymentPayloadUseCase _buildPayload;
   final InitiatePaymentUseCase _initiatePayment;
@@ -38,45 +38,49 @@ class PaymentCubit extends Cubit<PaymentState> {
     emit(state.copyWith(selectedUssdBank: bank));
   }
 
-  /// Validation-phase entry point: builds the payload from the cart + checkout
-  /// selections, calls the backend, and stores the Paystack handoff details.
-  /// Does NOT launch Paystack yet — that comes in a follow-up.
+  /// Builds the payload from the cart + checkout selections, calls the
+  /// backend, and stores the Moment handoff details. On success the screen
+  /// listens for [PaymentStatus.initiated] and opens the Moment sheet.
   Future<void> initiatePaymentWithBackend(
     CartEntity cart,
     CheckoutState checkoutState,
   ) async {
-    emit(state.copyWith(
-      status: PaymentStatus.initiating,
-      clearInitiateResult: true,
-      clearError: true,
-      isSessionExpired: false,
-    ));
+    emit(
+      state.copyWith(
+        status: PaymentStatus.initiating,
+        clearInitiateResult: true,
+        clearError: true,
+        isSessionExpired: false,
+      ),
+    );
 
     try {
       final request = _buildPayload(cart, checkoutState);
       final result = await _initiatePayment(request);
       if (isClosed) return;
 
-      developer.log(
-        'Payment initiated → $result',
-        name: 'PaymentCubit',
-      );
+      developer.log('Payment initiated → $result', name: 'PaymentCubit');
 
-      // Ready for the next step (actual Paystack launch comes later).
-      emit(state.copyWith(
-        status: PaymentStatus.idle,
-        initiateResult: result,
-        clearError: true,
-      ));
+      emit(
+        state.copyWith(
+          status: PaymentStatus.initiated,
+          initiateResult: result,
+          clearError: true,
+        ),
+      );
     } catch (e) {
       if (isClosed) return;
-      final isAuth = e is AuthException &&
-          e.message == AppStrings.sessionExpiredLogin;
-      emit(state.copyWith(
-        status: PaymentStatus.failed,
-        errorMessage: e is AuthException ? e.message : AppStrings.paymentFailed,
-        isSessionExpired: isAuth,
-      ));
+      final isAuth =
+          e is AuthException && e.message == AppStrings.sessionExpiredLogin;
+      emit(
+        state.copyWith(
+          status: PaymentStatus.failed,
+          errorMessage: e is AuthException
+              ? e.message
+              : AppStrings.paymentFailed,
+          isSessionExpired: isAuth,
+        ),
+      );
     }
   }
 

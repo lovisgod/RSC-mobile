@@ -25,6 +25,7 @@ import '../../features/profile/domain/usecases/set_default_address_usecase.dart'
 import '../../features/profile/domain/usecases/update_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_profile_usecase.dart';
 import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
+import '../../features/profile/domain/usecases/verify_profile_change_usecase.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
@@ -130,6 +131,9 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<UploadAvatarUseCase>(
       () => UploadAvatarUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<VerifyProfileChangeUseCase>(
+      () => VerifyProfileChangeUseCase(getIt<ProfileRepository>()),
     );
 
   // ── Delivery address data layer ─────────────────────────────────────────────
@@ -184,6 +188,8 @@ Future<void> configureDependencies() async {
         getIt<LocalStorage>(),
         getIt<GetProfileUseCase>(),
         getIt<UploadAvatarUseCase>(),
+        getIt<UpdateProfileUseCase>(),
+        getIt<VerifyProfileChangeUseCase>(),
       ),
     );
 

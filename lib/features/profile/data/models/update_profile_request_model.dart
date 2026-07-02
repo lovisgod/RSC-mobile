@@ -13,6 +13,5 @@ class UpdateProfileRequestModel {
     'name': name,
     'phone': phone,
     'email': email,
-    'avatarUrl': null,
   };
 }

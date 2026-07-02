@@ -6,18 +6,5 @@ class VerifyOtpUseCase {
 
   const VerifyOtpUseCase(this._repository);
 
-  Future<VerifyOtpResult> call({
-    required String customerId,
-    required String channel,
-    String? phone,
-    String? email,
-    required String code,
-  }) =>
-      _repository.verifyOtp(
-        customerId: customerId,
-        channel: channel,
-        phone: phone,
-        email: email,
-        code: code,
-      );
+  Future<VerifyOtpResult> call(String code) => _repository.verifyOtp(code);
 }

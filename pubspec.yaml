@@ -42,6 +42,7 @@ dependencies:
 
   # maps & location
   geolocator: ^11.0.0
+  geocoding: ^4.0.0
   google_maps_flutter: ^2.6.0
 
   # serialization

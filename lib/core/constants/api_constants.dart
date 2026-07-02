@@ -33,6 +33,7 @@ abstract final class ApiConstants {
   static const String profile = '/api/v1/profile';
   static const String userMe = '/api/v1/users/me';
   static const String uploadAvatar = '/api/v1/users/me/avatar';
+  static const String verifyProfileChange = '/api/v1/users/me/verify-change';
 
   // Delivery addresses
   static const String deliveryAddresses = '/api/v1/delivery/addresses';

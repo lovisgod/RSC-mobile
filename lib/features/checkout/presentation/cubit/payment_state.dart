@@ -3,7 +3,7 @@ import '../../data/models/ussd_bank.dart';
 
 enum PaymentMethod { card, transfer, ussd }
 
-enum PaymentStatus { idle, initiating, processing, success, failed }
+enum PaymentStatus { idle, initiating, initiated, processing, success, failed }
 
 class PaymentState {
   final PaymentMethod selectedMethod;
@@ -53,11 +53,13 @@ class PaymentState {
       cardNumber: cardNumber ?? this.cardNumber,
       cardExpiry: cardExpiry ?? this.cardExpiry,
       cardCvv: cardCvv ?? this.cardCvv,
-      selectedUssdBank:
-          clearUssdBank ? null : (selectedUssdBank ?? this.selectedUssdBank),
+      selectedUssdBank: clearUssdBank
+          ? null
+          : (selectedUssdBank ?? this.selectedUssdBank),
       status: status ?? this.status,
-      initiateResult:
-          clearInitiateResult ? null : (initiateResult ?? this.initiateResult),
+      initiateResult: clearInitiateResult
+          ? null
+          : (initiateResult ?? this.initiateResult),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       isSessionExpired: isSessionExpired ?? this.isSessionExpired,
     );

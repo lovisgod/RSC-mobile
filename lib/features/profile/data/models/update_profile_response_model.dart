@@ -1,6 +1,8 @@
 import 'profile_model.dart';
 
 class UpdateProfileResponseModel extends ProfileModel {
+  final int? otpExpiresInSeconds;
+
   const UpdateProfileResponseModel({
     required super.id,
     required super.name,
@@ -10,6 +12,7 @@ class UpdateProfileResponseModel extends ProfileModel {
     super.outletId,
     super.avatarUrl,
     super.verificationChannels,
+    this.otpExpiresInSeconds,
   });
 
   factory UpdateProfileResponseModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +26,7 @@ class UpdateProfileResponseModel extends ProfileModel {
       outletId: profile.outletId,
       avatarUrl: profile.avatarUrl,
       verificationChannels: profile.verificationChannels,
+      otpExpiresInSeconds: json['otpExpiresInSeconds'] as int?,
     );
   }
 }

@@ -10,6 +10,7 @@ import '../../../../core/network/dio_client.dart';
 import '../models/profile_model.dart';
 import '../models/update_profile_request_model.dart';
 import '../models/update_profile_response_model.dart';
+import '../models/verify_profile_change_request_model.dart';
 
 abstract class ProfileRemoteDataSource {
   Future<ProfileModel> getProfile();
@@ -17,6 +18,9 @@ abstract class ProfileRemoteDataSource {
     UpdateProfileRequestModel request,
   );
   Future<ProfileModel> uploadAvatar(File imageFile);
+  Future<ProfileModel> verifyProfileChange(
+    VerifyProfileChangeRequestModel request,
+  );
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
@@ -74,6 +78,23 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       );
     } on DioException catch (e) {
       throw _mapError(e, unauthorizedMessage: AppStrings.sessionExpiredLogin);
+    }
+  }
+
+  @override
+  Future<ProfileModel> verifyProfileChange(
+    VerifyProfileChangeRequestModel request,
+  ) async {
+    try {
+      final response = await _client.dio.post(
+        ApiConstants.verifyProfileChange,
+        data: request.toJson(),
+      );
+      return ProfileModel.fromJson(
+        response.data['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _mapError(e, unauthorizedMessage: AppStrings.invalidOrExpiredCode);
     }
   }
 
