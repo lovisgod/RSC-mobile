@@ -14,12 +14,16 @@ import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
 import '../../features/profile/data/repositories/address_repository_impl.dart';
+import '../../features/profile/data/repositories/order_repository_impl.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/address_repository.dart';
+import '../../features/profile/domain/repositories/order_repository.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/domain/usecases/create_address_usecase.dart';
 import '../../features/profile/domain/usecases/delete_address_usecase.dart';
 import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
+import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
+import '../../features/profile/domain/usecases/get_orders_usecase.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
 import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_address_usecase.dart';
@@ -227,13 +231,26 @@ Future<void> configureDependencies() async {
     );
 
   // ── Order history ──────────────────────────────────────────────────────────
-  getIt.registerLazySingleton<OrderHistoryCubit>(
-    () => OrderHistoryCubit()..init(),
-  );
+  getIt
+    ..registerLazySingleton<OrderRepository>(
+      () => OrderRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetOrdersUseCase>(
+      () => GetOrdersUseCase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<GetOrderByIdUseCase>(
+      () => GetOrderByIdUseCase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<OrderHistoryCubit>(
+      () => OrderHistoryCubit(
+        getIt<GetOrdersUseCase>(),
+        getIt<GetOrderByIdUseCase>(),
+      ),
+    );
 
   // ── Track feature ──────────────────────────────────────────────────────────
   getIt.registerLazySingleton<TrackCubit>(
-    () => TrackCubit(getIt<OrderHistoryCubit>()),
+    () => TrackCubit(getIt<OrderHistoryCubit>(), getIt<HomeRepository>()),
   );
 
   // ── Checkout feature ────────────────────────────────────────────────────────

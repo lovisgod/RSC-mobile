@@ -28,6 +28,7 @@ abstract final class ApiConstants {
 
   // Orders
   static const String orders = '/api/v1/orders';
+  static String orderById(String id) => '/api/v1/orders/$id';
 
   // Profile
   static const String profile = '/api/v1/profile';

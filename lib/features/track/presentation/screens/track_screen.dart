@@ -36,8 +36,10 @@ class _TrackScreenState extends State<TrackScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    _pulseAnimation =
-        Tween<double>(begin: 0.4, end: 1.0).animate(_pulseController);
+    _pulseAnimation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(_pulseController);
   }
 
   @override
@@ -72,9 +74,7 @@ class _TrackScreenState extends State<TrackScreen>
       listener: (_, state) => _onStatusChanged(state.activeOrder?.status),
       builder: (context, state) {
         final order = state.activeOrder;
-        final orderIdDisplay = order != null
-            ? '#${order.orderId}'
-            : AppStrings.noOrderId;
+        final orderIdDisplay = order?.orderId ?? AppStrings.noOrderId;
 
         return Scaffold(
           backgroundColor: AppColors.navyDark,
@@ -160,10 +160,7 @@ class _NoActiveOrderBody extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               AppStrings.browseKitchensToOrder,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -215,9 +212,8 @@ class _ActiveOrderBody extends StatelessWidget {
                 ? AnimatedBuilder(
                     key: const ValueKey('route'),
                     animation: riderController,
-                    builder: (_, child) => RiderRouteWidget(
-                      progress: riderController.value,
-                    ),
+                    builder: (_, child) =>
+                        RiderRouteWidget(progress: riderController.value),
                   )
                 : const SizedBox(key: ValueKey('no-route')),
           ),
@@ -233,10 +229,12 @@ class _ActiveOrderBody extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          ...order.subOrders.map((sub) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _KitchenCard(subOrder: sub),
-              )),
+          ...order.subOrders.map(
+            (sub) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _KitchenCard(subOrder: sub),
+            ),
+          ),
 
           const SizedBox(height: 6),
           _DeliveryHandoffCard(code: order.deliveryCode),
@@ -310,10 +308,7 @@ class _EtaMainText extends StatelessWidget {
       case OrderTrackingStatus.pending:
         return const Text('---', style: mainStyle);
       case OrderTrackingStatus.preparing:
-        return Text(
-          '${order.estimatedMinutes} min',
-          style: mainStyle,
-        );
+        return Text('${order.estimatedMinutes} min', style: mainStyle);
       case OrderTrackingStatus.ready:
       case OrderTrackingStatus.collected:
         return FadeTransition(
@@ -388,8 +383,7 @@ class _KitchenCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _badgeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -490,10 +484,12 @@ class _DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(radius),
-      ));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(radius),
+        ),
+      );
 
     for (final metric in path.computeMetrics()) {
       double distance = 0;

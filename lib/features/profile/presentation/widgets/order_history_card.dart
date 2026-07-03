@@ -10,6 +10,7 @@ import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/usecases/reorder_usecase.dart';
+import '../cubit/order_history_cubit.dart';
 
 class OrderHistoryCard extends StatelessWidget {
   const OrderHistoryCard({super.key, required this.order});
@@ -21,27 +22,22 @@ class OrderHistoryCard extends StatelessWidget {
 
   void _handleCardTap(BuildContext context) {
     if (order.isCompleted) {
-      context.push(RouteNames.orderDetails, extra: order);
+      context.read<OrderHistoryCubit>().loadOrderDetail(order.id);
+      context.push(RouteNames.orderDetails, extra: order.id);
     } else {
       context.read<ShellBloc>().add(const ShellTabChanged(3));
     }
   }
 
-  void _handleReorder(BuildContext context) {
-    final cart = _reorderUseCase.call(order.cartItems);
+  Future<void> _handleReorder(BuildContext context) async {
+    final cart = await _reorderUseCase.call(order);
+    if (!context.mounted) return;
     context.push(RouteNames.checkout, extra: {'cart': cart});
   }
 
   @override
   Widget build(BuildContext context) {
-    // Compute first item display
-    final allItems = order.subOrders.expand((s) => s.items).toList();
-    final firstItem = allItems.isNotEmpty ? allItems.first : null;
-    final moreCount = allItems.length - 1;
-
-    final firstItemLabel = firstItem != null
-        ? '${firstItem.quantity}x ${firstItem.itemName}'
-        : '';
+    final moreCount = order.additionalItemsCount;
 
     return GestureDetector(
       onTap: () => _handleCardTap(context),
@@ -65,7 +61,7 @@ class OrderHistoryCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  formatDateTime(order.placedAt),
+                  formatDateTime(order.createdAt),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -73,8 +69,10 @@ class OrderHistoryCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: _deliveryModeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -94,9 +92,9 @@ class OrderHistoryCard extends StatelessWidget {
             const SizedBox(height: 10),
 
             // ── First item ─────────────────────────────────────────────────
-            if (firstItemLabel.isNotEmpty)
+            if (order.firstItemSummary.isNotEmpty)
               Text(
-                firstItemLabel,
+                order.firstItemSummary,
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -122,7 +120,7 @@ class OrderHistoryCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  formatNaira(order.grandTotal),
+                  formatNaira(order.total),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

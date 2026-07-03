@@ -12,11 +12,7 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
-import '../../../cart/domain/entities/cart_item_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
-import '../../../profile/domain/entities/order_history_entity.dart';
-import '../../../profile/domain/entities/order_history_line_item.dart';
-import '../../../profile/domain/entities/order_history_sub_order.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
 import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
@@ -104,7 +100,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// the initiate call — never a fresh one — so the sheet's own processing
   /// simulation shares state with the screen.
   Future<void> _openMomentSheet(PaymentState paymentState) async {
-    final cartItems = context.read<CartCubit>().state.cart.items;
     final checkoutState = context.read<CheckoutCubit>().state;
 
     final result = await showModalBottomSheet<String>(
@@ -125,27 +120,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (result != 'success' || !mounted) return;
 
-    getIt<TrackCubit>().startOrderTracking(cartItems);
-
-    final activeOrder = getIt<TrackCubit>().state.activeOrder!;
-    getIt<OrderHistoryCubit>().addInProgressOrder(
-      OrderHistoryEntity(
-        orderId: activeOrder.orderId,
-        deliveryCode: activeOrder.deliveryCode,
-        placedAt: DateTime.now(),
-        deliveryMode: checkoutState.selectedMode == DeliveryMode.delivery
-            ? 'DELIVERY'
-            : 'TAKEOUT',
-        deliveryAddress: checkoutState.deliveryAddress,
-        subOrders: _buildOrderSubOrders(cartItems),
-        subtotal: checkoutState.subtotal,
-        deliveryFee: checkoutState.deliveryFee,
-        vat: checkoutState.vat,
-        grandTotal: checkoutState.grandTotal,
-        isCompleted: false,
-        cartItems: cartItems,
-      ),
-    );
+    // Real order data (id, payment reference, delivery code, status) now
+    // comes from the backend — fetch it and let TrackCubit pick up whichever
+    // order is still active.
+    await getIt<OrderHistoryCubit>().loadOrders();
+    await getIt<TrackCubit>().checkForActiveOrder();
+    if (!mounted) return;
 
     context.read<CartCubit>().clearCart();
     AppSnackbar.show(
@@ -155,34 +135,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
     context.read<ShellBloc>().add(const ShellTabChanged(3));
     context.pop();
-  }
-
-  List<OrderHistorySubOrder> _buildOrderSubOrders(
-    List<CartItemEntity> cartItems,
-  ) {
-    final grouped = <String, List<CartItemEntity>>{};
-    for (final item in cartItems) {
-      (grouped[item.outletId] ??= []).add(item);
-    }
-    return grouped.entries.map((e) {
-      final items = e.value;
-      return OrderHistorySubOrder(
-        outletName: items.first.outletName,
-        outletEmoji: items.first.outletEmoji,
-        items: items
-            .map(
-              (item) => OrderHistoryLineItem(
-                itemName: item.itemNameSnapshot,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                selectedModifiers: item.selectedModifiers
-                    .map((m) => m.name)
-                    .toList(),
-              ),
-            )
-            .toList(),
-      );
-    }).toList();
   }
 
   void _toggleSomeoneElse(bool? value) {

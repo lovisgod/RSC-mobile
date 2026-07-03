@@ -23,7 +23,6 @@ import '../../features/menu/domain/entities/menu_item.dart';
 import '../../features/menu/domain/entities/outlet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
-import '../../features/profile/domain/entities/order_history_entity.dart';
 import '../../features/profile/domain/entities/profile.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
@@ -179,8 +178,8 @@ final GoRouter appRouter = GoRouter(
       path: '/profile/orders/details',
       name: 'orderDetails',
       builder: (context, state) {
-        final order = state.extra as OrderHistoryEntity;
-        return OrderDetailsScreen(order: order);
+        final orderId = state.extra as String;
+        return OrderDetailsScreen(orderId: orderId);
       },
     ),
     GoRoute(

@@ -102,6 +102,7 @@ abstract final class AppStrings {
   static const String moreItemSuffix = 'more item';
   static const String moreItemsSuffix = 'more items';
   static const String subOrderSuffix = ' Sub-Order';
+  static const String kitchenFallbackName = 'Kitchen';
 
   // ─── Track ────────────────────────────────────────────────────────────────
   static const String orderProgress = 'Order Progress';

@@ -35,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     context.read<ProfileCubit>().loadProfile();
+    context.read<OrderHistoryCubit>().loadOrders();
     _addressCubit = getIt<AddressCubit>()..loadAddresses();
   }
 
@@ -398,7 +399,7 @@ class _OrderHistorySection extends StatelessWidget {
       builder: (context, state) {
         final orders = state.orders;
         final preview = orders.take(4).toList();
-        final hasMore = orders.length > 4;
+        final showShimmer = state.isLoading && orders.isEmpty;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,23 +416,36 @@ class _OrderHistorySection extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (hasMore)
-                  GestureDetector(
-                    onTap: () => context.push(RouteNames.orderHistory),
-                    child: const Text(
-                      AppStrings.seeAllOrders,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
+                GestureDetector(
+                  onTap: () => context.push(RouteNames.orderHistory),
+                  child: const Text(
+                    AppStrings.seeAllOrders,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
                     ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 14),
 
-            if (orders.isEmpty)
+            if (showShimmer)
+              Column(
+                children: List.generate(
+                  3,
+                  (_) => const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: ShimmerBox(
+                      height: 140,
+                      width: double.infinity,
+                      radius: 14,
+                    ),
+                  ),
+                ),
+              )
+            else if (orders.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),

@@ -8,8 +8,19 @@ import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
 import '../widgets/order_history_card.dart';
 
-class OrderHistoryScreen extends StatelessWidget {
+class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
+
+  @override
+  State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
+}
+
+class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<OrderHistoryCubit>().loadOrders();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,15 +33,20 @@ class OrderHistoryScreen extends StatelessWidget {
             Expanded(
               child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
                 builder: (context, state) {
-                  if (state.orders.isEmpty) {
-                    return const _EmptyState();
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    itemCount: state.orders.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) =>
-                        OrderHistoryCard(order: state.orders[index]),
+                  return RefreshIndicator(
+                    onRefresh: () =>
+                        context.read<OrderHistoryCubit>().loadOrders(),
+                    child: state.orders.isEmpty
+                        ? const _EmptyState()
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: state.orders.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) =>
+                                OrderHistoryCard(order: state.orders[index]),
+                          ),
                   );
                 },
               ),
@@ -85,34 +101,39 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            '🛍️',
-            style: TextStyle(fontSize: 48),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            AppStrings.noOrdersYet,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🛍️', style: TextStyle(fontSize: 48)),
+                const SizedBox(height: 16),
+                const Text(
+                  AppStrings.noOrdersYet,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  AppStrings.startOrdering,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            AppStrings.startOrdering,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
