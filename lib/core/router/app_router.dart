@@ -14,7 +14,6 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/cart/domain/entities/cart_entity.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
-import '../../features/checkout/presentation/pages/order_confirmation_page.dart';
 import '../../features/home/presentation/bloc/outlet_detail_bloc.dart';
 import '../../features/home/presentation/bloc/outlet_detail_event.dart';
 import '../../features/home/presentation/screens/item_detail_screen.dart';
@@ -22,7 +21,6 @@ import '../../features/home/presentation/screens/outlet_detail_screen.dart';
 import '../../features/menu/domain/entities/menu_item.dart';
 import '../../features/menu/domain/entities/outlet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
-import '../../features/orders/presentation/pages/order_detail_page.dart';
 import '../../features/profile/domain/entities/profile.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
@@ -116,19 +114,6 @@ final GoRouter appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>;
         final cart = extra['cart'] as CartEntity;
         return CheckoutPage(cart: cart);
-      },
-    ),
-    GoRoute(
-      path: '/order-confirmation',
-      name: 'orderConfirmation',
-      builder: (context, state) => const OrderConfirmationPage(),
-    ),
-    GoRoute(
-      path: '/orders/:id',
-      name: 'orderDetail',
-      builder: (context, state) {
-        final id = state.pathParameters['id']!;
-        return OrderDetailPage(orderId: id);
       },
     ),
     GoRoute(

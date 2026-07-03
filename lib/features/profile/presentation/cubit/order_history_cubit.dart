@@ -45,4 +45,12 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
       );
     }
   }
+
+  void startReorder(String orderId) {
+    emit(state.copyWith(isReordering: true, reorderingOrderId: orderId));
+  }
+
+  void finishReorder() {
+    emit(state.copyWith(isReordering: false, clearReorderingOrderId: true));
+  }
 }

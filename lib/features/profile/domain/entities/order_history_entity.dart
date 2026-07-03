@@ -34,6 +34,39 @@ class OrderHistoryEntity {
     required this.isCompleted,
   });
 
+  static const Set<String> activeStatuses = {
+    'PENDING',
+    'CONFIRMED',
+    'PREPARING',
+    'READY',
+    'DISPATCHED',
+  };
+
+  bool get isActive => activeStatuses.contains(status);
+
+  OrderHistoryEntity copyWith({
+    String? status,
+    List<SubOrderEntity>? subOrders,
+    bool? isCompleted,
+  }) {
+    return OrderHistoryEntity(
+      id: id,
+      paymentReference: paymentReference,
+      deliveryCode: deliveryCode,
+      status: status ?? this.status,
+      deliveryMode: deliveryMode,
+      deliveryAddress: deliveryAddress,
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      vat: vat,
+      total: total,
+      createdAt: createdAt,
+      subOrders: subOrders ?? this.subOrders,
+      lineItems: lineItems,
+      isCompleted: isCompleted ?? this.isCompleted,
+    );
+  }
+
   /// "RSC-fe1c320b-08ab-..." → "#RSC-FE1C320B" (first 8 chars after "RSC-").
   String get displayOrderId {
     final withoutPrefix = paymentReference.startsWith('RSC-')

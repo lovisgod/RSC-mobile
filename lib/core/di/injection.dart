@@ -25,6 +25,7 @@ import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
 import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
 import '../../features/profile/domain/usecases/get_orders_usecase.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../../features/profile/domain/usecases/reorder_usecase.dart';
 import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_profile_usecase.dart';
@@ -57,6 +58,7 @@ import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../network/dio_client.dart';
+import '../services/nominatim_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
 
@@ -246,11 +248,18 @@ Future<void> configureDependencies() async {
         getIt<GetOrdersUseCase>(),
         getIt<GetOrderByIdUseCase>(),
       ),
+    )
+    ..registerLazySingleton<ReorderUseCase>(
+      () => ReorderUseCase(getIt<CartCubit>(), getIt<HomeRepository>()),
     );
 
   // ── Track feature ──────────────────────────────────────────────────────────
   getIt.registerLazySingleton<TrackCubit>(
-    () => TrackCubit(getIt<OrderHistoryCubit>(), getIt<HomeRepository>()),
+    () => TrackCubit(
+      getIt<OrderHistoryCubit>(),
+      getIt<GetOrderByIdUseCase>(),
+      getIt<HomeRepository>(),
+    ),
   );
 
   // ── Checkout feature ────────────────────────────────────────────────────────
@@ -264,7 +273,10 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
     )
-    ..registerFactory<CheckoutCubit>(() => CheckoutCubit(getIt<LocalStorage>()))
+    ..registerLazySingleton<NominatimService>(() => NominatimService())
+    ..registerFactory<CheckoutCubit>(
+      () => CheckoutCubit(getIt<LocalStorage>(), getIt<NominatimService>()),
+    )
     ..registerFactory<PaymentCubit>(
       () => PaymentCubit(
         getIt<BuildPaymentPayloadUseCase>(),

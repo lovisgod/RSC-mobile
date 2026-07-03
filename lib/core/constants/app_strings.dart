@@ -97,6 +97,12 @@ abstract final class AppStrings {
   static const String noOrdersYet = 'No orders yet';
   static const String startOrdering = 'Start ordering from RSC Food Kitchens';
   static const String reorder = 'Re-order';
+  static const String trackOrder = 'Track';
+  static const String itemsAddedToCart =
+      '✓ Items added to cart. Review your order!';
+  static const String reorderFailed = 'Could not re-order. Please try again.';
+  static const String trackOrderFailed =
+      'Could not load this order. Please try again.';
   static const String deliveryModeLabel = 'DELIVERY';
   static const String takeoutModeLabel = 'TAKEOUT';
   static const String moreItemSuffix = 'more item';
@@ -113,9 +119,16 @@ abstract final class AppStrings {
   static const String trackingComingSoon = 'Full order tracking coming soon';
   static const String estimatedDeliveryTime = 'ESTIMATED DELIVERY TIME';
   static const String etaProcessing = 'Processing...';
+  static const String etaReady = 'Ready!';
+  static const String etaOnTheWay = 'On the way! 🛵';
   static const String etaDelivered = 'Delivered! 🎉';
+  static const String waitingForKitchen = 'Waiting for kitchen confirmation';
   static const String kitchenIsPreparingMeals =
       'Kitchen is preparing your meals';
+  static const String orderReady = 'Your order is ready for pickup';
+  static const String riderOnTheWay = 'Your rider is heading to you';
+  static const String updatedJustNow = 'Updated just now';
+  static String updatedMinsAgo(int mins) => 'Updated $mins mins ago';
   static const String kitchenBreakdowns = 'KITCHEN BREAKDOWNS';
   static const String deliveryHandoffCode = 'DELIVERY HANDOFF CODE';
   static const String shareDeliveryCode =
@@ -221,8 +234,6 @@ abstract final class AppStrings {
   static const String deliveryTab = '🚴 Delivery';
   static const String takeoutTab = '🛍️ Takeout';
   static const String sectionDeliveryAddress = 'DELIVERY ADDRESS';
-  static const String typeDeliveryAddressHint =
-      'Type delivery address (e.g. Victoria Island)';
   static const String useDefaultAddress = '📍 Use Default Address';
   static const String orderForSomeoneElse =
       'Order on behalf of someone inside geofence';
@@ -242,6 +253,17 @@ abstract final class AppStrings {
       'Please log in to place your order 👋';
   static const String pleaseEnterDeliveryAddress =
       'Please enter a delivery address';
+  static const String searchingAddresses = 'Searching addresses...';
+  static const String noAddressesInZone =
+      'No addresses found in our delivery area';
+  static const String searchAndSelectAddress = 'Search and select your address';
+  static const String pleaseSelectFromSuggestions =
+      '⚠️ Please select an address from the suggestions above';
+  static const String addressVerified = '✅ Address verified';
+  static const String selectValidAddress =
+      'Select a valid delivery address to continue';
+  static const String enterDeliveryAddress =
+      'Enter your delivery address to continue';
 
   // ─── Payment (Moment) ─────────────────────────────────────────────────────
   static const String tabCard = '💳 Card';

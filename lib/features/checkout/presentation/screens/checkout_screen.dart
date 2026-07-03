@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/models/nominatim_result.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -23,6 +24,7 @@ import '../cubit/checkout_cubit.dart';
 import '../cubit/checkout_state.dart';
 import '../cubit/payment_cubit.dart';
 import '../cubit/payment_state.dart';
+import '../widgets/address_suggestions_dropdown.dart';
 import '../widgets/moment_payment_sheet.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -65,6 +67,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _deliveryAddressCtrl.selection = TextSelection.fromPosition(
       TextPosition(offset: _deliveryAddressCtrl.text.length),
     );
+  }
+
+  void _selectAddress(NominatimResult result) {
+    context.read<CheckoutCubit>().selectAddress(result);
+    _deliveryAddressCtrl.text = result.shortAddress;
+    _deliveryAddressCtrl.selection = TextSelection.fromPosition(
+      TextPosition(offset: _deliveryAddressCtrl.text.length),
+    );
+    FocusScope.of(context).unfocus();
+  }
+
+  void _clearAddress() {
+    _deliveryAddressCtrl.clear();
+    context.read<CheckoutCubit>().onAddressChanged('');
+  }
+
+  void _dismissSuggestions() {
+    context.read<CheckoutCubit>().dismissSuggestions();
+    FocusScope.of(context).unfocus();
   }
 
   /// Validation phase: kick off the backend initiate call. We do NOT open the
@@ -124,7 +145,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // comes from the backend — fetch it and let TrackCubit pick up whichever
     // order is still active.
     await getIt<OrderHistoryCubit>().loadOrders();
-    await getIt<TrackCubit>().checkForActiveOrder();
+    await getIt<TrackCubit>().loadActiveOrder();
     if (!mounted) return;
 
     context.read<CartCubit>().clearCart();
@@ -150,135 +171,161 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: BlocListener<PaymentCubit, PaymentState>(
-        listenWhen: (prev, curr) => prev.status != curr.status,
-        listener: _onPaymentState,
-        child: Stack(
-          children: [
-            SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _CheckoutAppBar(),
-                  Expanded(
-                    child: BlocBuilder<CheckoutCubit, CheckoutState>(
-                      builder: (context, state) {
-                        final cubit = context.read<CheckoutCubit>();
-                        final defaultAddress = context
-                            .watch<AddressCubit>()
-                            .state
-                            .defaultAddress;
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // ── Mode toggle ────────────────────────────────
-                              _ModeToggle(
-                                selectedMode: state.selectedMode,
-                                onChanged: cubit.switchMode,
-                              ),
-                              const SizedBox(height: 20),
-
-                              // ── Delivery address (delivery only) ───────────
-                              if (state.selectedMode ==
-                                  DeliveryMode.delivery) ...[
-                                _SectionHeader(
-                                  emoji: '📍',
-                                  label: AppStrings.sectionDeliveryAddress,
-                                ),
-                                const SizedBox(height: 10),
-                                _DeliveryAddressCard(
-                                  state: state,
-                                  defaultAddress: defaultAddress,
-                                  addressCtrl: _deliveryAddressCtrl,
-                                  recipientAddressCtrl: _recipientAddressCtrl,
-                                  recipientNameCtrl: _recipientNameCtrl,
-                                  onAddressChanged: cubit.updateDeliveryAddress,
-                                  onUseDefault: _useDefaultAddress,
-                                  onToggleSomeoneElse: _toggleSomeoneElse,
-                                  onRecipientAddressChanged:
-                                      cubit.updateRecipientAddress,
-                                  onRecipientNameChanged:
-                                      cubit.updateRecipientName,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissSuggestions,
+        child: BlocListener<PaymentCubit, PaymentState>(
+          listenWhen: (prev, curr) => prev.status != curr.status,
+          listener: _onPaymentState,
+          child: Stack(
+            children: [
+              SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _CheckoutAppBar(),
+                    Expanded(
+                      child: BlocBuilder<CheckoutCubit, CheckoutState>(
+                        builder: (context, state) {
+                          final cubit = context.read<CheckoutCubit>();
+                          final defaultAddress = context
+                              .watch<AddressCubit>()
+                              .state
+                              .defaultAddress;
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // ── Mode toggle ────────────────────────────────
+                                _ModeToggle(
+                                  selectedMode: state.selectedMode,
+                                  onChanged: cubit.switchMode,
                                 ),
                                 const SizedBox(height: 20),
-                              ],
 
-                              // ── Preparation instructions ───────────────────
-                              _SectionHeader(
-                                emoji: '📝',
-                                label:
-                                    AppStrings.sectionPreparationInstructions,
-                              ),
-                              const SizedBox(height: 10),
-                              TextField(
-                                controller: _prepInstructionsCtrl,
-                                minLines: 2,
-                                maxLines: 4,
-                                onChanged: cubit.updatePreparationInstructions,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary,
+                                // ── Delivery address (delivery only) ───────────
+                                if (state.selectedMode ==
+                                    DeliveryMode.delivery) ...[
+                                  _SectionHeader(
+                                    emoji: '📍',
+                                    label: AppStrings.sectionDeliveryAddress,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      _DeliveryAddressCard(
+                                        state: state,
+                                        defaultAddress: defaultAddress,
+                                        addressCtrl: _deliveryAddressCtrl,
+                                        recipientAddressCtrl:
+                                            _recipientAddressCtrl,
+                                        recipientNameCtrl: _recipientNameCtrl,
+                                        onAddressChanged:
+                                            cubit.onAddressChanged,
+                                        onClearAddress: _clearAddress,
+                                        onUseDefault: _useDefaultAddress,
+                                        onToggleSomeoneElse: _toggleSomeoneElse,
+                                        onRecipientAddressChanged:
+                                            cubit.updateRecipientAddress,
+                                        onRecipientNameChanged:
+                                            cubit.updateRecipientName,
+                                      ),
+                                      if (state.showSuggestions)
+                                        Positioned(
+                                          top: 54,
+                                          left: 0,
+                                          right: 0,
+                                          child: AddressSuggestionsDropdown(
+                                            suggestions:
+                                                state.addressSuggestions,
+                                            isSearching:
+                                                state.isSearchingAddress,
+                                            onSelect: _selectAddress,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+
+                                // ── Preparation instructions ───────────────────
+                                _SectionHeader(
+                                  emoji: '📝',
+                                  label:
+                                      AppStrings.sectionPreparationInstructions,
                                 ),
-                                decoration: InputDecoration(
-                                  hintText:
-                                      AppStrings.preparationInstructionsHint,
-                                  hintStyle: const TextStyle(
+                                const SizedBox(height: 10),
+                                TextField(
+                                  controller: _prepInstructionsCtrl,
+                                  minLines: 2,
+                                  maxLines: 4,
+                                  onChanged:
+                                      cubit.updatePreparationInstructions,
+                                  style: const TextStyle(
                                     fontSize: 14,
-                                    color: AppColors.textHint,
+                                    color: AppColors.textPrimary,
                                   ),
-                                  contentPadding: const EdgeInsets.all(14),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.inputBorder,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        AppStrings.preparationInstructionsHint,
+                                    hintStyle: const TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textHint,
                                     ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.inputBorder,
+                                    contentPadding: const EdgeInsets.all(14),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.inputBorder,
+                                      ),
                                     ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.inputBorderFocused,
-                                      width: 1.5,
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.inputBorder,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.inputBorderFocused,
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 24),
+                                const SizedBox(height: 24),
 
-                              // ── Price breakdown ────────────────────────────
-                              _PriceBreakdown(state: state),
-                              const SizedBox(height: 24),
+                                // ── Price breakdown ────────────────────────────
+                                _PriceBreakdown(state: state),
+                                const SizedBox(height: 24),
 
-                              // ── Proceed button ─────────────────────────────
-                              _ProceedButton(
-                                state: state,
-                                onActiveTap: _onProceedToPayment,
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                          ),
-                        );
-                      },
+                                // ── Proceed button ─────────────────────────────
+                                _ProceedButton(
+                                  state: state,
+                                  onActiveTap: _onProceedToPayment,
+                                ),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            // Loading overlay while the initiate call is in flight.
-            BlocSelector<PaymentCubit, PaymentState, bool>(
-              selector: (state) => state.status == PaymentStatus.initiating,
-              builder: (_, isInitiating) => isInitiating
-                  ? const LoadingOverlay(label: AppStrings.initiatingPayment)
-                  : const SizedBox.shrink(),
-            ),
-          ],
+              // Loading overlay while the initiate call is in flight.
+              BlocSelector<PaymentCubit, PaymentState, bool>(
+                selector: (state) => state.status == PaymentStatus.initiating,
+                builder: (_, isInitiating) => isInitiating
+                    ? const LoadingOverlay(label: AppStrings.initiatingPayment)
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -444,6 +491,7 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.recipientAddressCtrl,
     required this.recipientNameCtrl,
     required this.onAddressChanged,
+    required this.onClearAddress,
     required this.onUseDefault,
     required this.onToggleSomeoneElse,
     required this.onRecipientAddressChanged,
@@ -456,6 +504,7 @@ class _DeliveryAddressCard extends StatelessWidget {
   final TextEditingController recipientAddressCtrl;
   final TextEditingController recipientNameCtrl;
   final ValueChanged<String> onAddressChanged;
+  final VoidCallback onClearAddress;
   final VoidCallback onUseDefault;
   final ValueChanged<bool?> onToggleSomeoneElse;
   final ValueChanged<String> onRecipientAddressChanged;
@@ -486,7 +535,7 @@ class _DeliveryAddressCard extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: AppStrings.typeDeliveryAddressHint,
+                    hintText: AppStrings.searchAndSelectAddress,
                     hintStyle: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textHint,
@@ -494,11 +543,34 @@ class _DeliveryAddressCard extends StatelessWidget {
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
+                    suffixIcon: state.isSearchingAddress
+                        ? const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : (state.deliveryAddress.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: onClearAddress,
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: AppColors.textHint,
+                                  ),
+                                )
+                              : null),
                   ),
                 ),
               ),
             ],
           ),
+          _AddressVerificationHint(state: state),
           const SizedBox(height: 12),
 
           // Use Default Address button
@@ -609,6 +681,49 @@ class _DeliveryAddressCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Address verification hint ─────────────────────────────────────────────────
+
+class _AddressVerificationHint extends StatelessWidget {
+  const _AddressVerificationHint({required this.state});
+
+  final CheckoutState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.deliveryAddress.isEmpty) return const SizedBox.shrink();
+
+    if (state.addressVerified) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text(
+          AppStrings.addressVerified,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.success,
+          ),
+        ),
+      );
+    }
+
+    if (!state.showSuggestions && !state.isSearchingAddress) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text(
+          AppStrings.pleaseSelectFromSuggestions,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }
 
@@ -766,7 +881,13 @@ class _ProceedButton extends StatelessWidget {
 
     String? hintText;
     if (formInvalid && state.selectedMode == DeliveryMode.delivery) {
-      hintText = AppStrings.pleaseEnterDeliveryAddress;
+      if (state.isOrderingForSomeoneElse) {
+        hintText = AppStrings.pleaseEnterDeliveryAddress;
+      } else if (state.deliveryAddress.trim().isEmpty) {
+        hintText = AppStrings.enterDeliveryAddress;
+      } else {
+        hintText = AppStrings.selectValidAddress;
+      }
     }
 
     return Column(
@@ -785,7 +906,10 @@ class _ProceedButton extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hintText,
-            style: const TextStyle(fontSize: 12, color: AppColors.error),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

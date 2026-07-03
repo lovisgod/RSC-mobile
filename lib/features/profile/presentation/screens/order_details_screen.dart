@@ -9,9 +9,12 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../home/domain/repositories/home_repository.dart';
 import '../../../menu/domain/entities/outlet.dart';
+import '../../../shell/presentation/bloc/shell_bloc.dart';
+import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/usecases/reorder_usecase.dart';
@@ -28,9 +31,8 @@ class OrderDetailsScreen extends StatefulWidget {
 }
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
-  static const _reorderUseCase = ReorderUseCase();
-
   List<Outlet> _outlets = const [];
+  bool _isReordering = false;
 
   @override
   void initState() {
@@ -46,9 +48,29 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       AppStrings.kitchenFallbackName;
 
   Future<void> _handleReorder(OrderHistoryEntity order) async {
-    final cart = await _reorderUseCase.call(order);
-    if (!mounted) return;
-    context.push(RouteNames.checkout, extra: {'cart': cart});
+    if (_isReordering) return;
+    setState(() => _isReordering = true);
+
+    try {
+      await getIt<ReorderUseCase>().call(order);
+      if (!mounted) return;
+      context.go(RouteNames.home);
+      context.read<ShellBloc>().add(const ShellTabChanged(2));
+      AppSnackbar.show(
+        context,
+        message: AppStrings.itemsAddedToCart,
+        emoji: '',
+        backgroundColor: AppColors.navy,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isReordering = false);
+      AppSnackbar.show(
+        context,
+        message: AppStrings.reorderFailed,
+        type: AppSnackbarType.error,
+      );
+    }
   }
 
   @override
@@ -72,6 +94,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     order: order,
                     outletName: _outletName,
                     onReorder: () => _handleReorder(order),
+                    isReordering: _isReordering,
                   );
                 },
               ),
@@ -155,11 +178,13 @@ class _OrderDetailsBody extends StatelessWidget {
     required this.order,
     required this.outletName,
     required this.onReorder,
+    required this.isReordering,
   });
 
   final OrderHistoryEntity order;
   final String Function(String outletId) outletName;
   final VoidCallback onReorder;
+  final bool isReordering;
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +228,7 @@ class _OrderDetailsBody extends StatelessWidget {
           AppButton(
             label: AppStrings.reorderEntireOrder,
             backgroundColor: AppColors.navy,
+            isLoading: isReordering,
             onPressed: onReorder,
           ),
         ],

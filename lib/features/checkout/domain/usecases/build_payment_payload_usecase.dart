@@ -15,9 +15,9 @@ class BuildPaymentPayloadUseCase {
   static const String _modeDelivery = 'DELIVERY';
   static const String _modeTakeout = 'TAKEOUT';
 
-  // TODO: Hardcoded coordinates until address geocoding/autocomplete is
-  // implemented (Victoria Island, Lagos placeholder). The API requires
-  // latitude/longitude regardless of delivery mode.
+  // Fallback coordinates (Victoria Island, Lagos) for the someone-else
+  // geofence flow and manually typed addresses never resolved via Nominatim.
+  // The API requires latitude/longitude regardless of delivery mode.
   static const double _placeholderLatitude = 6.4474;
   static const double _placeholderLongitude = 3.4542;
 
@@ -47,20 +47,21 @@ class BuildPaymentPayloadUseCase {
       deliveryAddress = checkout.deliveryAddress;
     }
 
-    // A saved address selected via "Use Default Address" carries real
-    // coordinates; manually typed addresses (or the someone-else geofence
-    // flow) fall back to the placeholder until geocoding is added.
+    // Coordinates come from, in priority order: a Nominatim autocomplete
+    // pick, a saved address selected via "Use Default Address", or the
+    // placeholder for the someone-else geofence flow / untouched manual text.
+    final useRealCoords = isDelivery && !checkout.isOrderingForSomeoneElse;
     final selectedAddress = checkout.selectedAddress;
-    final useSelectedCoords =
-        isDelivery &&
-        !checkout.isOrderingForSomeoneElse &&
-        selectedAddress != null;
-    final latitude = useSelectedCoords
-        ? selectedAddress.latitude
-        : _placeholderLatitude;
-    final longitude = useSelectedCoords
-        ? selectedAddress.longitude
-        : _placeholderLongitude;
+    final latitude = !useRealCoords
+        ? _placeholderLatitude
+        : checkout.currentLatitude ??
+              selectedAddress?.latitude ??
+              _placeholderLatitude;
+    final longitude = !useRealCoords
+        ? _placeholderLongitude
+        : checkout.currentLongitude ??
+              selectedAddress?.longitude ??
+              _placeholderLongitude;
 
     return InitiatePaymentRequestModel(
       items: items,

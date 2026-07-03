@@ -59,6 +59,10 @@ abstract final class AppColors {
   static const Color error = Color(0xFFE53935);
   static const Color success = Color(0xFF43A047);
   static const Color warning = Color(0xFFFB8C00);
+  static const Color info = Color(0xFF2196F3);
+
+  /// Neutral badge background — e.g. a PENDING sub-order status chip.
+  static const Color neutralGray = Color(0xFF9CA3AF);
 
   // ─── UI ───────────────────────────────────────────────
   /// Input field border

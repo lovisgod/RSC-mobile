@@ -3,44 +3,118 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
+import '../../../track/presentation/cubit/track_cubit.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/usecases/reorder_usecase.dart';
 import '../cubit/order_history_cubit.dart';
 
-class OrderHistoryCard extends StatelessWidget {
+class OrderHistoryCard extends StatefulWidget {
   const OrderHistoryCard({super.key, required this.order});
 
   final OrderHistoryEntity order;
 
-  static const _deliveryModeColor = Color(0xFF2196F3);
-  static const _reorderUseCase = ReorderUseCase();
+  @override
+  State<OrderHistoryCard> createState() => _OrderHistoryCardState();
+}
 
-  void _handleCardTap(BuildContext context) {
-    if (order.isCompleted) {
-      context.read<OrderHistoryCubit>().loadOrderDetail(order.id);
-      context.push(RouteNames.orderDetails, extra: order.id);
-    } else {
+class _OrderHistoryCardState extends State<OrderHistoryCard> {
+  static const _deliveryModeColor = Color(0xFF2196F3);
+
+  bool _isTracking = false;
+
+  void _handleCardTap() {
+    final order = widget.order;
+    // Active orders are only ever tracked via the explicit "Track" button
+    // below — the card itself no longer switches tabs on tap.
+    if (order.isActive) return;
+    context.read<OrderHistoryCubit>().loadOrderDetail(order.id);
+    context.push(RouteNames.orderDetails, extra: order.id);
+  }
+
+  Future<void> _handleTrack() async {
+    if (_isTracking) return;
+    setState(() => _isTracking = true);
+
+    final trackCubit = getIt<TrackCubit>();
+    await trackCubit.loadSpecificOrder(widget.order.id);
+
+    if (!mounted) return;
+    setState(() => _isTracking = false);
+
+    final loaded = trackCubit.state.activeOrder;
+    if (trackCubit.state.hasActiveOrder && loaded?.id == widget.order.id) {
       context.read<ShellBloc>().add(const ShellTabChanged(3));
+    } else {
+      AppSnackbar.show(
+        context,
+        message: trackCubit.state.error ?? AppStrings.trackOrderFailed,
+        type: AppSnackbarType.error,
+      );
     }
   }
 
-  Future<void> _handleReorder(BuildContext context) async {
-    final cart = await _reorderUseCase.call(order);
-    if (!context.mounted) return;
-    context.push(RouteNames.checkout, extra: {'cart': cart});
+  Future<void> _handleReorder() async {
+    final orderHistoryCubit = context.read<OrderHistoryCubit>();
+    // The flag lives on the cubit (not this widget) so it can't get stuck
+    // once this card is hidden — rather than disposed — inside the shell's
+    // IndexedStack after navigating to the Cart tab.
+    if (orderHistoryCubit.state.isReordering) return;
+    orderHistoryCubit.startReorder(widget.order.id);
+
+    await orderHistoryCubit.loadOrderDetail(widget.order.id);
+    final detail = orderHistoryCubit.state.selectedOrder;
+
+    if (detail == null || detail.id != widget.order.id) {
+      orderHistoryCubit.finishReorder();
+      if (!mounted) return;
+      AppSnackbar.show(
+        context,
+        message: AppStrings.reorderFailed,
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
+
+    try {
+      await getIt<ReorderUseCase>().call(detail);
+      orderHistoryCubit.finishReorder();
+      if (!mounted) return;
+      context.go(RouteNames.home);
+      context.read<ShellBloc>().add(const ShellTabChanged(2));
+      AppSnackbar.show(
+        context,
+        message: AppStrings.itemsAddedToCart,
+        emoji: '',
+        backgroundColor: AppColors.navy,
+      );
+    } catch (_) {
+      orderHistoryCubit.finishReorder();
+      if (!mounted) return;
+      AppSnackbar.show(
+        context,
+        message: AppStrings.reorderFailed,
+        type: AppSnackbarType.error,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final order = widget.order;
     final moreCount = order.additionalItemsCount;
+    final historyState = context.watch<OrderHistoryCubit>().state;
+    final isReorderingThis =
+        historyState.isReordering && historyState.reorderingOrderId == order.id;
 
     return GestureDetector(
-      onTap: () => _handleCardTap(context),
+      onTap: _handleCardTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -116,7 +190,7 @@ class OrderHistoryCard extends StatelessWidget {
             const Divider(height: 1, color: AppColors.divider),
             const SizedBox(height: 10),
 
-            // ── Bottom row: grand total + re-order ─────────────────────────
+            // ── Bottom row: grand total + track/re-order ───────────────────
             Row(
               children: [
                 Text(
@@ -128,31 +202,87 @@ class OrderHistoryCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                GestureDetector(
-                  onTap: () => _handleReorder(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.navy,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      AppStrings.reorder,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+                if (order.isActive) ...[
+                  _PillButton(
+                    label: AppStrings.trackOrder,
+                    leadingEmoji: '📍',
+                    backgroundColor: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    isLoading: _isTracking,
+                    onTap: _handleTrack,
                   ),
+                  const SizedBox(width: 8),
+                ],
+                _PillButton(
+                  label: AppStrings.reorder,
+                  backgroundColor: AppColors.navy,
+                  isLoading: isReorderingThis,
+                  onTap: _handleReorder,
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Pill button ────────────────────────────────────────────────────────────
+
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.label,
+    required this.backgroundColor,
+    required this.isLoading,
+    required this.onTap,
+    this.leadingEmoji,
+    this.fontWeight = FontWeight.w600,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final bool isLoading;
+  final VoidCallback onTap;
+  final String? leadingEmoji;
+  final FontWeight fontWeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: backgroundColor.withValues(alpha: isLoading ? 0.6 : 1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (leadingEmoji != null) ...[
+                    Text(leadingEmoji!, style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: fontWeight,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
