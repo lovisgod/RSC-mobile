@@ -190,7 +190,7 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
             const Divider(height: 1, color: AppColors.divider),
             const SizedBox(height: 10),
 
-            // ── Bottom row: grand total + track/re-order ───────────────────
+            // ── Bottom row: grand total + status-specific actions ──────────
             Row(
               children: [
                 Text(
@@ -202,7 +202,34 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
                   ),
                 ),
                 const Spacer(),
-                if (order.isActive) ...[
+                if (order.status == 'CANCELLED') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      order.status,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.error,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _PillButton(
+                    label: AppStrings.viewDetails,
+                    backgroundColor: AppColors.navy,
+                    isLoading: false,
+                    onTap: _handleCardTap,
+                  ),
+                ] else if (order.isActive) ...[
                   _PillButton(
                     label: AppStrings.trackOrder,
                     leadingEmoji: '📍',
@@ -212,13 +239,19 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
                     onTap: _handleTrack,
                   ),
                   const SizedBox(width: 8),
-                ],
-                _PillButton(
-                  label: AppStrings.reorder,
-                  backgroundColor: AppColors.navy,
-                  isLoading: isReorderingThis,
-                  onTap: _handleReorder,
-                ),
+                  _PillButton(
+                    label: AppStrings.reorder,
+                    backgroundColor: AppColors.navy,
+                    isLoading: isReorderingThis,
+                    onTap: _handleReorder,
+                  ),
+                ] else
+                  _PillButton(
+                    label: AppStrings.reorder,
+                    backgroundColor: AppColors.navy,
+                    isLoading: isReorderingThis,
+                    onTap: _handleReorder,
+                  ),
               ],
             ),
           ],

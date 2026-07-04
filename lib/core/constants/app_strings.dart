@@ -119,14 +119,23 @@ abstract final class AppStrings {
   static const String trackingComingSoon = 'Full order tracking coming soon';
   static const String estimatedDeliveryTime = 'ESTIMATED DELIVERY TIME';
   static const String etaProcessing = 'Processing...';
-  static const String etaReady = 'Ready!';
+  static const String almostReady = 'Almost Ready...';
+  static const String etaReady = 'Ready! 🎉';
   static const String etaOnTheWay = 'On the way! 🛵';
   static const String etaDelivered = 'Delivered! 🎉';
   static const String waitingForKitchen = 'Waiting for kitchen confirmation';
+  static const String orderConfirmedByKitchen = 'Order confirmed by kitchen';
+  static const String someItemsBeingFinished =
+      'Some items are being finished up';
   static const String kitchenIsPreparingMeals =
       'Kitchen is preparing your meals';
   static const String orderReady = 'Your order is ready for pickup';
   static const String riderOnTheWay = 'Your rider is heading to you';
+  static const String enjoyYourMeal = 'Enjoy your meal!';
+  static const String orderCancelled = 'Order Cancelled';
+  static const String orderCancelledSubtitle = 'This order has been cancelled';
+  static const String orderTimeline = 'ORDER TIMELINE';
+  static const String viewDetails = 'View Details';
   static const String updatedJustNow = 'Updated just now';
   static String updatedMinsAgo(int mins) => 'Updated $mins mins ago';
   static const String kitchenBreakdowns = 'KITCHEN BREAKDOWNS';

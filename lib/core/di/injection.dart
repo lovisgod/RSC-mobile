@@ -1,10 +1,13 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
+import '../../features/cart/data/datasources/cart_local_datasource.dart';
+import '../../features/cart/data/models/hive/cart_item_hive_model.dart';
 import '../../features/cart/presentation/cubit/cart_cubit.dart';
 import '../../features/checkout/data/repositories/payment_repository_impl.dart';
 import '../../features/checkout/domain/repositories/payment_repository.dart';
@@ -217,8 +220,19 @@ Future<void> configureDependencies() async {
     )
     ..registerFactory<OutletDetailBloc>(
       () => OutletDetailBloc(getIt<GetOutletMenuUseCase>()),
+    );
+
+  // ── Cart feature ───────────────────────────────────────────────────────────
+  // The Hive box is opened in main.dart before configureDependencies() runs,
+  // so it's safe to register eagerly here.
+  getIt
+    ..registerSingleton<Box<CartItemHiveModel>>(
+      Hive.box<CartItemHiveModel>(cartBoxName),
     )
-    ..registerLazySingleton<CartCubit>(() => CartCubit());
+    ..registerSingleton<CartLocalDatasource>(
+      CartLocalDatasource(getIt<Box<CartItemHiveModel>>()),
+    )
+    ..registerSingleton<CartCubit>(CartCubit(getIt<CartLocalDatasource>()));
 
   // ── Search feature ─────────────────────────────────────────────────────────
   getIt

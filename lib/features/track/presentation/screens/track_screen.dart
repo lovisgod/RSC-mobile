@@ -9,10 +9,12 @@ import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/line_item_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
+import '../../domain/entities/order_event_entity.dart';
 import '../../domain/entities/rider_summary.dart';
 import '../../domain/enums/order_tracking_status.dart';
 import '../cubit/track_cubit.dart';
 import '../cubit/track_state.dart';
+import '../widgets/order_timeline_widget.dart';
 import '../widgets/rider_route_widget.dart';
 
 class TrackScreen extends StatefulWidget {
@@ -55,9 +57,7 @@ class _TrackScreenState extends State<TrackScreen>
 
   void _onStatusChanged(String? status) {
     switch (status) {
-      case 'READY':
-        _riderController.value = 0.0;
-      case 'DISPATCHED':
+      case 'OUT_FOR_DELIVERY':
         _riderController.forward(from: 0.0);
       case 'DELIVERED':
         _riderController.value = 1.0;
@@ -85,6 +85,7 @@ class _TrackScreenState extends State<TrackScreen>
           body = _ActiveOrderBody(
             order: order,
             outlets: state.outlets,
+            orderEvents: state.orderEvents,
             lastRefreshedAt: state.lastRefreshedAt,
             riderController: _riderController,
             pulseAnimation: _pulseAnimation,
@@ -252,6 +253,7 @@ class _ActiveOrderBody extends StatelessWidget {
   const _ActiveOrderBody({
     required this.order,
     required this.outlets,
+    required this.orderEvents,
     required this.lastRefreshedAt,
     required this.riderController,
     required this.pulseAnimation,
@@ -259,17 +261,30 @@ class _ActiveOrderBody extends StatelessWidget {
 
   final OrderHistoryEntity order;
   final List<Outlet> outlets;
+  final List<OrderEventEntity> orderEvents;
   final DateTime? lastRefreshedAt;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
 
-  static const _riderStatuses = {'READY', 'DISPATCHED', 'DELIVERED'};
-  static const _routeStatuses = {'DISPATCHED', 'DELIVERED'};
+  static const _riderStatuses = {'OUT_FOR_DELIVERY', 'DELIVERED'};
 
   @override
   Widget build(BuildContext context) {
+    // Cancelled orders show nothing but the ETA card in its cancelled state
+    // — no kitchen breakdown, rider, route, or handoff code.
+    if (order.status == 'CANCELLED') {
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+        child: _EtaCard(
+          order: order,
+          pulseAnimation: pulseAnimation,
+          lastRefreshedAt: lastRefreshedAt,
+        ),
+      );
+    }
+
     final hasRider = _riderStatuses.contains(order.status);
-    final showRoute = _routeStatuses.contains(order.status);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -284,7 +299,7 @@ class _ActiveOrderBody extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Rider route widget — animated in when dispatched.
+          // Rider route widget — animated in when out for delivery.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
             transitionBuilder: (child, animation) => FadeTransition(
@@ -297,7 +312,7 @@ class _ActiveOrderBody extends StatelessWidget {
                 child: child,
               ),
             ),
-            child: showRoute
+            child: hasRider
                 ? AnimatedBuilder(
                     key: const ValueKey('route'),
                     animation: riderController,
@@ -307,15 +322,47 @@ class _ActiveOrderBody extends StatelessWidget {
                 : const SizedBox(key: ValueKey('no-route')),
           ),
 
+          if (orderEvents.isNotEmpty) ...[
+            const Text(
+              AppStrings.orderTimeline,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            OrderTimelineWidget(events: orderEvents),
+            const SizedBox(height: 6),
+          ],
+
           _KitchenBreakdowns(order: order, outlets: outlets),
 
           const SizedBox(height: 6),
           _DeliveryHandoffCard(code: order.deliveryCode),
 
-          if (hasRider) ...[
-            const SizedBox(height: 24),
-            _RiderSection(rider: _mockRiderFor(order.status)),
-          ],
+          // Rider card slides in once dispatched.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.15),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: hasRider
+                ? Padding(
+                    key: const ValueKey('rider'),
+                    padding: const EdgeInsets.only(top: 24),
+                    child: _RiderSection(rider: _mockRiderFor(order.status)),
+                  )
+                : const SizedBox(key: ValueKey('no-rider')),
+          ),
         ],
       ),
     );
@@ -325,11 +372,9 @@ class _ActiveOrderBody extends StatelessWidget {
 // TODO: Replace with real rider data once the backend populates
 // latestRiderLocation on the order — there is no rider entity on the API yet.
 RiderSummary _mockRiderFor(String status) {
-  final activeStatus = switch (status) {
-    'DISPATCHED' => RiderActiveStatus.pickedUp,
-    'DELIVERED' => RiderActiveStatus.delivered,
-    _ => RiderActiveStatus.assigned,
-  };
+  final activeStatus = status == 'DELIVERED'
+      ? RiderActiveStatus.delivered
+      : RiderActiveStatus.pickedUp;
   return RiderSummary(
     name: 'Emeka Chukwu',
     rating: 4.95,
@@ -339,6 +384,83 @@ RiderSummary _mockRiderFor(String status) {
 }
 
 // ── ETA Card ──────────────────────────────────────────────────────────────────
+
+class _StatusDisplay {
+  const _StatusDisplay({
+    required this.title,
+    required this.subtitle,
+    required this.titleColor,
+    this.pulsing = false,
+    this.cardColor = const Color(0xFFEEF3FB),
+    this.showConfetti = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final Color titleColor;
+  final bool pulsing;
+  final Color cardColor;
+  final bool showConfetti;
+}
+
+_StatusDisplay _getStatusDisplay(String status) {
+  switch (status) {
+    case 'PENDING':
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.waitingForKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'CONFIRMED':
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.orderConfirmedByKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'PARTIALLY_READY':
+      return const _StatusDisplay(
+        title: AppStrings.almostReady,
+        subtitle: AppStrings.someItemsBeingFinished,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'READY':
+      return const _StatusDisplay(
+        title: AppStrings.etaReady,
+        subtitle: AppStrings.orderReady,
+        titleColor: AppColors.navy,
+      );
+    case 'OUT_FOR_DELIVERY':
+      return const _StatusDisplay(
+        title: AppStrings.etaOnTheWay,
+        subtitle: AppStrings.riderOnTheWay,
+        titleColor: AppColors.navy,
+      );
+    case 'DELIVERED':
+      return const _StatusDisplay(
+        title: AppStrings.etaDelivered,
+        subtitle: AppStrings.enjoyYourMeal,
+        titleColor: AppColors.success,
+        showConfetti: true,
+      );
+    case 'CANCELLED':
+      return const _StatusDisplay(
+        title: AppStrings.orderCancelled,
+        subtitle: AppStrings.orderCancelledSubtitle,
+        titleColor: AppColors.error,
+        cardColor: Color(0xFFFFEBEE),
+      );
+    default:
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.waitingForKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+  }
+}
 
 class _EtaCard extends StatelessWidget {
   const _EtaCard({
@@ -362,10 +484,12 @@ class _EtaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final display = _getStatusDisplay(order.status);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF3FB),
+        color: display.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -380,9 +504,20 @@ class _EtaCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          _EtaMainText(status: order.status, pulseAnimation: pulseAnimation),
+          _EtaTitle(display: display, pulseAnimation: pulseAnimation),
           const SizedBox(height: 4),
-          _EtaSubtitle(status: order.status),
+          Text(
+            display.subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (display.showConfetti) ...[
+            const SizedBox(height: 8),
+            Image.asset(AppAssets.imgConfetti, height: 32),
+          ],
           if (lastRefreshedAt != null) ...[
             const SizedBox(height: 10),
             Align(
@@ -399,65 +534,24 @@ class _EtaCard extends StatelessWidget {
   }
 }
 
-class _EtaMainText extends StatelessWidget {
-  const _EtaMainText({required this.status, required this.pulseAnimation});
+class _EtaTitle extends StatelessWidget {
+  const _EtaTitle({required this.display, required this.pulseAnimation});
 
-  final String status;
+  final _StatusDisplay display;
   final Animation<double> pulseAnimation;
 
   @override
   Widget build(BuildContext context) {
-    const mainStyle = TextStyle(
-      fontSize: 36,
+    final style = TextStyle(
+      fontSize: display.pulsing ? 36 : 28,
       fontWeight: FontWeight.w800,
-      color: AppColors.textPrimary,
+      color: display.titleColor,
       height: 1.1,
     );
-    const navyStyle = TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.w800,
-      color: AppColors.navy,
-      height: 1.1,
-    );
-
-    switch (status) {
-      case 'READY':
-        return const Text(AppStrings.etaReady, style: navyStyle);
-      case 'DISPATCHED':
-        return const Text(AppStrings.etaOnTheWay, style: navyStyle);
-      case 'DELIVERED':
-        return const Text(AppStrings.etaDelivered, style: navyStyle);
-      default:
-        return FadeTransition(
-          opacity: pulseAnimation,
-          child: const Text(AppStrings.etaProcessing, style: mainStyle),
-        );
-    }
-  }
-}
-
-class _EtaSubtitle extends StatelessWidget {
-  const _EtaSubtitle({required this.status});
-
-  final String status;
-
-  static const _style = TextStyle(fontSize: 13, color: AppColors.textSecondary);
-
-  @override
-  Widget build(BuildContext context) {
-    switch (status) {
-      case 'CONFIRMED':
-      case 'PREPARING':
-        return const Text(AppStrings.kitchenIsPreparingMeals, style: _style);
-      case 'READY':
-        return const Text(AppStrings.orderReady, style: _style);
-      case 'DISPATCHED':
-        return const Text(AppStrings.riderOnTheWay, style: _style);
-      case 'DELIVERED':
-        return Image.asset(AppAssets.imgConfetti, height: 32);
-      default:
-        return const Text(AppStrings.waitingForKitchen, style: _style);
-    }
+    final text = Text(display.title, style: style, textAlign: TextAlign.center);
+    return display.pulsing
+        ? FadeTransition(opacity: pulseAnimation, child: text)
+        : text;
   }
 }
 
@@ -535,6 +629,7 @@ class _KitchenCard extends StatelessWidget {
         return AppColors.success;
       case 'COLLECTED':
       case 'DISPATCHED':
+      case 'OUT_FOR_DELIVERY':
         return AppColors.navy;
       default:
         return AppColors.neutralGray;
@@ -715,6 +810,16 @@ class _RiderSection extends StatelessWidget {
     }
   }
 
+  Color get _statusColor {
+    switch (rider.activeStatus) {
+      case RiderActiveStatus.delivered:
+        return AppColors.success;
+      case RiderActiveStatus.assigned:
+      case RiderActiveStatus.pickedUp:
+        return AppColors.primary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -751,9 +856,9 @@ class _RiderSection extends StatelessWidget {
                 ),
                 TextSpan(
                   text: _statusLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: _statusColor,
                   ),
                 ),
               ],

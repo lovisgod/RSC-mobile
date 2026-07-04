@@ -1,3 +1,4 @@
+import '../../../track/domain/entities/order_event_entity.dart';
 import 'line_item_entity.dart';
 import 'sub_order_entity.dart';
 
@@ -15,7 +16,7 @@ class OrderHistoryEntity {
   final DateTime createdAt;
   final List<SubOrderEntity> subOrders;
   final List<LineItemEntity> lineItems;
-  final bool isCompleted;
+  final List<OrderEventEntity> events;
 
   const OrderHistoryEntity({
     required this.id,
@@ -31,23 +32,26 @@ class OrderHistoryEntity {
     required this.createdAt,
     required this.subOrders,
     required this.lineItems,
-    required this.isCompleted,
+    this.events = const [],
   });
 
+  /// Real master-order statuses from the API for an order still in progress.
   static const Set<String> activeStatuses = {
     'PENDING',
     'CONFIRMED',
-    'PREPARING',
+    'PARTIALLY_READY',
     'READY',
-    'DISPATCHED',
+    'OUT_FOR_DELIVERY',
   };
 
   bool get isActive => activeStatuses.contains(status);
 
+  bool get isCompleted => status == 'DELIVERED' || status == 'CANCELLED';
+
   OrderHistoryEntity copyWith({
     String? status,
     List<SubOrderEntity>? subOrders,
-    bool? isCompleted,
+    List<OrderEventEntity>? events,
   }) {
     return OrderHistoryEntity(
       id: id,
@@ -63,7 +67,7 @@ class OrderHistoryEntity {
       createdAt: createdAt,
       subOrders: subOrders ?? this.subOrders,
       lineItems: lineItems,
-      isCompleted: isCompleted ?? this.isCompleted,
+      events: events ?? this.events,
     );
   }
 

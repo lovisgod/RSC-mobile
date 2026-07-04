@@ -3,14 +3,11 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../cart/domain/entities/cart_item_entity.dart';
 import '../../../home/domain/repositories/home_repository.dart';
-import '../../../menu/domain/entities/outlet.dart';
-import '../../../profile/domain/entities/line_item_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
-import '../../../profile/domain/entities/sub_order_entity.dart';
 import '../../../profile/domain/usecases/get_order_by_id_usecase.dart';
 import '../../../profile/presentation/cubit/order_history_cubit.dart';
+import '../../domain/entities/order_event_entity.dart';
 import 'track_state.dart';
 
 class TrackCubit extends Cubit<TrackState> {
@@ -25,10 +22,10 @@ class TrackCubit extends Cubit<TrackState> {
   final HomeRepository _homeRepository;
 
   Timer? _pollTimer;
-  final List<Timer> _simulationTimers = [];
 
   static const _pollInterval = Duration(seconds: 10);
-  static const _resetDelay = Duration(seconds: 30);
+  static const _deliveredResetDelay = Duration(seconds: 30);
+  static const _cancelledResetDelay = Duration(seconds: 10);
 
   Future<void> loadActiveOrder() async {
     emit(state.copyWith(isLoading: true, clearError: true));
@@ -42,12 +39,6 @@ class TrackCubit extends Cubit<TrackState> {
     final summary = orders.firstWhereOrNull((o) => o.isActive);
 
     if (summary == null) {
-      // Don't stomp on an already-running simulation — the real order may
-      // just not have landed in the backend yet.
-      if (state.simulationActive) {
-        emit(state.copyWith(isLoading: false));
-        return;
-      }
       emit(
         state.copyWith(
           hasActiveOrder: false,
@@ -75,23 +66,18 @@ class TrackCubit extends Cubit<TrackState> {
     try {
       final detail = await _getOrderByIdUseCase(orderId);
       final outlets = await _homeRepository.getOutlets();
-      _cancelSimulation();
       emit(
         state.copyWith(
           hasActiveOrder: true,
           activeOrder: detail,
+          orderEvents: _sortedEvents(detail),
           isLoading: false,
           outlets: outlets,
-          simulationActive: false,
           lastRefreshedAt: DateTime.now(),
         ),
       );
-      startPolling();
+      _applyStatusTransition(detail.status);
     } catch (_) {
-      if (state.simulationActive) {
-        emit(state.copyWith(isLoading: false));
-        return;
-      }
       emit(
         state.copyWith(
           isLoading: false,
@@ -107,6 +93,9 @@ class TrackCubit extends Cubit<TrackState> {
     _pollTimer = Timer.periodic(_pollInterval, (_) => refreshActiveOrder());
   }
 
+  /// Runs on every 10s poll tick. All status-driven UI (ETA card, rider
+  /// section, motorcycle animation) reacts to the fresh [activeOrder] this
+  /// emits — there is no simulated status progression anymore.
   Future<void> refreshActiveOrder() async {
     final current = state.activeOrder;
     if (current == null) return;
@@ -114,16 +103,15 @@ class TrackCubit extends Cubit<TrackState> {
     try {
       final detail = await _getOrderByIdUseCase(current.id);
       emit(
-        state.copyWith(activeOrder: detail, lastRefreshedAt: DateTime.now()),
+        state.copyWith(
+          activeOrder: detail,
+          orderEvents: _sortedEvents(detail),
+          lastRefreshedAt: DateTime.now(),
+        ),
       );
 
       if (detail.status == 'DELIVERED' || detail.status == 'CANCELLED') {
-        _pollTimer?.cancel();
-        emit(state.copyWith(isPolling: false));
-        Timer(_resetDelay, () {
-          if (isClosed) return;
-          emit(TrackState.empty());
-        });
+        _applyStatusTransition(detail.status);
       }
     } catch (_) {
       // Silent failure on a failed poll — never disrupt the active
@@ -137,136 +125,41 @@ class TrackCubit extends Cubit<TrackState> {
     await loadActiveOrder();
   }
 
-  /// Optimistic fallback: shows a placeholder order immediately after
-  /// payment while [loadActiveOrder] confirms the real backend record. Real
-  /// data always overrides this once it arrives.
-  Future<void> startOrderTracking(
-    List<CartItemEntity> cartItems,
-    List<Outlet> outlets,
-  ) async {
-    _cancelSimulation();
-
-    final byOutlet = <String, List<CartItemEntity>>{};
-    for (final item in cartItems) {
-      (byOutlet[item.outletId] ??= []).add(item);
-    }
-
-    final subOrders = byOutlet.entries.map((entry) {
-      final subtotal = entry.value.fold<double>(
-        0,
-        (sum, i) => sum + i.unitPrice * i.quantity,
-      );
-      return SubOrderEntity(
-        id: 'sim-${entry.key}',
-        masterOrderId: 'sim',
-        outletId: entry.key,
-        status: 'PENDING',
-        subtotal: subtotal,
-      );
-    }).toList();
-
-    final lineItems = cartItems.map((item) {
-      return LineItemEntity(
-        id: 'sim-${item.id}',
-        menuItemId: item.menuItemId,
-        outletId: item.outletId,
-        subOrderId: 'sim-${item.outletId}',
-        itemNameSnapshot: item.itemNameSnapshot,
-        unitPrice: item.unitPrice,
-        quantity: item.quantity,
-        lineTotal: item.unitPrice * item.quantity,
-        modifiers: const [],
-      );
-    }).toList();
-
-    final simulatedOrder = OrderHistoryEntity(
-      id: 'sim',
-      paymentReference: 'RSC-SIMULATED',
-      deliveryCode: '------',
-      status: 'PENDING',
-      deliveryMode: 'DELIVERY',
-      deliveryAddress: '',
-      subtotal: 0,
-      deliveryFee: 0,
-      vat: 0,
-      total: 0,
-      createdAt: DateTime.now(),
-      subOrders: subOrders,
-      lineItems: lineItems,
-      isCompleted: false,
-    );
-
-    emit(
-      state.copyWith(
-        hasActiveOrder: true,
-        activeOrder: simulatedOrder,
-        outlets: outlets,
-        simulationActive: true,
-        simulationStep: 0,
-        riderProgress: 0,
-      ),
-    );
-
-    const steps = [
-      ('PREPARING', 0.0),
-      ('READY', 0.3),
-      ('DISPATCHED', 0.6),
-      ('DELIVERED', 1.0),
-    ];
-
-    for (var i = 0; i < steps.length; i++) {
-      final (status, progress) = steps[i];
-      _simulationTimers.add(
-        Timer(Duration(seconds: 8 * (i + 1)), () {
-          if (isClosed || !state.simulationActive) return;
-          final order = state.activeOrder;
-          if (order == null) return;
-          emit(
-            state.copyWith(
-              simulationStep: i + 1,
-              riderProgress: progress,
-              activeOrder: order.copyWith(
-                status: status,
-                subOrders: order.subOrders
-                    .map(
-                      (s) => SubOrderEntity(
-                        id: s.id,
-                        masterOrderId: s.masterOrderId,
-                        outletId: s.outletId,
-                        status: status,
-                        subtotal: s.subtotal,
-                      ),
-                    )
-                    .toList(),
-                isCompleted: status == 'DELIVERED',
-              ),
-            ),
-          );
-        }),
-      );
-    }
-
-    // Real order data, once it lands in the backend, always overrides this.
-    unawaited(loadActiveOrder());
-  }
-
   void cancelTracking() {
     _pollTimer?.cancel();
-    _cancelSimulation();
     emit(TrackState.empty());
   }
 
-  void _cancelSimulation() {
-    for (final t in _simulationTimers) {
-      t.cancel();
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  List<OrderEventEntity> _sortedEvents(OrderHistoryEntity order) =>
+      [...order.events]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  /// DELIVERED/CANCELLED stop polling and schedule the state reset; any
+  /// other status just (re)starts the 10s poll.
+  void _applyStatusTransition(String status) {
+    switch (status) {
+      case 'DELIVERED':
+        _scheduleReset(_deliveredResetDelay);
+      case 'CANCELLED':
+        _scheduleReset(_cancelledResetDelay);
+      default:
+        startPolling();
     }
-    _simulationTimers.clear();
+  }
+
+  void _scheduleReset(Duration delay) {
+    _pollTimer?.cancel();
+    emit(state.copyWith(isPolling: false));
+    Timer(delay, () {
+      if (isClosed) return;
+      emit(TrackState.empty());
+    });
   }
 
   @override
   Future<void> close() {
     _pollTimer?.cancel();
-    _cancelSimulation();
     return super.close();
   }
 }

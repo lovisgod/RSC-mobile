@@ -1,3 +1,4 @@
+import '../../../track/domain/entities/order_event_entity.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/entities/sub_order_entity.dart';
@@ -73,12 +74,10 @@ class OrderSummaryModel {
     );
   }
 
-  static bool isCompletedStatus(String status) =>
-      status == 'DELIVERED' || status == 'COLLECTED';
-
   OrderHistoryEntity toEntity({
     List<SubOrderEntity> subOrders = const [],
     List<LineItemEntity> lineItems = const [],
+    List<OrderEventEntity> events = const [],
   }) => OrderHistoryEntity(
     id: id,
     paymentReference: paymentReference,
@@ -93,6 +92,6 @@ class OrderSummaryModel {
     createdAt: createdAt,
     subOrders: subOrders,
     lineItems: lineItems,
-    isCompleted: isCompletedStatus(status),
+    events: events,
   );
 }

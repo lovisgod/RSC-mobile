@@ -1,5 +1,6 @@
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
+import '../../domain/entities/order_event_entity.dart';
 
 class TrackState {
   final bool hasActiveOrder;
@@ -12,12 +13,13 @@ class TrackState {
   /// Cached outlets (name/emoji lookups for the kitchen-breakdowns section).
   final List<Outlet> outlets;
 
-  // Simulation fallback — drives a rough rider-progress animation when no
-  // real order data is available yet (e.g. brief gap right after payment).
-  // Real API data always takes priority once loaded.
-  final int simulationStep;
+  /// activeOrder.events, sorted newest first.
+  final List<OrderEventEntity> orderEvents;
+
+  /// Drives the motorcycle position (0.0 → 1.0) while OUT_FOR_DELIVERY. The
+  /// actual animation is owned by the screen's AnimationController — this
+  /// just mirrors its target value for the rest of the UI.
   final double riderProgress;
-  final bool simulationActive;
 
   const TrackState({
     this.hasActiveOrder = false,
@@ -27,9 +29,8 @@ class TrackState {
     this.isPolling = false,
     this.lastRefreshedAt,
     this.outlets = const [],
-    this.simulationStep = 0,
+    this.orderEvents = const [],
     this.riderProgress = 0,
-    this.simulationActive = false,
   });
 
   factory TrackState.empty() => const TrackState();
@@ -44,9 +45,8 @@ class TrackState {
     bool? isPolling,
     DateTime? lastRefreshedAt,
     List<Outlet>? outlets,
-    int? simulationStep,
+    List<OrderEventEntity>? orderEvents,
     double? riderProgress,
-    bool? simulationActive,
   }) {
     return TrackState(
       hasActiveOrder: hasActiveOrder ?? this.hasActiveOrder,
@@ -56,9 +56,8 @@ class TrackState {
       isPolling: isPolling ?? this.isPolling,
       lastRefreshedAt: lastRefreshedAt ?? this.lastRefreshedAt,
       outlets: outlets ?? this.outlets,
-      simulationStep: simulationStep ?? this.simulationStep,
+      orderEvents: orderEvents ?? this.orderEvents,
       riderProgress: riderProgress ?? this.riderProgress,
-      simulationActive: simulationActive ?? this.simulationActive,
     );
   }
 }
