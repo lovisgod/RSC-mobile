@@ -1,18 +1,45 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
+import '../../features/cart/data/datasources/cart_local_datasource.dart';
+import '../../features/cart/data/models/hive/cart_item_hive_model.dart';
 import '../../features/cart/presentation/cubit/cart_cubit.dart';
+import '../../features/checkout/data/repositories/payment_repository_impl.dart';
+import '../../features/checkout/domain/repositories/payment_repository.dart';
+import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
+import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
+import '../../features/profile/data/datasources/profile_remote_data_source.dart';
+import '../../features/profile/data/repositories/address_repository_impl.dart';
+import '../../features/profile/data/repositories/order_repository_impl.dart';
+import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/repositories/address_repository.dart';
+import '../../features/profile/domain/repositories/order_repository.dart';
+import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/domain/usecases/create_address_usecase.dart';
+import '../../features/profile/domain/usecases/delete_address_usecase.dart';
+import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
+import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
+import '../../features/profile/domain/usecases/get_orders_usecase.dart';
+import '../../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../../features/profile/domain/usecases/reorder_usecase.dart';
+import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
+import '../../features/profile/domain/usecases/update_address_usecase.dart';
+import '../../features/profile/domain/usecases/update_profile_usecase.dart';
+import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
+import '../../features/profile/domain/usecases/verify_profile_change_usecase.dart';
+import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
-import '../../features/home/data/repositories/mock_home_repository.dart';
-import '../../features/search/data/repositories/mock_search_repository.dart';
+import '../../features/home/data/repositories/home_repository_impl.dart';
+import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/search/domain/repositories/search_repository.dart';
 import '../../features/search/domain/usecases/search_items_usecase.dart';
 import '../../features/search/presentation/bloc/search_bloc.dart';
@@ -34,6 +61,7 @@ import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../network/dio_client.dart';
+import '../services/nominatim_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
 
@@ -96,6 +124,57 @@ Future<void> configureDependencies() async {
       () => ResendOtpUseCase(getIt<AuthRepository>()),
     );
 
+  // ── Profile data layer ─────────────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<ProfileRemoteDataSource>(
+      () => ProfileRemoteDataSourceImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<ProfileRepository>(
+      () => ProfileRepositoryImpl(getIt<ProfileRemoteDataSource>()),
+    )
+    ..registerLazySingleton<GetProfileUseCase>(
+      () => GetProfileUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<UpdateProfileUseCase>(
+      () => UpdateProfileUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<UploadAvatarUseCase>(
+      () => UploadAvatarUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<VerifyProfileChangeUseCase>(
+      () => VerifyProfileChangeUseCase(getIt<ProfileRepository>()),
+    );
+
+  // ── Delivery address data layer ─────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<AddressRepository>(
+      () => AddressRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetAddressesUseCase>(
+      () => GetAddressesUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<CreateAddressUseCase>(
+      () => CreateAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<UpdateAddressUseCase>(
+      () => UpdateAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<DeleteAddressUseCase>(
+      () => DeleteAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerLazySingleton<SetDefaultAddressUseCase>(
+      () => SetDefaultAddressUseCase(getIt<AddressRepository>()),
+    )
+    ..registerFactory<AddressCubit>(
+      () => AddressCubit(
+        getIt<GetAddressesUseCase>(),
+        getIt<CreateAddressUseCase>(),
+        getIt<UpdateAddressUseCase>(),
+        getIt<DeleteAddressUseCase>(),
+        getIt<SetDefaultAddressUseCase>(),
+      ),
+    );
+
   // ── BLoCs ──────────────────────────────────────────────────────────────────
   getIt
     ..registerLazySingleton<AuthBloc>(
@@ -114,12 +193,22 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<ShellBloc>(() => ShellBloc(getIt<AuthBloc>()))
     ..registerLazySingleton<ProfileCubit>(
-      () => ProfileCubit(getIt<LocalStorage>()),
+      () => ProfileCubit(
+        getIt<LocalStorage>(),
+        getIt<GetProfileUseCase>(),
+        getIt<UploadAvatarUseCase>(),
+        getIt<UpdateProfileUseCase>(),
+        getIt<VerifyProfileChangeUseCase>(),
+      ),
     );
 
   // ── Home feature ───────────────────────────────────────────────────────────
+  // HomeRepositoryImpl is a singleton: it caches the outlets payload in memory
+  // and is shared by home, outlet-detail, and search.
   getIt
-    ..registerLazySingleton<HomeRepository>(() => const MockHomeRepository())
+    ..registerLazySingleton<HomeRepository>(
+      () => HomeRepositoryImpl(getIt<DioClient>()),
+    )
     ..registerLazySingleton<GetOutletsUseCase>(
       () => GetOutletsUseCase(getIt<HomeRepository>()),
     )
@@ -131,13 +220,24 @@ Future<void> configureDependencies() async {
     )
     ..registerFactory<OutletDetailBloc>(
       () => OutletDetailBloc(getIt<GetOutletMenuUseCase>()),
+    );
+
+  // ── Cart feature ───────────────────────────────────────────────────────────
+  // The Hive box is opened in main.dart before configureDependencies() runs,
+  // so it's safe to register eagerly here.
+  getIt
+    ..registerSingleton<Box<CartItemHiveModel>>(
+      Hive.box<CartItemHiveModel>(cartBoxName),
     )
-    ..registerLazySingleton<CartCubit>(() => CartCubit());
+    ..registerSingleton<CartLocalDatasource>(
+      CartLocalDatasource(getIt<Box<CartItemHiveModel>>()),
+    )
+    ..registerSingleton<CartCubit>(CartCubit(getIt<CartLocalDatasource>()));
 
   // ── Search feature ─────────────────────────────────────────────────────────
   getIt
     ..registerLazySingleton<SearchRepository>(
-      () => const MockSearchRepository(),
+      () => SearchRepositoryImpl(getIt<HomeRepository>()),
     )
     ..registerLazySingleton<SearchItemsUseCase>(
       () => SearchItemsUseCase(getIt<SearchRepository>()),
@@ -147,18 +247,54 @@ Future<void> configureDependencies() async {
     );
 
   // ── Order history ──────────────────────────────────────────────────────────
-  getIt.registerLazySingleton<OrderHistoryCubit>(
-    () => OrderHistoryCubit()..init(),
-  );
+  getIt
+    ..registerLazySingleton<OrderRepository>(
+      () => OrderRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetOrdersUseCase>(
+      () => GetOrdersUseCase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<GetOrderByIdUseCase>(
+      () => GetOrderByIdUseCase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<OrderHistoryCubit>(
+      () => OrderHistoryCubit(
+        getIt<GetOrdersUseCase>(),
+        getIt<GetOrderByIdUseCase>(),
+      ),
+    )
+    ..registerLazySingleton<ReorderUseCase>(
+      () => ReorderUseCase(getIt<CartCubit>(), getIt<HomeRepository>()),
+    );
 
   // ── Track feature ──────────────────────────────────────────────────────────
   getIt.registerLazySingleton<TrackCubit>(
-    () => TrackCubit(getIt<OrderHistoryCubit>()),
+    () => TrackCubit(
+      getIt<OrderHistoryCubit>(),
+      getIt<GetOrderByIdUseCase>(),
+      getIt<HomeRepository>(),
+    ),
   );
 
   // ── Checkout feature ────────────────────────────────────────────────────────
-  getIt.registerFactory<CheckoutCubit>(
-    () => CheckoutCubit(getIt<LocalStorage>()),
-  );
-  getIt.registerFactory<PaymentCubit>(() => PaymentCubit());
+  getIt
+    ..registerLazySingleton<PaymentRepository>(
+      () => PaymentRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<BuildPaymentPayloadUseCase>(
+      () => const BuildPaymentPayloadUseCase(),
+    )
+    ..registerLazySingleton<InitiatePaymentUseCase>(
+      () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
+    )
+    ..registerLazySingleton<NominatimService>(() => NominatimService())
+    ..registerFactory<CheckoutCubit>(
+      () => CheckoutCubit(getIt<LocalStorage>(), getIt<NominatimService>()),
+    )
+    ..registerFactory<PaymentCubit>(
+      () => PaymentCubit(
+        getIt<BuildPaymentPayloadUseCase>(),
+        getIt<InitiatePaymentUseCase>(),
+      ),
+    );
 }

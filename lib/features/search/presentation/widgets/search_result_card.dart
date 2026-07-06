@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/mock/mock_data.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -24,8 +23,9 @@ class SearchResultCard extends StatelessWidget {
       AppColors.navyLight,
       AppColors.navyDark,
     ];
-    final idx = MockData.outlets.indexWhere((o) => o.id == outletId);
-    return idx >= 0 ? colors[idx % colors.length] : AppColors.navyDark;
+    // Deterministic per outlet — decoupled from any fixed outlet list.
+    final hash = outletId.codeUnits.fold<int>(0, (h, c) => (h * 31 + c) & 0x7fffffff);
+    return colors[hash % colors.length];
   }
 
   @override

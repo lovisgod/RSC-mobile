@@ -5,6 +5,7 @@ abstract final class AppConstants {
   static const int otpResendSeconds = 60;
 
   static const int cartHiveTypeId = 0;
+  static const int selectedModifierHiveTypeId = 1;
 
   static const double vatRate = 0.075;
 }

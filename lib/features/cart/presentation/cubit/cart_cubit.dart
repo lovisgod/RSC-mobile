@@ -1,15 +1,32 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../data/datasources/cart_local_datasource.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../../domain/entities/cart_item_entity.dart';
 import '../../domain/entities/selected_modifier_entity.dart';
 import 'cart_state.dart';
 
 class CartCubit extends Cubit<CartState> {
-  CartCubit() : super(CartState(cart: CartEntity.empty()));
+  CartCubit(this._cartLocalDatasource)
+    : super(CartState(cart: CartEntity.empty())) {
+    _loadPersistedCart();
+  }
+
+  final CartLocalDatasource _cartLocalDatasource;
+
+  void _loadPersistedCart() {
+    final savedItems = _cartLocalDatasource.loadCart();
+    if (savedItems.isNotEmpty) {
+      emit(CartState(cart: _buildCart(savedItems)));
+    }
+  }
+
+  Future<void> _persistCart() =>
+      _cartLocalDatasource.saveCart(state.cart.items);
 
   void addItem(CartItemEntity item) {
     final items = List<CartItemEntity>.from(state.cart.items);
@@ -20,20 +37,26 @@ class CartCubit extends Cubit<CartState> {
     );
 
     if (idx >= 0) {
-      items[idx] = items[idx].copyWith(quantity: items[idx].quantity + item.quantity);
+      items[idx] = items[idx].copyWith(
+        quantity: items[idx].quantity + item.quantity,
+      );
     } else {
       items.add(item);
     }
 
-    emit(CartState(
-      cart: _buildCart(items),
-      lastAddedItemName: item.itemNameSnapshot,
-    ));
+    emit(
+      CartState(
+        cart: _buildCart(items),
+        lastAddedItemName: item.itemNameSnapshot,
+      ),
+    );
+    unawaited(_persistCart());
   }
 
   void removeItem(String cartItemId) {
     final items = state.cart.items.where((e) => e.id != cartItemId).toList();
     emit(CartState(cart: _buildCart(items)));
+    unawaited(_persistCart());
   }
 
   void incrementQuantity(String cartItemId) {
@@ -41,6 +64,7 @@ class CartCubit extends Cubit<CartState> {
       return e.id == cartItemId ? e.copyWith(quantity: e.quantity + 1) : e;
     }).toList();
     emit(CartState(cart: _buildCart(items)));
+    unawaited(_persistCart());
   }
 
   void decrementQuantity(String cartItemId) {
@@ -53,6 +77,7 @@ class CartCubit extends Cubit<CartState> {
       return e.id == cartItemId ? e.copyWith(quantity: e.quantity - 1) : e;
     }).toList();
     emit(CartState(cart: _buildCart(items)));
+    unawaited(_persistCart());
   }
 
   void updateItem(
@@ -71,15 +96,21 @@ class CartCubit extends Cubit<CartState> {
           : e;
     }).toList();
     emit(CartState(cart: _buildCart(items)));
+    unawaited(_persistCart());
   }
 
-  void clearCart() => emit(CartState(cart: CartEntity.empty()));
+  void clearCart() {
+    emit(CartState(cart: CartEntity.empty()));
+    unawaited(_cartLocalDatasource.clearCart());
+  }
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
   static CartEntity _buildCart(List<CartItemEntity> items) {
-    final subtotal =
-        items.fold(0.0, (sum, item) => sum + item.unitPrice * item.quantity);
+    final subtotal = items.fold(
+      0.0,
+      (sum, item) => sum + item.unitPrice * item.quantity,
+    );
     final vat = subtotal * AppConstants.vatRate;
     return CartEntity(
       items: items,
@@ -105,8 +136,7 @@ class CartCubit extends Cubit<CartState> {
     final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    final hex =
-        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20)}';

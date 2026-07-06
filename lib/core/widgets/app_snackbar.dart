@@ -24,6 +24,7 @@ class AppSnackbar {
     AppSnackbarType type = AppSnackbarType.info,
     Duration duration = const Duration(seconds: 3),
     bool persistent = false,
+    Color? backgroundColor,
   }) {
     _active?.dismiss();
 
@@ -35,7 +36,7 @@ class AppSnackbar {
       builder: (_) => _SnackToast(
         message: message,
         emoji: emoji ?? _defaultEmoji(type),
-        backgroundColor: _backgroundColor(type),
+        backgroundColor: backgroundColor ?? _backgroundColor(type),
         controller: ctrl,
         onRemove: () {
           try {
@@ -56,17 +57,17 @@ class AppSnackbar {
   static void dismiss() => _active?.dismiss();
 
   static String _defaultEmoji(AppSnackbarType type) => switch (type) {
-        AppSnackbarType.success => '✅',
-        AppSnackbarType.error => '⚠️',
-        AppSnackbarType.loading => '⏳',
-        AppSnackbarType.info => 'ℹ️',
-      };
+    AppSnackbarType.success => '✅',
+    AppSnackbarType.error => '⚠️',
+    AppSnackbarType.loading => '⏳',
+    AppSnackbarType.info => 'ℹ️',
+  };
 
   static Color _backgroundColor(AppSnackbarType type) => switch (type) {
-        AppSnackbarType.success =>  AppColors.surfaceDark,
-        AppSnackbarType.error => AppColors.error,
-        AppSnackbarType.loading || AppSnackbarType.info => AppColors.surfaceDark,
-      };
+    AppSnackbarType.success => AppColors.surfaceDark,
+    AppSnackbarType.error => AppColors.error,
+    AppSnackbarType.loading || AppSnackbarType.info => AppColors.surfaceDark,
+  };
 }
 
 // ── Internal controller ─────────────────────────────────────────────────────
@@ -172,8 +173,10 @@ class _SnackToastState extends State<_SnackToast>
             ),
             child: Row(
               children: [
-                Text(widget.emoji, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 10),
+                if (widget.emoji.isNotEmpty) ...[
+                  Text(widget.emoji, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
                   child: Text(
                     widget.message,

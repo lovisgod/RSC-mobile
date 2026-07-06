@@ -52,7 +52,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<VerifyOtpResponseModel> verifyOtp(VerifyOtpRequestModel request) async {
+  Future<VerifyOtpResponseModel> verifyOtp(
+    VerifyOtpRequestModel request,
+  ) async {
     try {
       final response = await _client.dio.post(
         ApiConstants.verifyUser,
@@ -62,6 +64,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         response.data['data'] as Map<String, dynamic>,
       );
     } on DioException catch (e) {
+      final error = e.error;
+      if (error is ServerException && error.statusCode == 401) {
+        throw const AuthException(
+          'Invalid or expired verification code. Please try again.',
+        );
+      }
       throw _mapError(e);
     }
   }

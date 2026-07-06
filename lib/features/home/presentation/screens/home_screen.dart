@@ -4,10 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
+import '../../../profile/presentation/cubit/address_cubit.dart';
+import '../../../profile/presentation/cubit/address_state.dart';
+import '../../../profile/presentation/cubit/profile_cubit.dart';
+import '../../../profile/presentation/cubit/profile_state.dart';
+import '../../../shell/presentation/bloc/shell_bloc.dart';
+import '../../../shell/presentation/bloc/shell_state.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
@@ -18,77 +27,194 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.navyDark,
-      body: Column(
-        children: [
-          // ── Navy header ──────────────────────────────────────────────────
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppStrings.deliveringTo,
-                          style: const TextStyle(
-                            color: Color(0xFF8A9CC0),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          AppStrings.deliveryAddress,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const _AvatarButton(),
-                ],
+    return BlocProvider<AddressCubit>(
+      create: (_) => getIt<AddressCubit>()..loadAddresses(),
+      child: Scaffold(
+        backgroundColor: AppColors.navyDark,
+        body: Column(
+          children: [
+            // ── Navy header ──────────────────────────────────────────────
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Row(
+                  children: [
+                    const Expanded(child: _DeliveringToSection()),
+                    const _AvatarButton(),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // ── White body ───────────────────────────────────────────────────
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: BlocBuilder<HomeBloc, HomeState>(
-                builder: (context, state) {
-                  if (state is HomeLoading || state is HomeInitial) {
-                    return _ShimmerBody();
-                  }
-                  if (state is HomeError) {
-                    return _ErrorBody(
-                      message: state.message,
-                      onRetry: () =>
-                          context.read<HomeBloc>().add(const HomeFetchRequested()),
-                    );
-                  }
-                  if (state is HomeLoaded) {
-                    return _LoadedBody(outlets: state.outlets);
-                  }
-                  return const SizedBox.shrink();
-                },
+            // ── White body ───────────────────────────────────────────────────
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: BlocBuilder<HomeBloc, HomeState>(
+                  builder: (context, state) {
+                    if (state is HomeLoading || state is HomeInitial) {
+                      return _ShimmerBody();
+                    }
+                    if (state is HomeError) {
+                      return _ErrorBody(
+                        message: state.message,
+                        onRetry: () => context.read<HomeBloc>().add(
+                          const HomeFetchRequested(),
+                        ),
+                      );
+                    }
+                    if (state is HomeLoaded) {
+                      return _LoadedBody(outlets: state.outlets);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+// ── Delivering-to section ────────────────────────────────────────────────────
+
+class _DeliveringToSection extends StatelessWidget {
+  const _DeliveringToSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ShellBloc, ShellState>(
+      builder: (context, shellState) {
+        if (!shellState.isAuthenticated) {
+          return const _DeliveringToContent(
+            bottomText: AppStrings.deliveryAddress,
+            bottomColor: AppColors.textOnDark,
+          );
+        }
+
+        return BlocBuilder<AddressCubit, AddressState>(
+          builder: (context, addressState) {
+            if (addressState.isLoading) {
+              return const _DeliveringToShimmer();
+            }
+
+            final defaultAddress = addressState.defaultAddress;
+            final hasDefault = defaultAddress != null;
+
+            return _DeliveringToContent(
+              bottomText: hasDefault
+                  ? defaultAddress.addressLine
+                  : AppStrings.addDeliveryAddress,
+              bottomColor: hasDefault
+                  ? AppColors.textOnDark
+                  : AppColors.primary,
+              chevronColor: hasDefault
+                  ? AppColors.textOnDark
+                  : AppColors.primary,
+              onTap: () => context.push(RouteNames.manageAddresses).then((_) {
+                if (context.mounted) {
+                  context.read<AddressCubit>().loadAddresses();
+                }
+              }),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DeliveringToContent extends StatelessWidget {
+  const _DeliveringToContent({
+    required this.bottomText,
+    required this.bottomColor,
+    this.chevronColor,
+    this.onTap,
+  });
+
+  final String bottomText;
+  final Color bottomColor;
+  final Color? chevronColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          AppStrings.deliveringTo,
+          style: TextStyle(
+            color: AppColors.textHint,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                bottomText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: bottomColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (chevronColor != null)
+              Text(
+                '›',
+                style: TextStyle(
+                  color: chevronColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+
+    if (onTap == null) return column;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: column,
+    );
+  }
+}
+
+class _DeliveringToShimmer extends StatelessWidget {
+  const _DeliveringToShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          AppStrings.deliveringTo,
+          style: TextStyle(
+            color: AppColors.textHint,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 5),
+        const ShimmerBox(height: 14, width: 140, radius: 4),
+      ],
     );
   }
 }
@@ -100,14 +226,18 @@ class _AvatarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.person_rounded, color: Colors.white, size: 22),
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        final profile = state.userProfile;
+        if (profile == null) {
+          return Image.asset(AppAssets.iconProfile, width: 40, height: 40);
+        }
+        return ProfileAvatar(
+          initials: profile.initials,
+          avatarUrl: profile.avatarUrl,
+          size: 40,
+        );
+      },
     );
   }
 }
@@ -160,10 +290,7 @@ class _LoadedBody extends StatelessWidget {
               outlet: outlet,
               emoji: _emojis[index % _emojis.length],
               cardColor: _colors[index % _colors.length],
-              onTap: () => context.push(
-                '/outlet/${outlet.id}',
-                extra: outlet,
-              ),
+              onTap: () => context.push('/outlet/${outlet.id}', extra: outlet),
             ),
           );
         }),
@@ -192,10 +319,7 @@ class _PromoBanner extends StatelessWidget {
             right: 0,
             top: 0,
             bottom: 0,
-            child: Image.asset(
-              AppAssets.imgConfetti,
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset(AppAssets.imgConfetti, fit: BoxFit.contain),
           ),
           // Text on left
           Positioned(
@@ -301,7 +425,9 @@ class _ErrorBody extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               AppStrings.errorLoadingOutlets,
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),

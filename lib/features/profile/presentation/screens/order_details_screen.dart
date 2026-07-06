@@ -1,26 +1,76 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/shimmer_box.dart';
+import '../../../home/domain/repositories/home_repository.dart';
+import '../../../menu/domain/entities/outlet.dart';
+import '../../../shell/presentation/bloc/shell_bloc.dart';
+import '../../../shell/presentation/bloc/shell_event.dart';
+import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
-import '../../domain/entities/order_history_line_item.dart';
-import '../../domain/entities/order_history_sub_order.dart';
 import '../../domain/usecases/reorder_usecase.dart';
+import '../cubit/order_history_cubit.dart';
+import '../cubit/order_history_state.dart';
 
-class OrderDetailsScreen extends StatelessWidget {
-  const OrderDetailsScreen({super.key, required this.order});
+class OrderDetailsScreen extends StatefulWidget {
+  const OrderDetailsScreen({super.key, required this.orderId});
 
-  final OrderHistoryEntity order;
+  final String orderId;
 
-  static const _reorderUseCase = ReorderUseCase();
+  @override
+  State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
+}
 
-  void _handleReorder(BuildContext context) {
-    final cart = _reorderUseCase.call(order.cartItems);
-    context.push(RouteNames.checkout, extra: {'cart': cart});
+class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
+  List<Outlet> _outlets = const [];
+  bool _isReordering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<OrderHistoryCubit>().loadOrderDetail(widget.orderId);
+    getIt<HomeRepository>().getOutlets().then((outlets) {
+      if (mounted) setState(() => _outlets = outlets);
+    });
+  }
+
+  String _outletName(String outletId) =>
+      _outlets.firstWhereOrNull((o) => o.id == outletId)?.name ??
+      AppStrings.kitchenFallbackName;
+
+  Future<void> _handleReorder(OrderHistoryEntity order) async {
+    if (_isReordering) return;
+    setState(() => _isReordering = true);
+
+    try {
+      await getIt<ReorderUseCase>().call(order);
+      if (!mounted) return;
+      context.go(RouteNames.home);
+      context.read<ShellBloc>().add(const ShellTabChanged(2));
+      AppSnackbar.show(
+        context,
+        message: AppStrings.itemsAddedToCart,
+        emoji: '',
+        backgroundColor: AppColors.navy,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isReordering = false);
+      AppSnackbar.show(
+        context,
+        message: AppStrings.reorderFailed,
+        type: AppSnackbarType.error,
+      );
+    }
   }
 
   @override
@@ -32,44 +82,21 @@ class OrderDetailsScreen extends StatelessWidget {
           children: [
             _AppBar(),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _OrderIdCard(order: order),
-                    const SizedBox(height: 20),
-
-                    if (order.deliveryMode == 'DELIVERY' &&
-                        order.deliveryAddress.isNotEmpty) ...[
-                      _SectionHeader(
-                        label: AppStrings.sectionDeliveryAddress,
-                      ),
-                      const SizedBox(height: 8),
-                      _AddressCard(address: order.deliveryAddress),
-                      const SizedBox(height: 20),
-                    ],
-
-                    _SectionHeader(label: AppStrings.itemsOrdered),
-                    const SizedBox(height: 8),
-                    ...order.subOrders.map(
-                      (sub) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _SubOrderCard(subOrder: sub),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    _PriceBreakdownCard(order: order),
-                    const SizedBox(height: 24),
-
-                    AppButton(
-                      label: AppStrings.reorderEntireOrder,
-                      backgroundColor: AppColors.navy,
-                      onPressed: () => _handleReorder(context),
-                    ),
-                  ],
-                ),
+              child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
+                builder: (context, state) {
+                  final order = state.selectedOrder;
+                  if (state.isLoadingDetail ||
+                      order == null ||
+                      order.id != widget.orderId) {
+                    return const _DetailShimmer();
+                  }
+                  return _OrderDetailsBody(
+                    order: order,
+                    outletName: _outletName,
+                    onReorder: () => _handleReorder(order),
+                    isReordering: _isReordering,
+                  );
+                },
               ),
             ),
           ],
@@ -119,6 +146,97 @@ class _AppBar extends StatelessWidget {
   }
 }
 
+// ── Loading shimmer ────────────────────────────────────────────────────────────
+
+class _DetailShimmer extends StatelessWidget {
+  const _DetailShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShimmerBox(height: 96, width: double.infinity, radius: 16),
+          SizedBox(height: 20),
+          ShimmerBox(height: 14, width: 120),
+          SizedBox(height: 8),
+          ShimmerBox(height: 120, width: double.infinity, radius: 12),
+          SizedBox(height: 20),
+          ShimmerBox(height: 160, width: double.infinity, radius: 12),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Body ──────────────────────────────────────────────────────────────────────
+
+class _OrderDetailsBody extends StatelessWidget {
+  const _OrderDetailsBody({
+    required this.order,
+    required this.outletName,
+    required this.onReorder,
+    required this.isReordering,
+  });
+
+  final OrderHistoryEntity order;
+  final String Function(String outletId) outletName;
+  final VoidCallback onReorder;
+  final bool isReordering;
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = <String, List<LineItemEntity>>{};
+    for (final item in order.lineItems) {
+      (grouped[item.outletId] ??= []).add(item);
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _OrderIdCard(order: order),
+          const SizedBox(height: 20),
+
+          if (order.deliveryMode == 'DELIVERY' &&
+              order.deliveryAddress.isNotEmpty) ...[
+            _SectionHeader(label: AppStrings.sectionDeliveryAddress),
+            const SizedBox(height: 8),
+            _AddressCard(address: order.deliveryAddress),
+            const SizedBox(height: 20),
+          ],
+
+          _SectionHeader(label: AppStrings.itemsOrdered),
+          const SizedBox(height: 8),
+          ...grouped.entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _OutletGroupCard(
+                outletName: outletName(entry.key),
+                items: entry.value,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          _PriceBreakdownCard(order: order),
+          const SizedBox(height: 24),
+
+          AppButton(
+            label: AppStrings.reorderEntireOrder,
+            backgroundColor: AppColors.navy,
+            isLoading: isReordering,
+            onPressed: onReorder,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Order ID card ─────────────────────────────────────────────────────────────
 
 class _OrderIdCard extends StatelessWidget {
@@ -147,7 +265,7 @@ class _OrderIdCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '#${order.orderId}',
+            order.displayOrderId,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -155,13 +273,28 @@ class _OrderIdCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            AppStrings.deliveredAndComplete,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textPrimary,
+          if (order.isCompleted)
+            const Text(
+              AppStrings.deliveredAndComplete,
+              style: TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                order.status,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: 0.4,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -206,20 +339,19 @@ class _AddressCard extends StatelessWidget {
       ),
       child: Text(
         address,
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-        ),
+        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
       ),
     );
   }
 }
 
-// ── Sub-order card ────────────────────────────────────────────────────────────
+// ── Outlet group card ─────────────────────────────────────────────────────────
 
-class _SubOrderCard extends StatelessWidget {
-  const _SubOrderCard({required this.subOrder});
-  final OrderHistorySubOrder subOrder;
+class _OutletGroupCard extends StatelessWidget {
+  const _OutletGroupCard({required this.outletName, required this.items});
+
+  final String outletName;
+  final List<LineItemEntity> items;
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +366,7 @@ class _SubOrderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${subOrder.outletEmoji} ${subOrder.outletName}${AppStrings.subOrderSuffix}',
+            '$outletName${AppStrings.subOrderSuffix}',
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -242,7 +374,7 @@ class _SubOrderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ...subOrder.items.map((item) => _LineItemRow(item: item)),
+          ...items.map((item) => _LineItemRow(item: item)),
         ],
       ),
     );
@@ -251,7 +383,7 @@ class _SubOrderCard extends StatelessWidget {
 
 class _LineItemRow extends StatelessWidget {
   const _LineItemRow({required this.item});
-  final OrderHistoryLineItem item;
+  final LineItemEntity item;
 
   @override
   Widget build(BuildContext context) {
@@ -264,7 +396,7 @@ class _LineItemRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${item.quantity}x ${item.itemName}',
+                  '${item.quantity}x ${item.itemNameSnapshot}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -273,7 +405,7 @@ class _LineItemRow extends StatelessWidget {
                 ),
               ),
               Text(
-                formatNaira(item.unitPrice),
+                formatNaira(item.lineTotal),
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textPrimary,
@@ -281,11 +413,11 @@ class _LineItemRow extends StatelessWidget {
               ),
             ],
           ),
-          if (item.selectedModifiers.isNotEmpty)
+          if (item.modifiers.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                '+ ${item.selectedModifiers.join(', ')}',
+                '+ ${item.modifiers.map((m) => m.name).join(', ')}',
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
@@ -325,17 +457,14 @@ class _PriceBreakdownCard extends StatelessWidget {
             value: formatNaira(order.deliveryFee),
           ),
           const SizedBox(height: 6),
-          _PriceRow(
-            label: AppStrings.vatLabel,
-            value: formatNaira(order.vat),
-          ),
+          _PriceRow(label: AppStrings.vatLabel, value: formatNaira(order.vat)),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: AppColors.divider),
           ),
           _PriceRow(
             label: AppStrings.grandTotal,
-            value: formatNaira(order.grandTotal),
+            value: formatNaira(order.total),
             isBold: true,
             valueColor: AppColors.primary,
           ),

@@ -28,9 +28,19 @@ abstract final class _SheetColors {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 class MomentPaymentSheet extends StatefulWidget {
-  const MomentPaymentSheet({super.key, required this.amount});
+  const MomentPaymentSheet({
+    super.key,
+    required this.amount,
+    this.reference,
+    this.accessCode,
+  });
 
   final double amount;
+
+  // TODO: Use reference/accessCode when payment
+  // gateway SDK/endpoint is integrated
+  final String? reference;
+  final String? accessCode;
 
   @override
   State<MomentPaymentSheet> createState() => _MomentPaymentSheetState();
@@ -83,10 +93,7 @@ class _MomentPaymentSheetState extends State<MomentPaymentSheet> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: _SheetHeader(amount: widget.amount),
                 ),
-                const Divider(
-                  height: 1,
-                  color: _SheetColors.divider,
-                ),
+                const Divider(height: 1, color: _SheetColors.divider),
                 const SizedBox(height: 16),
 
                 // ── Payment method tabs ─────────────────────────────────
@@ -384,9 +391,9 @@ class _CardContent extends StatelessWidget {
                 maxLength: 3,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: _inputTextStyle,
-                decoration: _darkInput(hint: AppStrings.cvv).copyWith(
-                  counterText: '',
-                ),
+                decoration: _darkInput(
+                  hint: AppStrings.cvv,
+                ).copyWith(counterText: ''),
               ),
             ),
           ],
@@ -475,10 +482,12 @@ class _DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(radius),
-      ));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(radius),
+        ),
+      );
 
     final result = Path();
     for (final metric in path.computeMetrics()) {
@@ -532,14 +541,19 @@ class _UssdContent extends StatelessWidget {
                     : Colors.transparent,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       SizedBox(
                         width: 20,
                         child: isSelected
-                            ? const Icon(Icons.check,
-                                color: _SheetColors.cyan, size: 16)
+                            ? const Icon(
+                                Icons.check,
+                                color: _SheetColors.cyan,
+                                size: 16,
+                              )
                             : null,
                       ),
                       const SizedBox(width: 8),
@@ -648,8 +662,9 @@ class _ActionButton extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _SheetColors.cyan,
                 foregroundColor: _SheetColors.background,
-                disabledBackgroundColor:
-                    _SheetColors.cyan.withValues(alpha: 0.8),
+                disabledBackgroundColor: _SheetColors.cyan.withValues(
+                  alpha: 0.8,
+                ),
                 shape: const StadiumBorder(),
                 elevation: 0,
               ),
@@ -684,10 +699,7 @@ class _ActionButton extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             AppStrings.paymentFailed,
-            style: const TextStyle(
-              fontSize: 12,
-              color: _SheetColors.badgeRed,
-            ),
+            style: const TextStyle(fontSize: 12, color: _SheetColors.badgeRed),
             textAlign: TextAlign.center,
           ),
         ],

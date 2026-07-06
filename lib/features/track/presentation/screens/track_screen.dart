@@ -1,15 +1,20 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/active_order_entity.dart';
+import '../../../../core/widgets/shimmer_box.dart';
+import '../../../menu/domain/entities/outlet.dart';
+import '../../../profile/domain/entities/line_item_entity.dart';
+import '../../../profile/domain/entities/order_history_entity.dart';
+import '../../domain/entities/order_event_entity.dart';
 import '../../domain/entities/rider_summary.dart';
-import '../../domain/entities/sub_order_summary.dart';
 import '../../domain/enums/order_tracking_status.dart';
 import '../cubit/track_cubit.dart';
 import '../cubit/track_state.dart';
+import '../widgets/order_timeline_widget.dart';
 import '../widgets/rider_route_widget.dart';
 
 class TrackScreen extends StatefulWidget {
@@ -36,8 +41,11 @@ class _TrackScreenState extends State<TrackScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    _pulseAnimation =
-        Tween<double>(begin: 0.4, end: 1.0).animate(_pulseController);
+    _pulseAnimation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(_pulseController);
+    context.read<TrackCubit>().loadActiveOrder();
   }
 
   @override
@@ -47,20 +55,18 @@ class _TrackScreenState extends State<TrackScreen>
     super.dispose();
   }
 
-  void _onStatusChanged(OrderTrackingStatus? status) {
+  void _onStatusChanged(String? status) {
     switch (status) {
-      case OrderTrackingStatus.pending:
-      case OrderTrackingStatus.preparing:
-      case OrderTrackingStatus.ready:
-        _riderController.value = 0.0;
-      case OrderTrackingStatus.collected:
+      case 'OUT_FOR_DELIVERY':
         _riderController.forward(from: 0.0);
-      case OrderTrackingStatus.delivered:
+      case 'DELIVERED':
         _riderController.value = 1.0;
-      case null:
+      default:
         _riderController.value = 0.0;
     }
   }
+
+  Future<void> _onRefresh() => context.read<TrackCubit>().manualRefresh();
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +78,23 @@ class _TrackScreenState extends State<TrackScreen>
       listener: (_, state) => _onStatusChanged(state.activeOrder?.status),
       builder: (context, state) {
         final order = state.activeOrder;
-        final orderIdDisplay = order != null
-            ? '#${order.orderId}'
-            : AppStrings.noOrderId;
+        final orderIdDisplay = order?.displayOrderId ?? AppStrings.noOrderId;
+
+        Widget body;
+        if (state.hasActiveOrder && order != null) {
+          body = _ActiveOrderBody(
+            order: order,
+            outlets: state.outlets,
+            orderEvents: state.orderEvents,
+            lastRefreshedAt: state.lastRefreshedAt,
+            riderController: _riderController,
+            pulseAnimation: _pulseAnimation,
+          );
+        } else if (state.isLoading) {
+          body = const _LoadingBody();
+        } else {
+          body = const _NoActiveOrderBody();
+        }
 
         return Scaffold(
           backgroundColor: AppColors.navyDark,
@@ -116,13 +136,26 @@ class _TrackScreenState extends State<TrackScreen>
                       topRight: Radius.circular(24),
                     ),
                   ),
-                  child: order == null
-                      ? const _NoActiveOrderBody()
-                      : _ActiveOrderBody(
-                          order: order,
-                          riderController: _riderController,
-                          pulseAnimation: _pulseAnimation,
+                  clipBehavior: Clip.hardEdge,
+                  child: Column(
+                    children: [
+                      // Thin refresh indicator when switching to a different
+                      // order — the full shimmer is reserved for cold loads.
+                      if (state.isLoading && state.hasActiveOrder)
+                        const LinearProgressIndicator(
+                          minHeight: 2,
+                          color: AppColors.primary,
+                          backgroundColor: Colors.transparent,
                         ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _onRefresh,
+                          color: AppColors.primary,
+                          child: body,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -140,33 +173,74 @@ class _NoActiveOrderBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(AppAssets.iconTrack, width: 80, height: 80),
-            const SizedBox(height: 24),
-            const Text(
-              AppStrings.noActiveOrders,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(AppAssets.iconTrack, width: 80, height: 80),
+                  const SizedBox(height: 24),
+                  const Text(
+                    AppStrings.noActiveOrders,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    AppStrings.browseKitchensToOrder,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.browseKitchensToOrder,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Loading (shimmer) ─────────────────────────────────────────────────────────
+
+class _LoadingBody extends StatelessWidget {
+  const _LoadingBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 52),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ShimmerBox(height: 140, width: double.infinity, radius: 16),
+              SizedBox(height: 16),
+              ShimmerBox(height: 14, width: 140),
+              SizedBox(height: 10),
+              ShimmerBox(height: 90, width: double.infinity, radius: 12),
+              SizedBox(height: 10),
+              ShimmerBox(height: 90, width: double.infinity, radius: 12),
+              SizedBox(height: 20),
+              ShimmerBox(height: 130, width: double.infinity, radius: 12),
+            ],
+          ),
         ),
       ),
     );
@@ -178,27 +252,54 @@ class _NoActiveOrderBody extends StatelessWidget {
 class _ActiveOrderBody extends StatelessWidget {
   const _ActiveOrderBody({
     required this.order,
+    required this.outlets,
+    required this.orderEvents,
+    required this.lastRefreshedAt,
     required this.riderController,
     required this.pulseAnimation,
   });
 
-  final ActiveOrderEntity order;
+  final OrderHistoryEntity order;
+  final List<Outlet> outlets;
+  final List<OrderEventEntity> orderEvents;
+  final DateTime? lastRefreshedAt;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
 
+  static const _riderStatuses = {'OUT_FOR_DELIVERY', 'DELIVERED'};
+
   @override
   Widget build(BuildContext context) {
-    final hasRider = order.rider != null;
+    // Cancelled orders show nothing but the ETA card in its cancelled state
+    // — no kitchen breakdown, rider, route, or handoff code.
+    if (order.status == 'CANCELLED') {
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+        child: _EtaCard(
+          order: order,
+          pulseAnimation: pulseAnimation,
+          lastRefreshedAt: lastRefreshedAt,
+        ),
+      );
+    }
+
+    final hasRider = _riderStatuses.contains(order.status);
 
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _EtaCard(order: order, pulseAnimation: pulseAnimation),
+          _EtaCard(
+            order: order,
+            pulseAnimation: pulseAnimation,
+            lastRefreshedAt: lastRefreshedAt,
+          ),
           const SizedBox(height: 16),
 
-          // Rider route widget — animated in when rider is assigned
+          // Rider route widget — animated in when out for delivery.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
             transitionBuilder: (child, animation) => FadeTransition(
@@ -215,56 +316,180 @@ class _ActiveOrderBody extends StatelessWidget {
                 ? AnimatedBuilder(
                     key: const ValueKey('route'),
                     animation: riderController,
-                    builder: (_, child) => RiderRouteWidget(
-                      progress: riderController.value,
-                    ),
+                    builder: (_, child) =>
+                        RiderRouteWidget(progress: riderController.value),
                   )
                 : const SizedBox(key: ValueKey('no-route')),
           ),
 
-          const Text(
-            AppStrings.kitchenBreakdowns,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.8,
+          if (orderEvents.isNotEmpty) ...[
+            const Text(
+              AppStrings.orderTimeline,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.8,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+            OrderTimelineWidget(events: orderEvents),
+            const SizedBox(height: 6),
+          ],
 
-          ...order.subOrders.map((sub) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _KitchenCard(subOrder: sub),
-              )),
+          _KitchenBreakdowns(order: order, outlets: outlets),
 
           const SizedBox(height: 6),
           _DeliveryHandoffCard(code: order.deliveryCode),
 
-          if (hasRider) ...[
-            const SizedBox(height: 24),
-            _RiderSection(rider: order.rider!),
-          ],
+          // Rider card slides in once dispatched.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.15),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: hasRider
+                ? Padding(
+                    key: const ValueKey('rider'),
+                    padding: const EdgeInsets.only(top: 24),
+                    child: _RiderSection(rider: _mockRiderFor(order.status)),
+                  )
+                : const SizedBox(key: ValueKey('no-rider')),
+          ),
         ],
       ),
     );
   }
 }
 
+// TODO: Replace with real rider data once the backend populates
+// latestRiderLocation on the order — there is no rider entity on the API yet.
+RiderSummary _mockRiderFor(String status) {
+  final activeStatus = status == 'DELIVERED'
+      ? RiderActiveStatus.delivered
+      : RiderActiveStatus.pickedUp;
+  return RiderSummary(
+    name: 'Emeka Chukwu',
+    rating: 4.95,
+    partnerType: 'In-House Partner',
+    activeStatus: activeStatus,
+  );
+}
+
 // ── ETA Card ──────────────────────────────────────────────────────────────────
 
-class _EtaCard extends StatelessWidget {
-  const _EtaCard({required this.order, required this.pulseAnimation});
+class _StatusDisplay {
+  const _StatusDisplay({
+    required this.title,
+    required this.subtitle,
+    required this.titleColor,
+    this.pulsing = false,
+    this.cardColor = const Color(0xFFEEF3FB),
+    this.showConfetti = false,
+  });
 
-  final ActiveOrderEntity order;
+  final String title;
+  final String subtitle;
+  final Color titleColor;
+  final bool pulsing;
+  final Color cardColor;
+  final bool showConfetti;
+}
+
+_StatusDisplay _getStatusDisplay(String status) {
+  switch (status) {
+    case 'PENDING':
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.waitingForKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'CONFIRMED':
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.orderConfirmedByKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'PARTIALLY_READY':
+      return const _StatusDisplay(
+        title: AppStrings.almostReady,
+        subtitle: AppStrings.someItemsBeingFinished,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+    case 'READY':
+      return const _StatusDisplay(
+        title: AppStrings.etaReady,
+        subtitle: AppStrings.orderReady,
+        titleColor: AppColors.navy,
+      );
+    case 'OUT_FOR_DELIVERY':
+      return const _StatusDisplay(
+        title: AppStrings.etaOnTheWay,
+        subtitle: AppStrings.riderOnTheWay,
+        titleColor: AppColors.navy,
+      );
+    case 'DELIVERED':
+      return const _StatusDisplay(
+        title: AppStrings.etaDelivered,
+        subtitle: AppStrings.enjoyYourMeal,
+        titleColor: AppColors.success,
+        showConfetti: true,
+      );
+    case 'CANCELLED':
+      return const _StatusDisplay(
+        title: AppStrings.orderCancelled,
+        subtitle: AppStrings.orderCancelledSubtitle,
+        titleColor: AppColors.error,
+        cardColor: Color(0xFFFFEBEE),
+      );
+    default:
+      return const _StatusDisplay(
+        title: AppStrings.etaProcessing,
+        subtitle: AppStrings.waitingForKitchen,
+        titleColor: AppColors.navy,
+        pulsing: true,
+      );
+  }
+}
+
+class _EtaCard extends StatelessWidget {
+  const _EtaCard({
+    required this.order,
+    required this.pulseAnimation,
+    required this.lastRefreshedAt,
+  });
+
+  final OrderHistoryEntity order;
   final Animation<double> pulseAnimation;
+  final DateTime? lastRefreshedAt;
+
+  String get _lastRefreshedLabel {
+    final at = lastRefreshedAt;
+    if (at == null) return '';
+    final mins = DateTime.now().difference(at).inMinutes;
+    return mins < 1
+        ? AppStrings.updatedJustNow
+        : AppStrings.updatedMinsAgo(mins);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final display = _getStatusDisplay(order.status);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F2FA),
+        color: display.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -279,82 +504,135 @@ class _EtaCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          _EtaMainText(order: order, pulseAnimation: pulseAnimation),
+          _EtaTitle(display: display, pulseAnimation: pulseAnimation),
           const SizedBox(height: 4),
-          const Text(
-            AppStrings.kitchenIsPreparingMeals,
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Text(
+            display.subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
           ),
+          if (display.showConfetti) ...[
+            const SizedBox(height: 8),
+            Image.asset(AppAssets.imgConfetti, height: 32),
+          ],
+          if (lastRefreshedAt != null) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                _lastRefreshedLabel,
+                style: const TextStyle(fontSize: 10, color: AppColors.textHint),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _EtaMainText extends StatelessWidget {
-  const _EtaMainText({required this.order, required this.pulseAnimation});
+class _EtaTitle extends StatelessWidget {
+  const _EtaTitle({required this.display, required this.pulseAnimation});
 
-  final ActiveOrderEntity order;
+  final _StatusDisplay display;
   final Animation<double> pulseAnimation;
 
   @override
   Widget build(BuildContext context) {
-    const mainStyle = TextStyle(
-      fontSize: 36,
+    final style = TextStyle(
+      fontSize: display.pulsing ? 36 : 28,
       fontWeight: FontWeight.w800,
-      color: AppColors.textPrimary,
+      color: display.titleColor,
       height: 1.1,
     );
-
-    switch (order.status) {
-      case OrderTrackingStatus.pending:
-        return const Text('---', style: mainStyle);
-      case OrderTrackingStatus.preparing:
-        return Text(
-          '${order.estimatedMinutes} min',
-          style: mainStyle,
-        );
-      case OrderTrackingStatus.ready:
-      case OrderTrackingStatus.collected:
-        return FadeTransition(
-          opacity: pulseAnimation,
-          child: const Text(AppStrings.etaProcessing, style: mainStyle),
-        );
-      case OrderTrackingStatus.delivered:
-        return const Text(AppStrings.etaDelivered, style: mainStyle);
-    }
+    final text = Text(display.title, style: style, textAlign: TextAlign.center);
+    return display.pulsing
+        ? FadeTransition(opacity: pulseAnimation, child: text)
+        : text;
   }
 }
 
-// ── Kitchen card ──────────────────────────────────────────────────────────────
+// ── Kitchen breakdowns ────────────────────────────────────────────────────────
+
+class _KitchenBreakdowns extends StatelessWidget {
+  const _KitchenBreakdowns({required this.order, required this.outlets});
+
+  final OrderHistoryEntity order;
+  final List<Outlet> outlets;
+
+  @override
+  Widget build(BuildContext context) {
+    final byOutlet = <String, List<LineItemEntity>>{};
+    for (final item in order.lineItems) {
+      (byOutlet[item.outletId] ??= []).add(item);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          AppStrings.kitchenBreakdowns,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textSecondary,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...byOutlet.entries.map((entry) {
+          final outletName =
+              outlets.firstWhereOrNull((o) => o.id == entry.key)?.name ??
+              AppStrings.kitchenFallbackName;
+          final subOrderStatus = order.subOrders
+              .firstWhereOrNull((s) => s.outletId == entry.key)
+              ?.status;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _KitchenCard(
+              outletName: outletName,
+              items: entry.value,
+              subOrderStatus: subOrderStatus,
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
 
 class _KitchenCard extends StatelessWidget {
-  const _KitchenCard({required this.subOrder});
+  const _KitchenCard({
+    required this.outletName,
+    required this.items,
+    required this.subOrderStatus,
+  });
 
-  final SubOrderSummary subOrder;
+  final String outletName;
+  final List<LineItemEntity> items;
+  final String? subOrderStatus;
+
+  // Outlets don't carry an emoji from the backend yet, so every kitchen card
+  // uses the same generic fallback icon.
+  static const _fallbackEmoji = '🍽️';
 
   Color get _badgeColor {
-    switch (subOrder.status) {
-      case SubOrderStatus.pending:
-      case SubOrderStatus.preparing:
+    switch (subOrderStatus) {
+      case 'ACCEPTED':
+        return AppColors.info;
+      case 'PREPARING':
         return AppColors.primary;
-      case SubOrderStatus.ready:
+      case 'READY':
         return AppColors.success;
-      case SubOrderStatus.collected:
-        return AppColors.navyDark;
-    }
-  }
-
-  String get _badgeLabel {
-    switch (subOrder.status) {
-      case SubOrderStatus.pending:
-        return 'PENDING';
-      case SubOrderStatus.preparing:
-        return 'PREPARING';
-      case SubOrderStatus.ready:
-        return 'READY';
-      case SubOrderStatus.collected:
-        return 'COLLECTED';
+      case 'COLLECTED':
+      case 'DISPATCHED':
+      case 'OUT_FOR_DELIVERY':
+        return AppColors.navy;
+      default:
+        return AppColors.neutralGray;
     }
   }
 
@@ -379,7 +657,7 @@ class _KitchenCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '${subOrder.outletEmoji} ${subOrder.outletName}',
+                '$_fallbackEmoji $outletName',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -387,29 +665,32 @@ class _KitchenCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _badgeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _badgeLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: _badgeColor,
-                    letterSpacing: 0.4,
+              if (subOrderStatus != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _badgeColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    subOrderStatus!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: _badgeColor,
+                      letterSpacing: 0.4,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 6),
-          ...subOrder.itemSummaries.map(
-            (s) => Text(
-              s,
+          ...items.map(
+            (item) => Text(
+              '${item.quantity}x ${item.itemNameSnapshot}',
               style: const TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -490,10 +771,12 @@ class _DashedBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(radius),
-      ));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(radius),
+        ),
+      );
 
     for (final metric in path.computeMetrics()) {
       double distance = 0;
@@ -524,6 +807,16 @@ class _RiderSection extends StatelessWidget {
         return AppStrings.riderStatusPickedUp;
       case RiderActiveStatus.delivered:
         return AppStrings.riderStatusDelivered;
+    }
+  }
+
+  Color get _statusColor {
+    switch (rider.activeStatus) {
+      case RiderActiveStatus.delivered:
+        return AppColors.success;
+      case RiderActiveStatus.assigned:
+      case RiderActiveStatus.pickedUp:
+        return AppColors.primary;
     }
   }
 
@@ -563,9 +856,9 @@ class _RiderSection extends StatelessWidget {
                 ),
                 TextSpan(
                   text: _statusLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: _statusColor,
                   ),
                 ),
               ],

@@ -39,17 +39,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required ResendOtpUseCase resendOtpUseCase,
     required LocalStorage localStorage,
     required PersistCookieJar cookieJar,
-  })  : _registerUseCase = registerUseCase,
-        _verifyOtpUseCase = verifyOtpUseCase,
-        _loginUseCase = loginUseCase,
-        _logoutUseCase = logoutUseCase,
-        _forgotPasswordUseCase = forgotPasswordUseCase,
-        _resetPasswordUseCase = resetPasswordUseCase,
-        _changePasswordUseCase = changePasswordUseCase,
-        _resendOtpUseCase = resendOtpUseCase,
-        _localStorage = localStorage,
-        _cookieJar = cookieJar,
-        super(const AuthInitial()) {
+  }) : _registerUseCase = registerUseCase,
+       _verifyOtpUseCase = verifyOtpUseCase,
+       _loginUseCase = loginUseCase,
+       _logoutUseCase = logoutUseCase,
+       _forgotPasswordUseCase = forgotPasswordUseCase,
+       _resetPasswordUseCase = resetPasswordUseCase,
+       _changePasswordUseCase = changePasswordUseCase,
+       _resendOtpUseCase = resendOtpUseCase,
+       _localStorage = localStorage,
+       _cookieJar = cookieJar,
+       super(const AuthInitial()) {
     on<AuthCheckRequested>(_onCheckRequested);
     on<RegisterSubmitted>(_onRegisterSubmitted);
     on<OtpSubmitted>(_onOtpSubmitted);
@@ -89,13 +89,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
       );
-      emit(RegisterSuccess(
-        customerId: result.customerId,
-        otpExpiresInSeconds: result.otpExpiresInSeconds,
-        verificationChannels: result.verificationChannels,
-        phone: event.phone,
-        email: event.email,
-      ));
+      emit(
+        RegisterSuccess(
+          customerId: result.customerId,
+          otpExpiresInSeconds: result.otpExpiresInSeconds,
+          verificationChannels: result.verificationChannels,
+          phone: event.phone,
+          email: event.email,
+        ),
+      );
     } on AuthException catch (e) {
       emit(AuthFailure(e.message));
     } catch (_) {
@@ -109,17 +111,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      final result = await _verifyOtpUseCase(
-        customerId: event.customerId,
-        channel: event.channel,
-        phone: event.phone,
-        email: event.email,
-        code: event.code,
+      final result = await _verifyOtpUseCase(event.code);
+      emit(
+        OtpVerifySuccess(
+          customerId: result.customerId,
+          verificationChannels: result.verificationChannels,
+        ),
       );
-      emit(OtpVerifySuccess(
-        customerId: result.customerId,
-        verificationChannels: result.verificationChannels,
-      ));
     } on AuthException catch (e) {
       emit(AuthFailure(e.message));
     } catch (_) {
@@ -138,10 +136,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         event.phone,
         event.email,
       );
-      emit(OtpResendSuccess(
-        otpExpiresInSeconds: result.otpExpiresInSeconds,
-        channel: result.channel.isNotEmpty ? result.channel : event.channel,
-      ));
+      emit(
+        OtpResendSuccess(
+          otpExpiresInSeconds: result.otpExpiresInSeconds,
+          channel: result.channel.isNotEmpty ? result.channel : event.channel,
+        ),
+      );
     } on AuthException catch (e) {
       emit(AuthFailure(e.message));
     } catch (_) {
@@ -197,10 +197,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const ForgotPasswordLoading());
     try {
       final result = await _forgotPasswordUseCase(identifier);
-      emit(ForgotPasswordSuccess(
-        identifier: identifier,
-        otpExpiresInSeconds: result.otpExpiresInSeconds,
-      ));
+      emit(
+        ForgotPasswordSuccess(
+          identifier: identifier,
+          otpExpiresInSeconds: result.otpExpiresInSeconds,
+        ),
+      );
     } on AuthException catch (e) {
       emit(AuthFailure(e.message));
     } catch (_) {
@@ -217,10 +219,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthFailure('Please enter a valid 6-digit code.'));
       return;
     }
-    emit(ResetPasswordOtpVerified(
-      identifier: event.identifier,
-      otpCode: event.otpCode,
-    ));
+    emit(
+      ResetPasswordOtpVerified(
+        identifier: event.identifier,
+        otpCode: event.otpCode,
+      ),
+    );
   }
 
   Future<void> _onResetPasswordSubmitted(
@@ -240,7 +244,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       emit(const ResetPasswordSuccess());
     } on AuthException catch (e) {
-      final msg = e.message.toLowerCase().contains('invalid') ||
+      final msg =
+          e.message.toLowerCase().contains('invalid') ||
               e.message.toLowerCase().contains('expired')
           ? 'Invalid or expired code. Please request a new one.'
           : e.message;
@@ -250,8 +255,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (msg.contains('401') ||
           msg.contains('invalid') ||
           msg.contains('expired')) {
-        emit(const AuthFailure(
-            'Invalid or expired code. Please request a new one.'));
+        emit(
+          const AuthFailure(
+            'Invalid or expired code. Please request a new one.',
+          ),
+        );
       } else {
         emit(const AuthFailure('Password reset failed. Please try again.'));
       }

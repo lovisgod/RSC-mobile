@@ -14,7 +14,6 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
 import '../../features/cart/domain/entities/cart_entity.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
-import '../../features/checkout/presentation/pages/order_confirmation_page.dart';
 import '../../features/home/presentation/bloc/outlet_detail_bloc.dart';
 import '../../features/home/presentation/bloc/outlet_detail_event.dart';
 import '../../features/home/presentation/screens/item_detail_screen.dart';
@@ -22,10 +21,13 @@ import '../../features/home/presentation/screens/outlet_detail_screen.dart';
 import '../../features/menu/domain/entities/menu_item.dart';
 import '../../features/menu/domain/entities/outlet.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
-import '../../features/orders/presentation/pages/order_detail_page.dart';
-import '../../features/profile/domain/entities/order_history_entity.dart';
+import '../../features/profile/domain/entities/profile.dart';
+import '../../features/profile/presentation/cubit/address_cubit.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/profile/presentation/screens/manage_addresses_screen.dart';
 import '../../features/profile/presentation/screens/order_details_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
+import '../../features/profile/presentation/screens/profile_verify_otp_screen.dart';
 import '../../features/shell/presentation/shell_screen.dart';
 import '../di/injection.dart';
 
@@ -53,8 +55,9 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final outlet = state.extra as Outlet;
         return BlocProvider(
-          create: (_) => getIt<OutletDetailBloc>()
-            ..add(OutletDetailFetchRequested(outlet.id)),
+          create: (_) =>
+              getIt<OutletDetailBloc>()
+                ..add(OutletDetailFetchRequested(outlet.id)),
           child: OutletDetailScreen(outlet: outlet),
         );
       },
@@ -114,19 +117,6 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: '/order-confirmation',
-      name: 'orderConfirmation',
-      builder: (context, state) => const OrderConfirmationPage(),
-    ),
-    GoRoute(
-      path: '/orders/:id',
-      name: 'orderDetail',
-      builder: (context, state) {
-        final id = state.pathParameters['id']!;
-        return OrderDetailPage(orderId: id);
-      },
-    ),
-    GoRoute(
       path: '/notifications',
       name: 'notifications',
       builder: (context, state) => const NotificationsPage(),
@@ -173,8 +163,36 @@ final GoRouter appRouter = GoRouter(
       path: '/profile/orders/details',
       name: 'orderDetails',
       builder: (context, state) {
-        final order = state.extra as OrderHistoryEntity;
-        return OrderDetailsScreen(order: order);
+        final orderId = state.extra as String;
+        return OrderDetailsScreen(orderId: orderId);
+      },
+    ),
+    GoRoute(
+      path: '/edit-profile',
+      name: 'editProfile',
+      builder: (context, state) {
+        final profile = state.extra as Profile;
+        return EditProfileScreen(profile: profile);
+      },
+    ),
+    GoRoute(
+      path: '/manage-addresses',
+      name: 'manageAddresses',
+      builder: (context, state) {
+        return BlocProvider(
+          create: (_) => getIt<AddressCubit>(),
+          child: const ManageAddressesScreen(),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile-verify-otp',
+      name: 'profileVerifyOtp',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return ProfileVerifyOtpScreen(
+          otpExpiresInSeconds: extra['otpExpiresInSeconds'] as int,
+        );
       },
     ),
   ],

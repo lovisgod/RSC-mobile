@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/placeholder_image_util.dart';
 import '../../../menu/domain/entities/menu_item.dart';
 
 class MenuItemCard extends StatelessWidget {
@@ -120,6 +121,8 @@ class MenuItemCard extends StatelessWidget {
     if (n.contains('chapman')) return '🍹';
     if (n.contains('catfish')) return '🐠';
     if (n.contains('ofe') || n.contains('nsala')) return '🍲';
-    return '🍽️';
+    // No semantic match — fall back to a deterministic placeholder emoji so the
+    // same item always looks consistent across screens.
+    return PlaceholderImageUtil.getPlaceholderEmoji(name);
   }
 }

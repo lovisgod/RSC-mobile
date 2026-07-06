@@ -41,21 +41,8 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<VerifyOtpResult> verifyOtp({
-    required String customerId,
-    required String channel,
-    String? phone,
-    String? email,
-    required String code,
-  }) async {
-    final model = await _remote.verifyOtp(
-      VerifyOtpRequestModel(
-        channel: channel,
-        phone: phone,
-        email: email,
-        code: code,
-      ),
-    );
+  Future<VerifyOtpResult> verifyOtp(String code) async {
+    final model = await _remote.verifyOtp(VerifyOtpRequestModel(code: code));
     return VerifyOtpResult(
       customerId: model.customerId,
       verificationChannels: model.verificationChannels,
@@ -77,31 +64,27 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() => _remote.logout();
 
   @override
-  Future<ForgotPasswordResponseModel> forgotPassword(
-    String identifier,
-  ) =>
-      _remote.forgotPassword(ForgotPasswordRequestModel(identifier: identifier));
+  Future<ForgotPasswordResponseModel> forgotPassword(String identifier) =>
+      _remote.forgotPassword(
+        ForgotPasswordRequestModel(identifier: identifier),
+      );
 
   @override
   Future<void> resetPassword(
     String identifier,
     String otpCode,
     String newPassword,
-  ) =>
-      _remote.resetPassword(
-        ResetPasswordRequestModel(
-          identifier: identifier,
-          phoneCode: otpCode,
-          emailCode: otpCode,
-          newPassword: newPassword,
-        ),
-      );
+  ) => _remote.resetPassword(
+    ResetPasswordRequestModel(
+      identifier: identifier,
+      phoneCode: otpCode,
+      emailCode: otpCode,
+      newPassword: newPassword,
+    ),
+  );
 
   @override
-  Future<void> changePassword(
-    String currentPassword,
-    String newPassword,
-  ) =>
+  Future<void> changePassword(String currentPassword, String newPassword) =>
       _remote.changePassword(
         ChangePasswordRequestModel(
           currentPassword: currentPassword,
@@ -114,8 +97,7 @@ class AuthRepositoryImpl implements AuthRepository {
     String channel,
     String phone,
     String email,
-  ) =>
-      _remote.resendVerificationCode(
-        ResendOtpRequestModel(channel: channel, phone: phone, email: email),
-      );
+  ) => _remote.resendVerificationCode(
+    ResendOtpRequestModel(channel: channel, phone: phone, email: email),
+  );
 }

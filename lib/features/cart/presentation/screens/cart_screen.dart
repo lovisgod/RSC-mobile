@@ -62,20 +62,21 @@ class CartScreen extends StatelessWidget {
       final items = grouped[outletId]!;
       final first = items.first;
 
-      widgets.add(_OutletHeader(
-        emoji: first.outletEmoji,
-        name: first.outletName,
-      ));
+      widgets.add(
+        _OutletHeader(emoji: first.outletEmoji, name: first.outletName),
+      );
 
       for (var i = 0; i < items.length; i++) {
         widgets.add(_CartItemRow(item: items[i]));
         if (i < items.length - 1) {
-          widgets.add(const Divider(
-            height: 1,
-            indent: 16,
-            endIndent: 16,
-            color: AppColors.divider,
-          ));
+          widgets.add(
+            const Divider(
+              height: 1,
+              indent: 16,
+              endIndent: 16,
+              color: AppColors.divider,
+            ),
+          );
         }
       }
 
@@ -148,8 +149,7 @@ class _CartAppBar extends StatelessWidget {
           // Item count badge
           if (itemCount > 0) ...[
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(20),
@@ -170,10 +170,7 @@ class _CartAppBar extends StatelessWidget {
               onTap: () => _showClearConfirmSheet(context),
               child: const Text(
                 AppStrings.clearAll,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.error,
-                ),
+                style: TextStyle(fontSize: 13, color: AppColors.error),
               ),
             ),
           ],
@@ -214,10 +211,7 @@ class _ClearCartSheet extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               AppStrings.clearCartMessage,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -495,10 +489,28 @@ class _CartSummary extends StatelessWidget {
 
   final CartEntity cart;
 
+  void _onProceedTap(BuildContext context, bool isLoggedIn) {
+    if (isLoggedIn) {
+      context.push(RouteNames.checkout, extra: {'cart': cart});
+      return;
+    }
+
+    AppSnackbar.show(
+      context,
+      message: AppStrings.pleaseLoginToOrder,
+      emoji: '',
+      backgroundColor: AppColors.navy,
+    );
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (context.mounted) {
+        context.read<ShellBloc>().add(const ShellTabChanged(4));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isLoggedIn =
-        context.watch<ShellBloc>().state.isAuthenticated;
+    final isLoggedIn = context.watch<ShellBloc>().state.isAuthenticated;
 
     return Container(
       decoration: const BoxDecoration(
@@ -521,9 +533,13 @@ class _CartSummary extends StatelessWidget {
               value: formatNaira(cart.vat),
               isTotal: false,
               labelStyle: const TextStyle(
-                  fontSize: 14, color: AppColors.textSecondary),
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
               valueStyle: const TextStyle(
-                  fontSize: 14, color: AppColors.textSecondary),
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
             ),
             const Divider(height: 16, color: AppColors.divider),
             _SummaryRow(
@@ -534,26 +550,9 @@ class _CartSummary extends StatelessWidget {
             const SizedBox(height: 14),
             AppButton(
               label: AppStrings.proceedToCheckout,
-              backgroundColor:
-                  isLoggedIn ? AppColors.navy : AppColors.textHint,
-              onPressed: isLoggedIn
-                  ? () => context.push(
-                        RouteNames.checkout,
-                        extra: {'cart': cart},
-                      )
-                  : null,
+              backgroundColor: AppColors.navy,
+              onPressed: () => _onProceedTap(context, isLoggedIn),
             ),
-            if (!isLoggedIn) ...[
-              const SizedBox(height: 6),
-              const Text(
-                AppStrings.pleaseLoginToOrder,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
             const SizedBox(height: 8),
           ],
         ),
@@ -592,9 +591,7 @@ class _SummaryRow extends StatelessWidget {
 
     return Row(
       children: [
-        Expanded(
-          child: Text(label, style: labelStyle ?? defaultLabel),
-        ),
+        Expanded(child: Text(label, style: labelStyle ?? defaultLabel)),
         Text(value, style: valueStyle ?? defaultValue),
       ],
     );

@@ -3,36 +3,65 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/profile_avatar.dart';
+import '../../../../core/widgets/shimmer_box.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../domain/entities/profile.dart';
+import '../cubit/address_cubit.dart';
+import '../cubit/address_state.dart';
 import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
 import '../widgets/order_history_card.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late final AddressCubit _addressCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<ProfileCubit>().loadProfile();
+    context.read<OrderHistoryCubit>().loadOrders();
+    _addressCubit = getIt<AddressCubit>()..loadAddresses();
+  }
+
+  @override
+  void dispose() {
+    _addressCubit.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      builder: (context, state) {
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(child: _ProfileHeader(state: state)),
-              SliverToBoxAdapter(child: _LoggedInBody(state: state)),
-            ],
-          ),
-        );
-      },
+    return BlocProvider.value(
+      value: _addressCubit,
+      child: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, state) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            body: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(child: _ProfileHeader(state: state)),
+                SliverToBoxAdapter(child: _LoggedInBody(state: state)),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -46,6 +75,9 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profile = state.userProfile;
+    final showShimmer = state.isLoading && profile == null;
+
     return Container(
       color: AppColors.surfaceDark,
       child: SafeArea(
@@ -55,59 +87,63 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             children: [
               // Avatar
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+              if (showShimmer)
+                const ShimmerBox(height: 80, width: 80, radius: 40)
+              else
+                ProfileAvatar(
+                  initials: profile?.initials ?? '',
+                  avatarUrl: profile?.avatarUrl,
                 ),
-                child: Center(
-                  child: Text(
-                    state.userInitials,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 14),
 
               // Name
-              Text(
-                state.userName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textOnDark,
+              if (showShimmer)
+                const ShimmerBox(height: 18, width: 140)
+              else
+                Text(
+                  profile?.name ?? '',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textOnDark,
+                  ),
                 ),
-              ),
               const SizedBox(height: 4),
 
               // Email
-              Text(
-                state.userEmail,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHint,
+              if (showShimmer)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: ShimmerBox(height: 12, width: 180),
+                )
+              else
+                Text(
+                  profile?.email ?? '',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textHint,
+                  ),
                 ),
-              ),
 
               // Phone
               const SizedBox(height: 2),
-              Text(
-                state.userPhone,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHint,
+              if (showShimmer)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: ShimmerBox(height: 12, width: 120),
+                )
+              else
+                Text(
+                  profile?.displayPhone ?? '',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textHint,
+                  ),
                 ),
-              ),
 
               // Edit Profile pill
               const SizedBox(height: 14),
-              _EditProfilePill(),
+              if (!showShimmer) _EditProfilePill(profile: profile),
             ],
           ),
         ),
@@ -117,15 +153,16 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _EditProfilePill extends StatelessWidget {
+  const _EditProfilePill({required this.profile});
+
+  final Profile? profile;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => AppSnackbar.show(
-        context,
-        message: AppStrings.comingSoon,
-        emoji: '🛠️',
-        type: AppSnackbarType.info,
-      ),
+      onTap: profile == null
+          ? null
+          : () => context.push(RouteNames.editProfile, extra: profile),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -167,7 +204,9 @@ class _LoggedInBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          _AddressCard(address: state.defaultAddress),
+          const _AddressCard(),
+          const SizedBox(height: 8),
+          const _ManageAddressesLink(),
           const SizedBox(height: 20),
           const _SecuritySection(),
           const SizedBox(height: 20),
@@ -182,82 +221,113 @@ class _LoggedInBody extends StatelessWidget {
 }
 
 class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.address});
-
-  final String address;
+  const _AddressCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            AppStrings.defaultDeliveryAddress,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textLabel,
-              letterSpacing: 0.5,
-            ),
+    return BlocBuilder<AddressCubit, AddressState>(
+      builder: (context, addressState) {
+        final defaultAddress = addressState.defaultAddress;
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(height: 12),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    address,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+              const Text(
+                AppStrings.defaultDeliveryAddress,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textLabel,
+                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => AppSnackbar.show(
-                  context,
-                  message: AppStrings.comingSoon,
-                  emoji: '🛠️',
-                  type: AppSnackbarType.info,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.navy,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    AppStrings.setDefault,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        defaultAddress?.displayAddress ??
+                            AppStrings.noDefaultAddressSet,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: defaultAddress != null
+                              ? AppColors.textPrimary
+                              : AppColors.textHint,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () =>
+                        context.push(RouteNames.manageAddresses).then((_) {
+                          if (context.mounted) {
+                            context.read<AddressCubit>().loadAddresses();
+                          }
+                        }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.navy,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        defaultAddress != null
+                            ? AppStrings.setDefault
+                            : AppStrings.addAddress,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+class _ManageAddressesLink extends StatelessWidget {
+  const _ManageAddressesLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(RouteNames.manageAddresses).then((_) {
+        if (context.mounted) {
+          context.read<AddressCubit>().loadAddresses();
+        }
+      }),
+      child: const Text(
+        AppStrings.manageAddresses,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
@@ -329,7 +399,7 @@ class _OrderHistorySection extends StatelessWidget {
       builder: (context, state) {
         final orders = state.orders;
         final preview = orders.take(4).toList();
-        final hasMore = orders.length > 4;
+        final showShimmer = state.isLoading && orders.isEmpty;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,23 +416,36 @@ class _OrderHistorySection extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (hasMore)
-                  GestureDetector(
-                    onTap: () => context.push(RouteNames.orderHistory),
-                    child: const Text(
-                      AppStrings.seeAllOrders,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
+                GestureDetector(
+                  onTap: () => context.push(RouteNames.orderHistory),
+                  child: const Text(
+                    AppStrings.seeAllOrders,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
                     ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 14),
 
-            if (orders.isEmpty)
+            if (showShimmer)
+              Column(
+                children: List.generate(
+                  3,
+                  (_) => const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: ShimmerBox(
+                      height: 140,
+                      width: double.infinity,
+                      radius: 14,
+                    ),
+                  ),
+                ),
+              )
+            else if (orders.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
@@ -510,9 +593,9 @@ class _LogoutConfirmSheet extends StatelessWidget {
                         isLoading: isLoading,
                         onPressed: isLoading
                             ? null
-                            : () => context
-                                .read<AuthBloc>()
-                                .add(const LogoutRequested()),
+                            : () => context.read<AuthBloc>().add(
+                                const LogoutRequested(),
+                              ),
                       ),
                     ),
                   ],
