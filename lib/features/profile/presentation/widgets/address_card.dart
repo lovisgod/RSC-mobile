@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../checkout/data/models/validate_address_response_model.dart';
+import '../../../checkout/domain/usecases/validate_address_usecase.dart';
 import '../../domain/entities/delivery_address_entity.dart';
 import '../../domain/enums/address_label.dart';
 import '../cubit/address_cubit.dart';
@@ -67,6 +70,7 @@ class AddressCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
+          _ZoneBadge(address: address),
           const SizedBox(height: 12),
           const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 8),
@@ -141,6 +145,57 @@ class AddressCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Zone badge ─────────────────────────────────────────────────────────────────
+
+/// Backend is the single source of truth for the delivery zone — there's no
+/// stored "in zone" flag on the address itself, so this checks the saved
+/// coordinates against the validate-address endpoint each time the card
+/// renders.
+class _ZoneBadge extends StatefulWidget {
+  const _ZoneBadge({required this.address});
+
+  final DeliveryAddressEntity address;
+
+  @override
+  State<_ZoneBadge> createState() => _ZoneBadgeState();
+}
+
+class _ZoneBadgeState extends State<_ZoneBadge> {
+  late Future<ValidateAddressResponseModel> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = getIt<ValidateAddressUseCase>()(
+      widget.address.latitude,
+      widget.address.longitude,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ValidateAddressResponseModel>(
+      future: _future,
+      builder: (context, snapshot) {
+        final outOfZone = snapshot.data?.deliverable == false;
+        if (!outOfZone) return const SizedBox.shrink();
+
+        return const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text(
+            AppStrings.outsideZoneBadge,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.warning,
+            ),
+          ),
+        );
+      },
     );
   }
 }

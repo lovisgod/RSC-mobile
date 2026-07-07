@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../../menu/domain/entities/outlet.dart';
 
 class OutletCard extends StatelessWidget {
@@ -40,16 +41,29 @@ class OutletCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // ── TOP: colored image section ───────────────────────────
+                // ── TOP: outlet image (or colored fallback) ──────────────
                 SizedBox(
                   height: 160,
                   child: Stack(
                     children: [
-                      Positioned.fill(child: ColoredBox(color: cardColor)),
-                      Center(
-                        child: Text(
-                          emoji,
-                          style: const TextStyle(fontSize: 72),
+                      Positioned.fill(
+                        child: RscImage(
+                          imageUrl: outlet.imageUrl,
+                          width: double.infinity,
+                          height: 160,
+                          fallback: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: ColoredBox(color: cardColor),
+                              ),
+                              Center(
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 72),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       if (outlet.isOnline)

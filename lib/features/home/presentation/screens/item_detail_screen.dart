@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../../cart/domain/entities/cart_item_entity.dart';
 import '../../../cart/domain/entities/selected_modifier_entity.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
@@ -49,9 +50,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     super.initState();
 
     // Initialize modifier selection maps
-    _selectedIds = {
-      for (final g in widget.menuItem.modifierGroups) g.id: {},
-    };
+    _selectedIds = {for (final g in widget.menuItem.modifierGroups) g.id: {}};
 
     // Check if item already exists in cart
     final cartItems = context.read<CartCubit>().state.cart.items;
@@ -115,11 +114,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     for (final group in widget.menuItem.modifierGroups) {
       for (final mod in group.modifiers) {
         if (_selectedIds[group.id]?.contains(mod.id) == true) {
-          flat.add(SelectedModifierEntity(
-            modifierId: mod.id,
-            name: mod.name,
-            priceDelta: mod.priceDelta,
-          ));
+          flat.add(
+            SelectedModifierEntity(
+              modifierId: mod.id,
+              name: mod.name,
+              priceDelta: mod.priceDelta,
+            ),
+          );
         }
       }
     }
@@ -133,19 +134,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final unitPrice =
         widget.menuItem.price + flat.fold(0.0, (s, m) => s + m.priceDelta);
 
-    context.read<CartCubit>().addItem(CartItemEntity(
-          id: CartCubit.generateId(),
-          menuItemId: widget.menuItem.id,
-          outletId: widget.outlet.id,
-          outletName: widget.outlet.name,
-          outletEmoji: _outletEmoji(widget.outlet.id),
-          itemNameSnapshot: widget.menuItem.name,
-          itemImageUrl: widget.menuItem.imageUrl ?? '',
-          unitPrice: unitPrice,
-          basePrice: widget.menuItem.price,
-          quantity: _quantity,
-          selectedModifiers: flat,
-        ));
+    context.read<CartCubit>().addItem(
+      CartItemEntity(
+        id: CartCubit.generateId(),
+        menuItemId: widget.menuItem.id,
+        outletId: widget.outlet.id,
+        outletName: widget.outlet.name,
+        outletEmoji: _outletEmoji(widget.outlet.id),
+        itemNameSnapshot: widget.menuItem.name,
+        itemImageUrl: widget.menuItem.imageUrl ?? '',
+        unitPrice: unitPrice,
+        basePrice: widget.menuItem.price,
+        quantity: _quantity,
+        selectedModifiers: flat,
+      ),
+    );
 
     AppSnackbar.show(
       context,
@@ -167,11 +170,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         widget.menuItem.price + flat.fold(0.0, (s, m) => s + m.priceDelta);
 
     context.read<CartCubit>().updateItem(
-          _editingCartItemId!,
-          quantity: _quantity,
-          selectedModifiers: flat,
-          unitPrice: unitPrice,
-        );
+      _editingCartItemId!,
+      quantity: _quantity,
+      selectedModifiers: flat,
+      unitPrice: unitPrice,
+    );
 
     AppSnackbar.show(
       context,
@@ -258,16 +261,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   // Modifier groups
                   if (item.modifierGroups.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    ...item.modifierGroups.map((group) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: ModifierGroupCard(
-                            group: group,
-                            selectedIds:
-                                Set.unmodifiable(_selectedIds[group.id] ?? {}),
-                            onToggle: (modId, selected) =>
-                                _toggle(group.id, modId, selected),
+                    ...item.modifierGroups.map(
+                      (group) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ModifierGroupCard(
+                          group: group,
+                          selectedIds: Set.unmodifiable(
+                            _selectedIds[group.id] ?? {},
                           ),
-                        )),
+                          onToggle: (modId, selected) =>
+                              _toggle(group.id, modId, selected),
+                        ),
+                      ),
+                    ),
                   ],
 
                   const SizedBox(height: 100),
@@ -304,48 +310,59 @@ class _ItemHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 220,
-      color: const Color(0xFFFFF3E0),
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Positioned(
-              top: 8,
-              left: 16,
-              child: GestureDetector(
-                onTap: onBack,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    size: 16,
-                    color: AppColors.navyDark,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: RscImage(
+              imageUrl: item.imageUrl,
+              width: double.infinity,
+              height: 220,
+              fallback: Container(
+                color: const Color(0xFFFFF3E0),
+                child: Center(
+                  child: Text(
+                    MenuItemCard.emojiForItemName(item.name),
+                    style: const TextStyle(fontSize: 100),
                   ),
                 ),
               ),
             ),
-            Center(
-              child: Text(
-                MenuItemCard.emojiForItemName(item.name),
-                style: const TextStyle(fontSize: 100),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, left: 16),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: GestureDetector(
+                  onTap: onBack,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.10),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 16,
+                      color: AppColors.navyDark,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/category.dart';
 import '../../../menu/domain/entities/outlet.dart';
@@ -35,7 +36,21 @@ class OutletDetailScreen extends StatelessWidget {
       backgroundColor: AppColors.navyDark,
       body: Stack(
         children: [
-          // ── Navy header with emoji ───────────────────────────────────────
+          // ── Navy header: outlet photo when available, else emoji ────────
+          if (outlet.imageUrl.isNotEmpty)
+            Positioned.fill(
+              child: RscImage(
+                imageUrl: outlet.imageUrl,
+                width: double.infinity,
+                height: double.infinity,
+                fallback: ColoredBox(
+                  color: AppColors.navyDark,
+                  child: Center(
+                    child: Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  ),
+                ),
+              ),
+            ),
           SafeArea(
             bottom: false,
             child: Padding(
@@ -47,8 +62,10 @@ class OutletDetailScreen extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: _CircleBackButton(onTap: () => context.pop()),
                   ),
-                  const SizedBox(height: 20),
-                  Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  if (outlet.imageUrl.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  ],
                 ],
               ),
             ),
@@ -112,34 +129,36 @@ class OutletDetailScreen extends StatelessWidget {
                             )
                           else
                             SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final item = state.selectedItems[index];
-                                  return Column(
-                                    children: [
-                                      MenuItemCard(
-                                        item: item,
-                                        onAddTap: () => context.push(
-                                          RouteNames.itemDetailPath(
-                                              outlet.id, item.id),
-                                          extra: {
-                                            'menuItem': item,
-                                            'outlet': outlet,
-                                          },
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final item = state.selectedItems[index];
+                                return Column(
+                                  children: [
+                                    MenuItemCard(
+                                      item: item,
+                                      onAddTap: () => context.push(
+                                        RouteNames.itemDetailPath(
+                                          outlet.id,
+                                          item.id,
                                         ),
+                                        extra: {
+                                          'menuItem': item,
+                                          'outlet': outlet,
+                                        },
                                       ),
-                                      if (index < state.selectedItems.length - 1)
-                                        const Divider(
-                                          height: 1,
-                                          indent: 16,
-                                          endIndent: 16,
-                                          color: AppColors.divider,
-                                        ),
-                                    ],
-                                  );
-                                },
-                                childCount: state.selectedItems.length,
-                              ),
+                                    ),
+                                    if (index < state.selectedItems.length - 1)
+                                      const Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: AppColors.divider,
+                                      ),
+                                  ],
+                                );
+                              }, childCount: state.selectedItems.length),
                             ),
 
                           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -279,10 +298,7 @@ class _OutletInfoSection extends StatelessWidget {
               const SizedBox(width: 4),
               const Text(
                 '₦500 delivery',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -437,11 +453,7 @@ class _ShimmerSheet extends StatelessWidget {
                 radius: 10,
                 margin: EdgeInsets.fromLTRB(0, 0, 8, 0),
               ),
-              const ShimmerBox(
-                height: 20,
-                width: 50,
-                radius: 10,
-              ),
+              const ShimmerBox(height: 20, width: 50, radius: 10),
             ],
           ),
           const SizedBox(height: 16),
@@ -502,13 +514,17 @@ class _ErrorSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: AppColors.textHint),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.textHint,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
-              style:
-                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

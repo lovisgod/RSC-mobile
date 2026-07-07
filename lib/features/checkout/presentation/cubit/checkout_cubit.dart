@@ -8,14 +8,19 @@ import '../../../../core/storage/local_storage.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
+import '../../domain/usecases/validate_address_usecase.dart';
 import 'checkout_state.dart';
 
 class CheckoutCubit extends Cubit<CheckoutState> {
-  CheckoutCubit(this._localStorage, this._nominatimService)
-    : super(const CheckoutState());
+  CheckoutCubit(
+    this._localStorage,
+    this._nominatimService,
+    this._validateAddressUseCase,
+  ) : super(const CheckoutState());
 
   final LocalStorage _localStorage;
   final NominatimService _nominatimService;
+  final ValidateAddressUseCase _validateAddressUseCase;
   Timer? _debounceTimer;
 
   static const double _deliveryFeeAmount = 500.0;
@@ -66,6 +71,9 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         clearSelectedAddress: true,
         clearCoordinates: true,
         addressVerified: false,
+        addressOutOfZone: false,
+        clearDeliveryZoneName: true,
+        isValidatingAddress: false,
       ),
     );
 
@@ -91,7 +99,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     });
   }
 
-  void selectAddress(NominatimResult result) {
+  Future<void> selectAddress(NominatimResult result) async {
     emit(
       state.copyWith(
         deliveryAddress: result.shortAddress,
@@ -99,16 +107,21 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         currentLongitude: result.longitude,
         showSuggestions: false,
         addressSuggestions: const [],
-        addressVerified: true,
+        addressVerified: false,
+        addressOutOfZone: false,
+        clearDeliveryZoneName: true,
+        isValidatingAddress: true,
       ),
     );
+
+    await _validateSelectedAddress(result.latitude, result.longitude);
   }
 
   void dismissSuggestions() {
     emit(state.copyWith(showSuggestions: false));
   }
 
-  void useDefaultAddress(DeliveryAddressEntity address) {
+  Future<void> useDefaultAddress(DeliveryAddressEntity address) async {
     _debounceTimer?.cancel();
     emit(
       state.copyWith(
@@ -118,7 +131,28 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         clearCoordinates: true,
         showSuggestions: false,
         addressSuggestions: const [],
-        addressVerified: true,
+        addressVerified: false,
+        addressOutOfZone: false,
+        clearDeliveryZoneName: true,
+        isValidatingAddress: true,
+      ),
+    );
+
+    await _validateSelectedAddress(address.latitude, address.longitude);
+  }
+
+  /// Backend is the single source of truth for the RSC delivery zone — every
+  /// address selection (Nominatim pick or saved default) is checked here
+  /// before the user can proceed to checkout.
+  Future<void> _validateSelectedAddress(double lat, double lng) async {
+    final response = await _validateAddressUseCase(lat, lng);
+    emit(
+      state.copyWith(
+        addressVerified: response.deliverable,
+        addressOutOfZone: !response.deliverable,
+        deliveryZoneName: response.zoneName,
+        clearDeliveryZoneName: response.zoneName == null,
+        isValidatingAddress: false,
       ),
     );
   }

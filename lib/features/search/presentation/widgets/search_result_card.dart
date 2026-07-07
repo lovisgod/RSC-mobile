@@ -6,6 +6,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/presentation/cubit/cart_state.dart';
 import '../../../home/presentation/widgets/menu_item_card.dart';
@@ -24,7 +25,10 @@ class SearchResultCard extends StatelessWidget {
       AppColors.navyDark,
     ];
     // Deterministic per outlet — decoupled from any fixed outlet list.
-    final hash = outletId.codeUnits.fold<int>(0, (h, c) => (h * 31 + c) & 0x7fffffff);
+    final hash = outletId.codeUnits.fold<int>(
+      0,
+      (h, c) => (h * 31 + c) & 0x7fffffff,
+    );
     return colors[hash % colors.length];
   }
 
@@ -35,8 +39,7 @@ class SearchResultCard extends StatelessWidget {
     final bgColor = _outletColor(outlet.id);
 
     return BlocSelector<CartCubit, CartState, bool>(
-      selector: (state) =>
-          state.cart.items.any((e) => e.menuItemId == item.id),
+      selector: (state) => state.cart.items.any((e) => e.menuItemId == item.id),
       builder: (context, isInCart) {
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -55,23 +58,24 @@ class SearchResultCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── Colored emoji square ──────────────────────────────────
+              // ── Thumbnail ──────────────────────────────────────────────
               Stack(
                 children: [
-                  Container(
+                  RscImage(
+                    imageUrl: item.imageUrl,
                     width: 80,
                     height: 80,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(13),
-                        bottomLeft: Radius.circular(13),
-                      ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(13),
+                      bottomLeft: Radius.circular(13),
                     ),
-                    child: Center(
-                      child: Text(
-                        MenuItemCard.emojiForItemName(item.name),
-                        style: const TextStyle(fontSize: 34),
+                    fallback: Container(
+                      color: bgColor,
+                      child: Center(
+                        child: Text(
+                          MenuItemCard.emojiForItemName(item.name),
+                          style: const TextStyle(fontSize: 34),
+                        ),
                       ),
                     ),
                   ),
@@ -81,7 +85,9 @@ class SearchResultCard extends StatelessWidget {
                       right: 6,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 2),
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(8),
@@ -102,8 +108,10 @@ class SearchResultCard extends StatelessWidget {
               // ── Info ─────────────────────────────────────────────────
               Expanded(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -157,7 +165,9 @@ class SearchResultCard extends StatelessWidget {
                   ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(20),

@@ -16,6 +16,21 @@ class CheckoutState {
   /// True only when the address came from a Nominatim pick, GPS, or the
   /// saved default address — never from free-typed text.
   final bool addressVerified;
+
+  /// True when the backend's validate-address check came back
+  /// non-deliverable for the selected coordinates. Coordinates are still
+  /// kept in state — the user just can't proceed to checkout with them.
+  final bool addressOutOfZone;
+
+  /// Name of the delivery zone the address falls in (e.g. "Banana Island"),
+  /// from the backend validate-address response. Null until validated, and
+  /// while addressOutOfZone is true.
+  final String? deliveryZoneName;
+
+  /// True while the validate-address call for the current selection is in
+  /// flight — blocks the proceed button so the user can't check out with a
+  /// not-yet-confirmed address.
+  final bool isValidatingAddress;
   final bool isOrderingForSomeoneElse;
   final String recipientAddress;
   final String recipientName;
@@ -37,6 +52,9 @@ class CheckoutState {
     this.isSearchingAddress = false,
     this.showSuggestions = false,
     this.addressVerified = false,
+    this.addressOutOfZone = false,
+    this.deliveryZoneName,
+    this.isValidatingAddress = false,
     this.isOrderingForSomeoneElse = false,
     this.recipientAddress = '',
     this.recipientName = '',
@@ -53,7 +71,10 @@ class CheckoutState {
     if (isOrderingForSomeoneElse) {
       return recipientAddress.isNotEmpty && recipientName.isNotEmpty;
     }
-    return deliveryAddress.trim().isNotEmpty && addressVerified;
+    return deliveryAddress.trim().isNotEmpty &&
+        addressVerified &&
+        !addressOutOfZone &&
+        !isValidatingAddress;
   }
 
   CheckoutState copyWith({
@@ -69,6 +90,10 @@ class CheckoutState {
     bool? isSearchingAddress,
     bool? showSuggestions,
     bool? addressVerified,
+    bool? addressOutOfZone,
+    String? deliveryZoneName,
+    bool clearDeliveryZoneName = false,
+    bool? isValidatingAddress,
     bool? isOrderingForSomeoneElse,
     String? recipientAddress,
     String? recipientName,
@@ -97,6 +122,11 @@ class CheckoutState {
       isSearchingAddress: isSearchingAddress ?? this.isSearchingAddress,
       showSuggestions: showSuggestions ?? this.showSuggestions,
       addressVerified: addressVerified ?? this.addressVerified,
+      addressOutOfZone: addressOutOfZone ?? this.addressOutOfZone,
+      deliveryZoneName: clearDeliveryZoneName
+          ? null
+          : (deliveryZoneName ?? this.deliveryZoneName),
+      isValidatingAddress: isValidatingAddress ?? this.isValidatingAddress,
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
       recipientAddress: recipientAddress ?? this.recipientAddress,

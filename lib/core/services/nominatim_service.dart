@@ -13,13 +13,6 @@ class NominatimService {
 
   static const String _baseUrl = 'https://nominatim.openstreetmap.org';
 
-  // RSC delivery zone bounding box (Ikoyi, VI, Banana Island, Lekki up to
-  // Chevron). Restricts results to addresses we can actually deliver to.
-  static const double _minLat = 6.3800;
-  static const double _maxLat = 6.5500;
-  static const double _minLng = 3.3500;
-  static const double _maxLng = 3.6500;
-
   Future<List<NominatimResult>> searchAddress(String query) async {
     if (query.trim().length < 3) return [];
 
@@ -27,12 +20,14 @@ class NominatimService {
       final response = await _dio.get(
         '$_baseUrl/search',
         queryParameters: {
-          'q': '$query Lagos Nigeria',
+          // Nation-wide search — no longer geographically restricted at the
+          // API level. The RSC delivery-zone check now happens after the
+          // user picks a result, via the backend validate-address endpoint
+          // (see ValidateAddressUseCase).
+          'q': '$query Nigeria',
           'format': 'json',
           'limit': 5,
           'countrycodes': 'ng',
-          'viewbox': '$_minLng,$_maxLat,$_maxLng,$_minLat',
-          'bounded': 1,
           'addressdetails': 1,
           'accept-language': 'en',
         },

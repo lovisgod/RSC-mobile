@@ -60,6 +60,14 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
     _cityCtrl = TextEditingController(text: existing?.city ?? '');
     _stateCtrl = TextEditingController(text: existing?.state ?? '');
     _isDefault = existing?.isDefault ?? false;
+
+    // There's no live geocoding on this manual form yet, so we validate the
+    // coordinates that will actually be submitted — the existing address's
+    // own lat/lng in edit mode, or the placeholder used for new addresses.
+    context.read<AddressCubit>().validateAddress(
+      existing?.latitude ?? CreateAddressRequestModel.placeholderLatitude,
+      existing?.longitude ?? CreateAddressRequestModel.placeholderLongitude,
+    );
   }
 
   @override
@@ -172,6 +180,10 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
                   hint: AppStrings.hintAddressLine,
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => setState(() {}),
+                ),
+                BlocBuilder<AddressCubit, AddressState>(
+                  builder: (context, state) =>
+                      _ZoneValidationHint(state: state),
                 ),
                 const SizedBox(height: 20),
 
@@ -323,5 +335,69 @@ class _FieldLabel extends StatelessWidget {
         letterSpacing: 0.5,
       ),
     );
+  }
+}
+
+// ── Zone validation hint ──────────────────────────────────────────────────────
+
+class _ZoneValidationHint extends StatelessWidget {
+  const _ZoneValidationHint({required this.state});
+
+  final AddressState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isValidatingAddress) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              AppStrings.checkingDeliveryAvailability,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.deliveryZoneName != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          '${AppStrings.deliversToZone} ${state.deliveryZoneName}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.success,
+          ),
+        ),
+      );
+    }
+
+    if (state.addressOutOfZone) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          AppStrings.dontDeliverHereShort,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.warning,
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

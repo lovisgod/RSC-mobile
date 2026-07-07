@@ -9,10 +9,13 @@ import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/cart/data/datasources/cart_local_datasource.dart';
 import '../../features/cart/data/models/hive/cart_item_hive_model.dart';
 import '../../features/cart/presentation/cubit/cart_cubit.dart';
+import '../../features/checkout/data/repositories/address_validation_repository_impl.dart';
 import '../../features/checkout/data/repositories/payment_repository_impl.dart';
+import '../../features/checkout/domain/repositories/address_validation_repository.dart';
 import '../../features/checkout/domain/repositories/payment_repository.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
+import '../../features/checkout/domain/usecases/validate_address_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
@@ -145,6 +148,15 @@ Future<void> configureDependencies() async {
       () => VerifyProfileChangeUseCase(getIt<ProfileRepository>()),
     );
 
+  // ── Address validation (backend delivery-zone check) ────────────────────────
+  getIt
+    ..registerLazySingleton<AddressValidationRepository>(
+      () => AddressValidationRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<ValidateAddressUseCase>(
+      () => ValidateAddressUseCase(getIt<AddressValidationRepository>()),
+    );
+
   // ── Delivery address data layer ─────────────────────────────────────────────
   getIt
     ..registerLazySingleton<AddressRepository>(
@@ -172,6 +184,7 @@ Future<void> configureDependencies() async {
         getIt<UpdateAddressUseCase>(),
         getIt<DeleteAddressUseCase>(),
         getIt<SetDefaultAddressUseCase>(),
+        getIt<ValidateAddressUseCase>(),
       ),
     );
 
@@ -289,7 +302,11 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<NominatimService>(() => NominatimService())
     ..registerFactory<CheckoutCubit>(
-      () => CheckoutCubit(getIt<LocalStorage>(), getIt<NominatimService>()),
+      () => CheckoutCubit(
+        getIt<LocalStorage>(),
+        getIt<NominatimService>(),
+        getIt<ValidateAddressUseCase>(),
+      ),
     )
     ..registerFactory<PaymentCubit>(
       () => PaymentCubit(

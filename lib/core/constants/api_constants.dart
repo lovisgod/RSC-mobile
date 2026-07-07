@@ -42,6 +42,7 @@ abstract final class ApiConstants {
       '/api/v1/delivery/addresses/$id';
   static String setDefaultAddressPath(String id) =>
       '/api/v1/delivery/addresses/$id/default';
+  static const String validateAddress = '/api/v1/delivery/validate-address';
 
   // Notifications
   static const String notifications = '/api/v1/notifications';

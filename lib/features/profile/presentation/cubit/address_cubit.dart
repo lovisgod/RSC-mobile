@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../checkout/domain/usecases/validate_address_usecase.dart';
 import '../../data/models/create_address_request_model.dart';
 import '../../domain/entities/delivery_address_entity.dart';
 import '../../domain/usecases/create_address_usecase.dart';
@@ -16,6 +17,7 @@ class AddressCubit extends Cubit<AddressState> {
   final UpdateAddressUseCase _updateAddressUseCase;
   final DeleteAddressUseCase _deleteAddressUseCase;
   final SetDefaultAddressUseCase _setDefaultAddressUseCase;
+  final ValidateAddressUseCase _validateAddressUseCase;
 
   AddressCubit(
     this._getAddressesUseCase,
@@ -23,7 +25,28 @@ class AddressCubit extends Cubit<AddressState> {
     this._updateAddressUseCase,
     this._deleteAddressUseCase,
     this._setDefaultAddressUseCase,
+    this._validateAddressUseCase,
   ) : super(const AddressState());
+
+  /// Checks the backend delivery zone for the coordinates about to be saved
+  /// (the bottom sheet calls this once when it opens, since there's no live
+  /// geocoding on the manual address form yet — see
+  /// CreateAddressRequestModel's placeholder lat/lng). Doesn't block saving;
+  /// it's purely informational feedback shown in the sheet.
+  Future<void> validateAddress(double latitude, double longitude) async {
+    emit(
+      state.copyWith(isValidatingAddress: true, clearDeliveryZoneName: true),
+    );
+    final response = await _validateAddressUseCase(latitude, longitude);
+    emit(
+      state.copyWith(
+        isValidatingAddress: false,
+        addressOutOfZone: !response.deliverable,
+        deliveryZoneName: response.zoneName,
+        clearDeliveryZoneName: response.zoneName == null,
+      ),
+    );
+  }
 
   Future<void> loadAddresses() async {
     emit(state.copyWith(isLoading: true, error: null));

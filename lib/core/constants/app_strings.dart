@@ -268,11 +268,23 @@ abstract final class AppStrings {
   static const String searchAndSelectAddress = 'Search and select your address';
   static const String pleaseSelectFromSuggestions =
       '⚠️ Please select an address from the suggestions above';
-  static const String addressVerified = '✅ Address verified';
   static const String selectValidAddress =
       'Select a valid delivery address to continue';
   static const String enterDeliveryAddress =
       'Enter your delivery address to continue';
+  static const String checkingDeliveryAvailability =
+      'Checking delivery availability...';
+  static const String deliveringToZone = '✅ Delivering to';
+  static const String addressVerifiedSimple = '✅ Address verified';
+  static const String deliversToZone = '✅ Delivers to';
+  static const String dontDeliverHereShort = '⚠️ We don\'t deliver here yet';
+  static const String outsideDeliveryArea = '🚫 Outside delivery area';
+  static const String outsideDeliveryAreaMessage =
+      'We don\'t deliver to this location yet. Please select an address '
+      'within our delivery zones.';
+  static const String selectAddressInArea =
+      'Please select an address in our delivery area';
+  static const String outsideZoneBadge = '⚠️ Outside delivery zone';
 
   // ─── Payment (Moment) ─────────────────────────────────────────────────────
   static const String tabCard = '💳 Card';

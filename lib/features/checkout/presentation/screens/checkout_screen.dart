@@ -695,12 +695,45 @@ class _AddressVerificationHint extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.deliveryAddress.isEmpty) return const SizedBox.shrink();
 
-    if (state.addressVerified) {
+    if (state.isValidatingAddress) {
       return const Padding(
-        padding: EdgeInsets.only(top: 6),
+        padding: EdgeInsets.only(top: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              AppStrings.checkingDeliveryAvailability,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.addressOutOfZone) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: _OutOfZoneWarningCard(),
+      );
+    }
+
+    if (state.addressVerified) {
+      final zoneName = state.deliveryZoneName;
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
         child: Text(
-          AppStrings.addressVerified,
-          style: TextStyle(
+          zoneName != null
+              ? '${AppStrings.deliveringToZone} $zoneName'
+              : AppStrings.addressVerifiedSimple,
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.success,
@@ -724,6 +757,39 @@ class _AddressVerificationHint extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
+  }
+}
+
+class _OutOfZoneWarningCard extends StatelessWidget {
+  const _OutOfZoneWarningCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.outsideDeliveryArea,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            AppStrings.outsideDeliveryAreaMessage,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -880,9 +946,13 @@ class _ProceedButton extends StatelessWidget {
     final bool isActive = !formInvalid;
 
     String? hintText;
+    Color hintColor = AppColors.textSecondary;
     if (formInvalid && state.selectedMode == DeliveryMode.delivery) {
       if (state.isOrderingForSomeoneElse) {
         hintText = AppStrings.pleaseEnterDeliveryAddress;
+      } else if (state.addressOutOfZone) {
+        hintText = AppStrings.selectAddressInArea;
+        hintColor = AppColors.error;
       } else if (state.deliveryAddress.trim().isEmpty) {
         hintText = AppStrings.enterDeliveryAddress;
       } else {
@@ -906,10 +976,7 @@ class _ProceedButton extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hintText,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: hintColor),
             textAlign: TextAlign.center,
           ),
         ],

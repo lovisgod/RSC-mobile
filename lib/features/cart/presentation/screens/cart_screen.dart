@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../../domain/entities/cart_item_entity.dart';
 import '../cubit/cart_cubit.dart';
@@ -357,17 +358,18 @@ class _CartItemRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Thumbnail
-          Container(
+          RscImage(
+            imageUrl: item.itemImageUrl,
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            fallback: Container(
               color: const Color(0xFFFFF3E0),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                MenuItemCard.emojiForItemName(item.itemNameSnapshot),
-                style: const TextStyle(fontSize: 28),
+              child: Center(
+                child: Text(
+                  MenuItemCard.emojiForItemName(item.itemNameSnapshot),
+                  style: const TextStyle(fontSize: 28),
+                ),
               ),
             ),
           ),
