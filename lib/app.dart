@@ -8,6 +8,7 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/cart/presentation/cubit/cart_cubit.dart';
+import 'features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'features/profile/presentation/cubit/order_history_cubit.dart';
 import 'features/profile/presentation/cubit/profile_cubit.dart';
 import 'features/shell/presentation/bloc/shell_bloc.dart';
@@ -22,26 +23,29 @@ class App extends StatelessWidget {
         BlocProvider<AuthBloc>(
           create: (_) => getIt<AuthBloc>()..add(const AuthCheckRequested()),
         ),
-        BlocProvider<ShellBloc>(
-          create: (_) => getIt<ShellBloc>(),
-        ),
-        BlocProvider<CartCubit>(
-          create: (_) => getIt<CartCubit>(),
-        ),
+        BlocProvider<ShellBloc>(create: (_) => getIt<ShellBloc>()),
+        BlocProvider<CartCubit>(create: (_) => getIt<CartCubit>()),
         BlocProvider<ProfileCubit>(
           create: (_) => getIt<ProfileCubit>()..loadProfile(),
         ),
         BlocProvider<OrderHistoryCubit>(
           create: (_) => getIt<OrderHistoryCubit>(),
         ),
+        BlocProvider<NotificationsCubit>(
+          create: (_) => getIt<NotificationsCubit>(),
+        ),
       ],
       child: BlocListener<AuthBloc, AuthState>(
-        listenWhen: (_, state) => state is LogoutSuccess || state is LoginSuccess,
+        listenWhen: (_, state) =>
+            state is LogoutSuccess || state is LoginSuccess,
         listener: (context, state) {
           if (state is LogoutSuccess) {
             context.read<CartCubit>().clearCart();
           }
           context.read<ProfileCubit>().loadProfile();
+          if (state is LoginSuccess) {
+            context.read<NotificationsCubit>().loadNotifications();
+          }
         },
         child: MaterialApp.router(
           title: 'RSC',

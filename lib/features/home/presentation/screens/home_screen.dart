@@ -11,6 +11,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
+import '../../../notifications/presentation/cubit/notifications_cubit.dart';
+import '../../../notifications/presentation/cubit/notifications_state.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
 import '../../../profile/presentation/cubit/address_state.dart';
 import '../../../profile/presentation/cubit/profile_cubit.dart';
@@ -41,6 +43,8 @@ class HomeScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     const Expanded(child: _DeliveringToSection()),
+                    const _NotificationBellButton(),
+                    const SizedBox(width: 8),
                     const _AvatarButton(),
                   ],
                 ),
@@ -215,6 +219,62 @@ class _DeliveringToShimmer extends StatelessWidget {
         const SizedBox(height: 5),
         const ShimmerBox(height: 14, width: 140, radius: 4),
       ],
+    );
+  }
+}
+
+// ── Notification bell ────────────────────────────────────────────────────────
+
+class _NotificationBellButton extends StatelessWidget {
+  const _NotificationBellButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(RouteNames.notifications),
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Center(
+              child: Icon(
+                Icons.notifications_outlined,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            BlocBuilder<NotificationsCubit, NotificationsState>(
+              builder: (context, state) {
+                final unreadCount = state.unreadCount;
+                if (unreadCount == 0) return const SizedBox.shrink();
+                return Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.error,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

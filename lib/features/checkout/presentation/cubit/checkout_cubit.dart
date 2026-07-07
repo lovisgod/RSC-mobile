@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/models/nominatim_result.dart';
 import '../../../../core/services/nominatim_service.dart';
 import '../../../../core/storage/local_storage.dart';
@@ -177,6 +178,17 @@ class CheckoutCubit extends Cubit<CheckoutState> {
 
   void updatePreparationInstructions(String instructions) {
     emit(state.copyWith(preparationInstructions: instructions));
+  }
+
+  /// Guards the payment-initiate call: takeout carries no address so it's
+  /// always valid; delivery requires a minimally plausible address, since the
+  /// backend rejects a deliveryAddress shorter than 5 characters.
+  String? validateBeforePayment() {
+    if (state.selectedMode == DeliveryMode.takeout) return null;
+    if (state.deliveryAddress.trim().length < 5) {
+      return AppStrings.pleaseEnterValidDeliveryAddress;
+    }
+    return null;
   }
 
   @override

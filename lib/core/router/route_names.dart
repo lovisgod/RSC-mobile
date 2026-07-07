@@ -14,6 +14,8 @@ abstract final class RouteNames {
   static const String editProfile = '/edit-profile';
   static const String manageAddresses = '/manage-addresses';
   static const String profileVerifyOtp = '/profile-verify-otp';
+  static const String notifications = '/notifications';
+  static const String notificationPreferences = '/notification-preferences';
 
   static String outletDetailPath(String outletId) => '/outlet/$outletId';
   static String itemDetailPath(String outletId, String itemId) =>

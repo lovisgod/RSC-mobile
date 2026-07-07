@@ -262,6 +262,8 @@ abstract final class AppStrings {
       'Please log in to place your order 👋';
   static const String pleaseEnterDeliveryAddress =
       'Please enter a delivery address';
+  static const String pleaseEnterValidDeliveryAddress =
+      'Please enter a valid delivery address';
   static const String searchingAddresses = 'Searching addresses...';
   static const String noAddressesInZone =
       'No addresses found in our delivery area';
@@ -360,4 +362,27 @@ abstract final class AppStrings {
   static const String errorPhoneInvalidChars =
       'Phone number contains invalid characters';
   static const String errorInactiveAccount = 'Please verify your account first';
+
+  // ─── Notifications ────────────────────────────────────────────────────────
+  static const String notifications = 'Notifications';
+  static const String markAllRead = 'Mark all read';
+  static const String noNotificationsYet = 'No notifications yet';
+  static const String notificationsSubtitle =
+      'Order updates and promotions will appear here';
+  static const String notificationSettings = 'Notification Settings';
+  static const String aboutNotifications = 'About notifications';
+  static const String notificationInfoText =
+      'Order status notifications are always enabled to keep you updated on '
+      'your deliveries. You can control promotional notifications below.';
+  static const String orderUpdates = 'Order Updates';
+  static const String orderUpdatesSubtitle =
+      'Delivery confirmations, status changes';
+  static const String promotions = 'Promotions';
+  static const String promotionsSubtitle = 'Special deals and offers';
+  static const String discounts = 'Discounts';
+  static const String discountsSubtitle = 'Exclusive discount notifications';
+  static const String seasonalOffers = 'Seasonal Offers';
+  static const String seasonalOffersSubtitle =
+      'Holiday and seasonal promotions';
+  static const String yesterday = 'Yesterday';
 }

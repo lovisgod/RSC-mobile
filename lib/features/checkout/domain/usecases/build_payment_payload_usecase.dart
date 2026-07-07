@@ -21,6 +21,10 @@ class BuildPaymentPayloadUseCase {
   static const double _placeholderLatitude = 6.4474;
   static const double _placeholderLongitude = 3.4542;
 
+  // Backend requires deliveryAddress to be at least 5 characters even for
+  // takeout orders, where the address is otherwise irrelevant.
+  static const String _takeoutAddressPlaceholder = 'TAKEOUT';
+
   InitiatePaymentRequestModel call(CartEntity cart, CheckoutState checkout) {
     final isDelivery = checkout.selectedMode == DeliveryMode.delivery;
 
@@ -37,10 +41,11 @@ class BuildPaymentPayloadUseCase {
     }).toList();
 
     // For delivery use the recipient address when ordering for someone else;
-    // takeout carries no address.
+    // takeout carries a placeholder — the backend requires a non-empty,
+    // min-5-char deliveryAddress regardless of mode.
     final String deliveryAddress;
     if (!isDelivery) {
-      deliveryAddress = '';
+      deliveryAddress = _takeoutAddressPlaceholder;
     } else if (checkout.isOrderingForSomeoneElse) {
       deliveryAddress = checkout.recipientAddress;
     } else {

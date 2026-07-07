@@ -92,11 +92,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Moment sheet here yet — that gets wired to the real payment UI in a
   /// follow-up once this call is confirmed end to end.
   void _onProceedToPayment() {
+    final checkoutCubit = context.read<CheckoutCubit>();
+    final validationError = checkoutCubit.validateBeforePayment();
+    if (validationError != null) {
+      AppSnackbar.show(
+        context,
+        message: validationError,
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
+
     final cart = context.read<CartCubit>().state.cart;
-    final checkoutState = context.read<CheckoutCubit>().state;
     context.read<PaymentCubit>().initiatePaymentWithBackend(
       cart,
-      checkoutState,
+      checkoutCubit.state,
     );
   }
 

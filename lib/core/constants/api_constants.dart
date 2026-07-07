@@ -46,5 +46,9 @@ abstract final class ApiConstants {
 
   // Notifications
   static const String notifications = '/api/v1/notifications';
-  static const String registerFcmToken = '/api/v1/notifications/fcm-token';
+  static const String deviceToken = '/api/v1/notifications/device-token';
+  static String markNotificationRead(String id) =>
+      '/api/v1/notifications/$id/read';
+  static const String notificationPreferences =
+      '/api/v1/notifications/preferences';
 }

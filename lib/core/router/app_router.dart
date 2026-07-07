@@ -20,7 +20,10 @@ import '../../features/home/presentation/screens/item_detail_screen.dart';
 import '../../features/home/presentation/screens/outlet_detail_screen.dart';
 import '../../features/menu/domain/entities/menu_item.dart';
 import '../../features/menu/domain/entities/outlet.dart';
-import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/notifications/presentation/cubit/notification_preferences_cubit.dart';
+import '../../features/notifications/presentation/cubit/notifications_cubit.dart';
+import '../../features/notifications/presentation/screens/notification_preferences_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/domain/entities/profile.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
@@ -119,7 +122,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/notifications',
       name: 'notifications',
-      builder: (context, state) => const NotificationsPage(),
+      builder: (context, state) => BlocProvider.value(
+        value: getIt<NotificationsCubit>(),
+        child: const NotificationsScreen(),
+      ),
+    ),
+    GoRoute(
+      path: '/notification-preferences',
+      name: 'notificationPreferences',
+      builder: (context, state) => BlocProvider(
+        create: (_) => getIt<NotificationPreferencesCubit>(),
+        child: const NotificationPreferencesScreen(),
+      ),
     ),
     // ── Password reset flow — full-screen, no bottom nav ─────────────────────
     GoRoute(

@@ -352,38 +352,71 @@ class _SecuritySection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        GestureDetector(
-          onTap: () => context.push(RouteNames.changePassword),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              children: [
-                Text('🔒', style: TextStyle(fontSize: 18)),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    AppStrings.changePassword,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textHint,
-                  size: 22,
-                ),
-              ],
-            ),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              _SecurityRow(
+                emoji: '🔒',
+                label: AppStrings.changePassword,
+                onTap: () => context.push(RouteNames.changePassword),
+              ),
+              const Divider(height: 1, color: AppColors.divider),
+              _SecurityRow(
+                emoji: '🔔',
+                label: AppStrings.notificationSettings,
+                onTap: () => context.push(RouteNames.notificationPreferences),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SecurityRow extends StatelessWidget {
+  const _SecurityRow({
+    required this.emoji,
+    required this.label,
+    required this.onTap,
+  });
+
+  final String emoji;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textHint,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

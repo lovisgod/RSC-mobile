@@ -51,6 +51,14 @@ import '../../features/home/domain/usecases/get_outlet_menu_usecase.dart';
 import '../../features/home/domain/usecases/get_outlets_usecase.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/bloc/outlet_detail_bloc.dart';
+import '../../features/notifications/data/repositories/notification_repository_impl.dart';
+import '../../features/notifications/domain/repositories/notification_repository.dart';
+import '../../features/notifications/domain/usecases/get_notification_preferences_usecase.dart';
+import '../../features/notifications/domain/usecases/get_notifications_usecase.dart';
+import '../../features/notifications/domain/usecases/mark_notification_read_usecase.dart';
+import '../../features/notifications/domain/usecases/update_notification_preferences_usecase.dart';
+import '../../features/notifications/presentation/cubit/notification_preferences_cubit.dart';
+import '../../features/notifications/presentation/cubit/notifications_cubit.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/change_password_usecase.dart';
@@ -65,6 +73,7 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../network/dio_client.dart';
 import '../services/nominatim_service.dart';
+import '../services/notification_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
 
@@ -85,6 +94,11 @@ Future<void> configureDependencies() async {
   );
   getIt.registerLazySingleton<PersistCookieJar>(() => cookieJar);
   getIt.registerLazySingleton<DioClient>(() => DioClient(cookieJar));
+
+  // ── Push notifications ──────────────────────────────────────────────────────
+  getIt.registerLazySingleton<NotificationService>(
+    () => NotificationService(getIt<DioClient>()),
+  );
 
   // ── Auth data layer ────────────────────────────────────────────────────────
   getIt
@@ -312,6 +326,37 @@ Future<void> configureDependencies() async {
       () => PaymentCubit(
         getIt<BuildPaymentPayloadUseCase>(),
         getIt<InitiatePaymentUseCase>(),
+      ),
+    );
+
+  // ── Notifications feature ───────────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<NotificationRepository>(
+      () => NotificationRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetNotificationsUseCase>(
+      () => GetNotificationsUseCase(getIt<NotificationRepository>()),
+    )
+    ..registerLazySingleton<MarkNotificationReadUseCase>(
+      () => MarkNotificationReadUseCase(getIt<NotificationRepository>()),
+    )
+    ..registerLazySingleton<GetNotificationPreferencesUseCase>(
+      () => GetNotificationPreferencesUseCase(getIt<NotificationRepository>()),
+    )
+    ..registerLazySingleton<UpdateNotificationPreferencesUseCase>(
+      () =>
+          UpdateNotificationPreferencesUseCase(getIt<NotificationRepository>()),
+    )
+    ..registerLazySingleton<NotificationsCubit>(
+      () => NotificationsCubit(
+        getIt<GetNotificationsUseCase>(),
+        getIt<MarkNotificationReadUseCase>(),
+      ),
+    )
+    ..registerFactory<NotificationPreferencesCubit>(
+      () => NotificationPreferencesCubit(
+        getIt<GetNotificationPreferencesUseCase>(),
+        getIt<UpdateNotificationPreferencesUseCase>(),
       ),
     );
 }
