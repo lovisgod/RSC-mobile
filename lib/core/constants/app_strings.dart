@@ -60,11 +60,9 @@ abstract final class AppStrings {
   static const String deliveryAddress = 'Lagos, Nigeria';
   static const String addDeliveryAddress = 'Add a delivery address';
   static const String rscFoodKitchens = 'RSC Food Kitchens';
-  static const String freeDeliveryToday = 'Free Delivery Today!';
-  static const String freeDeliverySubtitle = 'On all orders above ₦2,000';
+  static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
-  static const String closed = 'Closed';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';
@@ -276,6 +274,8 @@ abstract final class AppStrings {
       'Enter your delivery address to continue';
   static const String checkingDeliveryAvailability =
       'Checking delivery availability...';
+  static const String couldNotResolveAddress =
+      'Could not resolve address. Please try again.';
   static const String deliveringToZone = '✅ Delivering to';
   static const String addressVerifiedSimple = '✅ Address verified';
   static const String deliversToZone = '✅ Delivers to';
@@ -385,4 +385,17 @@ abstract final class AppStrings {
   static const String seasonalOffersSubtitle =
       'Holiday and seasonal promotions';
   static const String yesterday = 'Yesterday';
+
+  // ─── Outlet / item availability ──────────────────────────────────────────
+  static const String currentlyUnavailable = 'Currently Unavailable';
+  static const String unavailable = 'Unavailable';
+  static const String kitchenUnavailable =
+      'This kitchen is currently unavailable';
+  static const String itemUnavailable =
+      'This item is currently unavailable and cannot be added to cart.';
+  static const String kitchenClosed = 'This kitchen is currently closed.';
+
+  // ─── Rider ────────────────────────────────────────────────────────────────
+  static const String deliveredBy = 'DELIVERED BY';
+  static const String call = 'Call';
 }

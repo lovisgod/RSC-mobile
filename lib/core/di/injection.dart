@@ -11,9 +11,12 @@ import '../../features/cart/data/models/hive/cart_item_hive_model.dart';
 import '../../features/cart/presentation/cubit/cart_cubit.dart';
 import '../../features/checkout/data/repositories/address_validation_repository_impl.dart';
 import '../../features/checkout/data/repositories/payment_repository_impl.dart';
+import '../../features/checkout/data/repositories/preparation_suggestions_repository_impl.dart';
 import '../../features/checkout/domain/repositories/address_validation_repository.dart';
 import '../../features/checkout/domain/repositories/payment_repository.dart';
+import '../../features/checkout/domain/repositories/preparation_suggestions_repository.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
+import '../../features/checkout/domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
 import '../../features/checkout/domain/usecases/validate_address_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
@@ -72,7 +75,7 @@ import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../network/dio_client.dart';
-import '../services/nominatim_service.dart';
+import '../services/address_service.dart';
 import '../services/notification_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
@@ -171,6 +174,11 @@ Future<void> configureDependencies() async {
       () => ValidateAddressUseCase(getIt<AddressValidationRepository>()),
     );
 
+  // ── Address autocomplete/resolve (Google Places via RSC delivery API) ───────
+  getIt.registerLazySingleton<AddressService>(
+    () => AddressService(getIt<DioClient>()),
+  );
+
   // ── Delivery address data layer ─────────────────────────────────────────────
   getIt
     ..registerLazySingleton<AddressRepository>(
@@ -199,6 +207,7 @@ Future<void> configureDependencies() async {
         getIt<DeleteAddressUseCase>(),
         getIt<SetDefaultAddressUseCase>(),
         getIt<ValidateAddressUseCase>(),
+        getIt<AddressService>(),
       ),
     );
 
@@ -314,12 +323,20 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
     )
-    ..registerLazySingleton<NominatimService>(() => NominatimService())
+    ..registerLazySingleton<PreparationSuggestionsRepository>(
+      () => PreparationSuggestionsRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<GetPreparationSuggestionsUsecase>(
+      () => GetPreparationSuggestionsUsecase(
+        getIt<PreparationSuggestionsRepository>(),
+      ),
+    )
     ..registerFactory<CheckoutCubit>(
       () => CheckoutCubit(
         getIt<LocalStorage>(),
-        getIt<NominatimService>(),
+        getIt<AddressService>(),
         getIt<ValidateAddressUseCase>(),
+        getIt<GetPreparationSuggestionsUsecase>(),
       ),
     )
     ..registerFactory<PaymentCubit>(

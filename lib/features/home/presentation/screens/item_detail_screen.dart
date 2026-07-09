@@ -97,6 +97,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     return true;
   }
 
+  bool get _isPurchasable =>
+      widget.menuItem.isAvailable && widget.outlet.isOnline;
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   void _toggle(String groupId, String modifierId, bool selected) {
@@ -242,6 +245,20 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   ),
                   const SizedBox(height: 8),
 
+                  // Availability banner — item itself unavailable takes
+                  // priority over the outlet being offline.
+                  if (!item.isAvailable) ...[
+                    const _AvailabilityBanner(
+                      message: AppStrings.itemUnavailable,
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (!widget.outlet.isOnline) ...[
+                    const _AvailabilityBanner(
+                      message: AppStrings.kitchenClosed,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   // Description
                   Text(
                     item.description,
@@ -285,10 +302,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           // ── Fixed bottom bar ──────────────────────────────────────────
           _BottomBar(
             quantity: _quantity,
-            canAdd: _canAdd,
-            buttonLabel: _isEditing
-                ? AppStrings.updateCart
-                : AppStrings.addToUnifiedCart,
+            canAdd: _canAdd && _isPurchasable,
+            buttonLabel: !_isPurchasable
+                ? AppStrings.currentlyUnavailable
+                : (_isEditing
+                      ? AppStrings.updateCart
+                      : AppStrings.addToUnifiedCart),
+            buttonBackgroundColor: !_isPurchasable
+                ? AppColors.textHint
+                : AppColors.navy,
             onDecrement: () =>
                 setState(() => _quantity = (_quantity - 1).clamp(1, 99)),
             onIncrement: () => setState(() => _quantity++),
@@ -368,6 +390,43 @@ class _ItemHeader extends StatelessWidget {
   }
 }
 
+// ── Availability banner ─────────────────────────────────────────────────────
+
+class _AvailabilityBanner extends StatelessWidget {
+  const _AvailabilityBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('⚠️', style: TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.error,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Allergen banner ───────────────────────────────────────────────────────────
 
 class _AllergenBanner extends StatelessWidget {
@@ -411,6 +470,7 @@ class _BottomBar extends StatelessWidget {
     required this.quantity,
     required this.canAdd,
     required this.buttonLabel,
+    required this.buttonBackgroundColor,
     required this.onDecrement,
     required this.onIncrement,
     required this.onAction,
@@ -419,6 +479,7 @@ class _BottomBar extends StatelessWidget {
   final int quantity;
   final bool canAdd;
   final String buttonLabel;
+  final Color buttonBackgroundColor;
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
   final VoidCallback onAction;
@@ -462,7 +523,7 @@ class _BottomBar extends StatelessWidget {
               Expanded(
                 child: AppButton(
                   label: buttonLabel,
-                  backgroundColor: AppColors.navy,
+                  backgroundColor: buttonBackgroundColor,
                   onPressed: canAdd ? onAction : null,
                 ),
               ),

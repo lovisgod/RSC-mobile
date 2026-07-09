@@ -74,6 +74,10 @@ class TrackCubit extends Cubit<TrackState> {
           isLoading: false,
           outlets: outlets,
           lastRefreshedAt: DateTime.now(),
+          riderInfo: detail.rider,
+          clearRiderInfo: detail.rider == null,
+          riderLocation: detail.latestRiderLocation,
+          clearRiderLocation: detail.latestRiderLocation == null,
         ),
       );
       _applyStatusTransition(detail.status);
@@ -107,6 +111,10 @@ class TrackCubit extends Cubit<TrackState> {
           activeOrder: detail,
           orderEvents: _sortedEvents(detail),
           lastRefreshedAt: DateTime.now(),
+          riderInfo: detail.rider,
+          clearRiderInfo: detail.rider == null,
+          riderLocation: detail.latestRiderLocation,
+          clearRiderLocation: detail.latestRiderLocation == null,
         ),
       );
 

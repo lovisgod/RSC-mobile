@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/overlay_address_field.dart';
 import '../../data/models/create_address_request_model.dart';
 import '../../domain/entities/delivery_address_entity.dart';
 import '../../domain/enums/address_label.dart';
@@ -61,9 +62,9 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
     _stateCtrl = TextEditingController(text: existing?.state ?? '');
     _isDefault = existing?.isDefault ?? false;
 
-    // There's no live geocoding on this manual form yet, so we validate the
-    // coordinates that will actually be submitted — the existing address's
-    // own lat/lng in edit mode, or the placeholder used for new addresses.
+    // Validate the coordinates that will actually be submitted if the user
+    // saves without picking a new suggestion — the existing address's own
+    // lat/lng in edit mode, or the placeholder used for new addresses.
     context.read<AddressCubit>().validateAddress(
       existing?.latitude ?? CreateAddressRequestModel.placeholderLatitude,
       existing?.longitude ?? CreateAddressRequestModel.placeholderLongitude,
@@ -79,194 +80,261 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
   }
 
   void _submit() {
+    final cubit = context.read<AddressCubit>();
+    final existing = widget.existingAddress;
     final request = CreateAddressRequestModel(
       label: _selectedLabel.displayName,
       addressLine: _addressLineCtrl.text.trim(),
       city: _cityCtrl.text.trim().isEmpty ? 'Lagos' : _cityCtrl.text.trim(),
       state: _stateCtrl.text.trim().isEmpty ? 'Lagos' : _stateCtrl.text.trim(),
-      latitude: CreateAddressRequestModel.placeholderLatitude,
-      longitude: CreateAddressRequestModel.placeholderLongitude,
+      latitude:
+          cubit.state.selectedLatitude ??
+          existing?.latitude ??
+          CreateAddressRequestModel.placeholderLatitude,
+      longitude:
+          cubit.state.selectedLongitude ??
+          existing?.longitude ??
+          CreateAddressRequestModel.placeholderLongitude,
       isDefault: _isDefault,
     );
 
-    final cubit = context.read<AddressCubit>();
     if (_isEditMode) {
-      cubit.updateAddress(widget.existingAddress!.id, request);
+      cubit.updateAddress(existing!.id, request);
     } else {
       cubit.createAddress(request);
     }
   }
 
+  void _onAddressState(BuildContext context, AddressState state) {
+    if (state.resolvedAddressLine != null) {
+      _addressLineCtrl.text = state.resolvedAddressLine!;
+      _addressLineCtrl.selection = TextSelection.fromPosition(
+        TextPosition(offset: _addressLineCtrl.text.length),
+      );
+    }
+    if (state.resolvedCity != null) _cityCtrl.text = state.resolvedCity!;
+    if (state.resolvedState != null) _stateCtrl.text = state.resolvedState!;
+    if (state.addressResolveError != null) {
+      AppSnackbar.show(
+        context,
+        message: state.addressResolveError!,
+        type: AppSnackbarType.error,
+      );
+      context.read<AddressCubit>().consumeAddressResolveError();
+    }
+  }
+
+  void _dismissSuggestions() {
+    context.read<AddressCubit>().dismissSuggestions();
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AddressCubit, AddressState>(
-      listenWhen: (previous, current) =>
-          previous.isSubmitting && !current.isSubmitting,
-      listener: (context, state) {
-        if (state.error == null) {
-          Navigator.of(context).pop();
-          AppSnackbar.show(
-            context,
-            message: _isEditMode
-                ? AppStrings.addressUpdated
-                : AppStrings.addressSaved,
-            emoji: '',
-            backgroundColor: AppColors.navy,
-          );
-        } else {
-          AppSnackbar.show(
-            context,
-            message: state.error!,
-            type: AppSnackbarType.error,
-          );
-        }
-      },
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AddressCubit, AddressState>(
+          listenWhen: (previous, current) =>
+              previous.isSubmitting && !current.isSubmitting,
+          listener: (context, state) {
+            if (state.error == null) {
+              Navigator.of(context).pop();
+              AppSnackbar.show(
+                context,
+                message: _isEditMode
+                    ? AppStrings.addressUpdated
+                    : AppStrings.addressSaved,
+                emoji: '',
+                backgroundColor: AppColors.navy,
+              );
+            } else {
+              AppSnackbar.show(
+                context,
+                message: state.error!,
+                type: AppSnackbarType.error,
+              );
+            }
+          },
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.divider,
-                      borderRadius: BorderRadius.circular(2),
+        BlocListener<AddressCubit, AddressState>(
+          listenWhen: (previous, current) =>
+              previous.resolvedAddressLine != current.resolvedAddressLine ||
+              previous.addressResolveError != current.addressResolveError,
+          listener: _onAddressState,
+        ),
+      ],
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissSuggestions,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _isEditMode ? AppStrings.editAddress : AppStrings.addAddress,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                  const SizedBox(height: 16),
+                  Text(
+                    _isEditMode
+                        ? AppStrings.editAddress
+                        : AppStrings.addAddress,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: AppColors.divider),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, color: AppColors.divider),
+                  const SizedBox(height: 20),
 
-                // ── Label selector ──────────────────────────────────────────
-                const _FieldLabel(AppStrings.addressLabelSection),
-                const SizedBox(height: 8),
-                Row(
-                  children: AddressLabel.values
-                      .map(
-                        (label) => _LabelChip(
-                          label: label,
-                          isSelected: _selectedLabel == label,
-                          onTap: () => setState(() => _selectedLabel = label),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Address line ────────────────────────────────────────────
-                const _FieldLabel(AppStrings.addressLine),
-                const SizedBox(height: 8),
-                AppTextField(
-                  controller: _addressLineCtrl,
-                  hint: AppStrings.hintAddressLine,
-                  textInputAction: TextInputAction.next,
-                  onChanged: (_) => setState(() {}),
-                ),
-                BlocBuilder<AddressCubit, AddressState>(
-                  builder: (context, state) =>
-                      _ZoneValidationHint(state: state),
-                ),
-                const SizedBox(height: 20),
-
-                // ── City / State ────────────────────────────────────────────
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _FieldLabel(AppStrings.labelCity),
-                          const SizedBox(height: 8),
-                          AppTextField(
-                            controller: _cityCtrl,
-                            hint: AppStrings.hintCity,
-                            textInputAction: TextInputAction.next,
+                  // ── Label selector ──────────────────────────────────────────
+                  const _FieldLabel(AppStrings.addressLabelSection),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: AddressLabel.values
+                        .map(
+                          (label) => _LabelChip(
+                            label: label,
+                            isSelected: _selectedLabel == label,
+                            onTap: () => setState(() => _selectedLabel = label),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _FieldLabel(AppStrings.labelState),
-                          const SizedBox(height: 8),
-                          AppTextField(
-                            controller: _stateCtrl,
-                            hint: AppStrings.hintState,
-                            textInputAction: TextInputAction.done,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 20),
 
-                // ── Set as default ──────────────────────────────────────────
-                Row(
-                  children: [
-                    Switch(
-                      value: _isDefault,
-                      onChanged: (value) => setState(() => _isDefault = value),
-                      activeThumbColor: AppColors.navy,
+                  // ── Address line ────────────────────────────────────────────
+                  const _FieldLabel(AppStrings.addressLine),
+                  const SizedBox(height: 8),
+                  BlocBuilder<AddressCubit, AddressState>(
+                    builder: (context, state) => OverlayAddressField(
+                      controller: _addressLineCtrl,
+                      hint: AppStrings.hintAddressLine,
+                      suggestions: state.addressSuggestions,
+                      isSearching: state.isSearchingAddress,
+                      isResolving: state.isValidatingAddress,
+                      onChanged: (value) {
+                        setState(() {});
+                        context.read<AddressCubit>().onAddressLineChanged(
+                          value,
+                        );
+                      },
+                      onSuggestionTapped: (suggestion) {
+                        context.read<AddressCubit>().selectAddressSuggestion(
+                          suggestion,
+                        );
+                      },
+                      onClear: () {
+                        _addressLineCtrl.clear();
+                        setState(() {});
+                        context.read<AddressCubit>().onAddressLineChanged('');
+                      },
                     ),
-                    const SizedBox(width: 4),
-                    const Expanded(
-                      child: Text(
-                        AppStrings.setAsDefaultAddress,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
+                  ),
+                  BlocBuilder<AddressCubit, AddressState>(
+                    builder: (context, state) =>
+                        _ZoneValidationHint(state: state),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── City / State ────────────────────────────────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _FieldLabel(AppStrings.labelCity),
+                            const SizedBox(height: 8),
+                            AppTextField(
+                              controller: _cityCtrl,
+                              hint: AppStrings.hintCity,
+                              textInputAction: TextInputAction.next,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _FieldLabel(AppStrings.labelState),
+                            const SizedBox(height: 8),
+                            AppTextField(
+                              controller: _stateCtrl,
+                              hint: AppStrings.hintState,
+                              textInputAction: TextInputAction.done,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-                // ── Coordinates note ────────────────────────────────────────
-                const Text(
-                  AppStrings.coordinatesAutoSet,
-                  style: TextStyle(fontSize: 11, color: AppColors.textHint),
-                ),
-                const SizedBox(height: 24),
+                  // ── Set as default ──────────────────────────────────────────
+                  Row(
+                    children: [
+                      Switch(
+                        value: _isDefault,
+                        onChanged: (value) =>
+                            setState(() => _isDefault = value),
+                        activeThumbColor: AppColors.navy,
+                      ),
+                      const SizedBox(width: 4),
+                      const Expanded(
+                        child: Text(
+                          AppStrings.setAsDefaultAddress,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
 
-                BlocBuilder<AddressCubit, AddressState>(
-                  builder: (context, state) {
-                    final canSave = _addressLineCtrl.text.trim().isNotEmpty;
-                    return AppButton(
-                      label: AppStrings.saveAddress,
-                      isLoading: state.isSubmitting,
-                      backgroundColor: AppColors.navy,
-                      onPressed: canSave && !state.isSubmitting
-                          ? _submit
-                          : null,
-                    );
-                  },
-                ),
-              ],
+                  // ── Coordinates note ────────────────────────────────────────
+                  const Text(
+                    AppStrings.coordinatesAutoSet,
+                    style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                  ),
+                  const SizedBox(height: 24),
+
+                  BlocBuilder<AddressCubit, AddressState>(
+                    builder: (context, state) {
+                      final canSave = _addressLineCtrl.text.trim().isNotEmpty;
+                      return AppButton(
+                        label: AppStrings.saveAddress,
+                        isLoading: state.isSubmitting,
+                        backgroundColor: AppColors.navy,
+                        onPressed: canSave && !state.isSubmitting
+                            ? _submit
+                            : null,
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),

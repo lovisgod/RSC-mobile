@@ -7,6 +7,7 @@ class SubOrderModel {
   final String status;
   final double subtotal;
   final String currency;
+  final String pickupCode;
 
   const SubOrderModel({
     required this.id,
@@ -15,6 +16,7 @@ class SubOrderModel {
     required this.status,
     required this.subtotal,
     required this.currency,
+    required this.pickupCode,
   });
 
   factory SubOrderModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +27,7 @@ class SubOrderModel {
       status: json['status'] as String? ?? '',
       subtotal: ((json['subtotalMinor'] as num?) ?? 0) / 100,
       currency: json['currency'] as String? ?? 'NGN',
+      pickupCode: json['pickupCode'] as String? ?? '',
     );
   }
 
@@ -34,5 +37,6 @@ class SubOrderModel {
     outletId: outletId,
     status: status,
     subtotal: subtotal,
+    pickupCode: pickupCode,
   );
 }

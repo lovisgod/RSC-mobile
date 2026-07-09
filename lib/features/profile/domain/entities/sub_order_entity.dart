@@ -4,6 +4,7 @@ class SubOrderEntity {
   final String outletId;
   final String status;
   final double subtotal;
+  final String pickupCode;
 
   const SubOrderEntity({
     required this.id,
@@ -11,5 +12,6 @@ class SubOrderEntity {
     required this.outletId,
     required this.status,
     required this.subtotal,
+    required this.pickupCode,
   });
 }

@@ -16,8 +16,9 @@ class BuildPaymentPayloadUseCase {
   static const String _modeTakeout = 'TAKEOUT';
 
   // Fallback coordinates (Victoria Island, Lagos) for the someone-else
-  // geofence flow and manually typed addresses never resolved via Nominatim.
-  // The API requires latitude/longitude regardless of delivery mode.
+  // geofence flow and manually typed addresses never resolved via the
+  // address-suggestions API. The API requires latitude/longitude regardless
+  // of delivery mode.
   static const double _placeholderLatitude = 6.4474;
   static const double _placeholderLongitude = 3.4542;
 
@@ -52,7 +53,7 @@ class BuildPaymentPayloadUseCase {
       deliveryAddress = checkout.deliveryAddress;
     }
 
-    // Coordinates come from, in priority order: a Nominatim autocomplete
+    // Coordinates come from, in priority order: a resolved autocomplete
     // pick, a saved address selected via "Use Default Address", or the
     // placeholder for the someone-else geofence flow / untouched manual text.
     final useRealCoords = isDelivery && !checkout.isOrderingForSomeoneElse;

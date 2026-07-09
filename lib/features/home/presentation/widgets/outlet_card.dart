@@ -5,6 +5,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/rsc_image.dart';
 import '../../../menu/domain/entities/outlet.dart';
 
+const ColorFilter _greyscaleFilter = ColorFilter.matrix([
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0.2126, 0.7152, 0.0722, 0, 0, //
+  0, 0, 0, 1, 0, //
+]);
+
 class OutletCard extends StatelessWidget {
   const OutletCard({
     super.key,
@@ -21,24 +28,28 @@ class OutletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+    final isOnline = outlet.isOnline;
+
+    return IgnorePointer(
+      ignoring: !isOnline,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Opacity(
+          opacity: isOnline ? 1.0 : 0.5,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Column(
+            clipBehavior: Clip.hardEdge,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ── TOP: outlet image (or colored fallback) ──────────────
@@ -47,30 +58,24 @@ class OutletCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: RscImage(
-                          imageUrl: outlet.imageUrl,
-                          width: double.infinity,
-                          height: 160,
-                          fallback: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: ColoredBox(color: cardColor),
-                              ),
-                              Center(
-                                child: Text(
-                                  emoji,
-                                  style: const TextStyle(fontSize: 72),
-                                ),
-                              ),
-                            ],
-                          ),
+                        child: _ImageArea(
+                          outlet: outlet,
+                          emoji: emoji,
+                          cardColor: cardColor,
+                          isOnline: isOnline,
                         ),
                       ),
-                      if (outlet.isOnline)
+                      if (isOnline && outlet.isFeatured)
                         const Positioned(
                           top: 12,
                           left: 12,
                           child: _PopularBadge(),
+                        ),
+                      if (!isOnline)
+                        const Positioned(
+                          top: 12,
+                          left: 12,
+                          child: _UnavailableBadge(),
                         ),
                     ],
                   ),
@@ -111,42 +116,44 @@ class OutletCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            // ── Closed overlay ───────────────────────────────────────────
-            if (!outlet.isOnline)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: const Text(
-                        AppStrings.closed,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+// ── Image area ────────────────────────────────────────────────────────────────
+
+class _ImageArea extends StatelessWidget {
+  const _ImageArea({
+    required this.outlet,
+    required this.emoji,
+    required this.cardColor,
+    required this.isOnline,
+  });
+
+  final Outlet outlet;
+  final String emoji;
+  final Color cardColor;
+  final bool isOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = RscImage(
+      imageUrl: outlet.imageUrl,
+      width: double.infinity,
+      height: 160,
+      fallback: Stack(
+        children: [
+          Positioned.fill(child: ColoredBox(color: cardColor)),
+          Center(child: Text(emoji, style: const TextStyle(fontSize: 72))),
+        ],
+      ),
+    );
+
+    if (isOnline) return image;
+    return ColorFiltered(colorFilter: _greyscaleFilter, child: image);
   }
 }
 
@@ -165,6 +172,32 @@ class _PopularBadge extends StatelessWidget {
       ),
       child: const Text(
         AppStrings.popular,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Unavailable badge ─────────────────────────────────────────────────────────
+
+class _UnavailableBadge extends StatelessWidget {
+  const _UnavailableBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.neutralGray,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Text(
+        AppStrings.currentlyUnavailable,
         style: TextStyle(
           color: Colors.white,
           fontSize: 12,
@@ -231,21 +264,22 @@ class _BottomRow extends StatelessWidget {
           ),
         ),
 
-        // RIGHT: Order Now (orange bold)
-        if (outlet.isOnline)
-          Expanded(
-            child: const Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                AppStrings.orderNow,
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+        // RIGHT: Order Now (orange bold) or Unavailable (gray)
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              outlet.isOnline ? AppStrings.orderNow : AppStrings.unavailable,
+              style: TextStyle(
+                color: outlet.isOnline
+                    ? AppColors.primary
+                    : AppColors.neutralGray,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
+        ),
       ],
     );
   }

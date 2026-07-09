@@ -23,6 +23,7 @@ import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
 import '../widgets/outlet_card.dart';
+import '../widgets/promo_banner_carousel.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -58,24 +59,36 @@ class HomeScreen extends StatelessWidget {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                child: BlocBuilder<HomeBloc, HomeState>(
-                  builder: (context, state) {
-                    if (state is HomeLoading || state is HomeInitial) {
-                      return _ShimmerBody();
-                    }
-                    if (state is HomeError) {
-                      return _ErrorBody(
-                        message: state.message,
-                        onRetry: () => context.read<HomeBloc>().add(
-                          const HomeFetchRequested(),
-                        ),
-                      );
-                    }
-                    if (state is HomeLoaded) {
-                      return _LoadedBody(outlets: state.outlets);
-                    }
-                    return const SizedBox.shrink();
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.surface,
+                  onRefresh: () async {
+                    final bloc = context.read<HomeBloc>();
+                    final future = bloc.stream.firstWhere(
+                      (state) => state is HomeLoaded || state is HomeError,
+                    );
+                    bloc.add(const HomeFetchRequested());
+                    await future;
                   },
+                  child: BlocBuilder<HomeBloc, HomeState>(
+                    builder: (context, state) {
+                      if (state is HomeLoading || state is HomeInitial) {
+                        return _ShimmerBody();
+                      }
+                      if (state is HomeError) {
+                        return _ErrorBody(
+                          message: state.message,
+                          onRetry: () => context.read<HomeBloc>().add(
+                            const HomeFetchRequested(),
+                          ),
+                        );
+                      }
+                      if (state is HomeLoaded) {
+                        return _LoadedBody(outlets: state.outlets);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
               ),
             ),
@@ -323,7 +336,11 @@ class _LoadedBody extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         // ── Promo banner ────────────────────────────────────────────────
-        _PromoBanner(),
+        BlocBuilder<NotificationsCubit, NotificationsState>(
+          builder: (context, notifState) {
+            return PromoBannerCarousel(notifications: notifState.notifications);
+          },
+        ),
         const SizedBox(height: 20),
 
         // ── Section heading ──────────────────────────────────────────────
@@ -355,64 +372,6 @@ class _LoadedBody extends StatelessWidget {
           );
         }),
       ],
-    );
-  }
-}
-
-// ── Promo banner ─────────────────────────────────────────────────────────────
-
-class _PromoBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      height: 80,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
-        children: [
-          // Confetti image on right
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: Image.asset(AppAssets.imgConfetti, fit: BoxFit.contain),
-          ),
-          // Text on left
-          Positioned(
-            left: 16,
-            top: 0,
-            bottom: 0,
-            right: 100,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '🎉 ${AppStrings.freeDeliveryToday}',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  AppStrings.freeDeliverySubtitle,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

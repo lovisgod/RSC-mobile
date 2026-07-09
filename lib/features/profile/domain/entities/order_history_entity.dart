@@ -1,4 +1,6 @@
 import '../../../track/domain/entities/order_event_entity.dart';
+import '../../../track/domain/entities/rider_info_entity.dart';
+import '../../../track/domain/entities/rider_location_entity.dart';
 import 'line_item_entity.dart';
 import 'sub_order_entity.dart';
 
@@ -17,6 +19,8 @@ class OrderHistoryEntity {
   final List<SubOrderEntity> subOrders;
   final List<LineItemEntity> lineItems;
   final List<OrderEventEntity> events;
+  final RiderInfoEntity? rider;
+  final RiderLocationEntity? latestRiderLocation;
 
   const OrderHistoryEntity({
     required this.id,
@@ -33,6 +37,8 @@ class OrderHistoryEntity {
     required this.subOrders,
     required this.lineItems,
     this.events = const [],
+    this.rider,
+    this.latestRiderLocation,
   });
 
   /// Real master-order statuses from the API for an order still in progress.
@@ -68,6 +74,8 @@ class OrderHistoryEntity {
       subOrders: subOrders ?? this.subOrders,
       lineItems: lineItems,
       events: events ?? this.events,
+      rider: rider,
+      latestRiderLocation: latestRiderLocation,
     );
   }
 

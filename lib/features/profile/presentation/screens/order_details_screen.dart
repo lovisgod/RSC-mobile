@@ -15,6 +15,8 @@ import '../../../home/domain/repositories/home_repository.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
+import '../../../track/domain/entities/rider_info_entity.dart';
+import '../../../track/presentation/widgets/rider_avatar.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/usecases/reorder_usecase.dart';
@@ -223,6 +225,14 @@ class _OrderDetailsBody extends StatelessWidget {
           const SizedBox(height: 8),
 
           _PriceBreakdownCard(order: order),
+
+          if (order.rider != null) ...[
+            const SizedBox(height: 20),
+            const _SectionHeader(label: AppStrings.deliveredBy),
+            const SizedBox(height: 8),
+            _RiderCard(rider: order.rider!),
+          ],
+
           const SizedBox(height: 24),
 
           AppButton(
@@ -424,6 +434,56 @@ class _LineItemRow extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Rider card ────────────────────────────────────────────────────────────────
+
+class _RiderCard extends StatelessWidget {
+  const _RiderCard({required this.rider});
+  final RiderInfoEntity rider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          RiderAvatar(
+            initials: rider.initials,
+            avatarUrl: rider.avatarUrl,
+            size: 40,
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                rider.name,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                rider.displayVehicle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

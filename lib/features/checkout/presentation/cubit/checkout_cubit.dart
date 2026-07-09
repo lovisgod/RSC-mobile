@@ -3,30 +3,38 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/models/nominatim_result.dart';
-import '../../../../core/services/nominatim_service.dart';
+import '../../../../core/services/address_service.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
+import '../../data/models/address_suggestion_model.dart';
 import '../../domain/enums/delivery_mode.dart';
+import '../../domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../domain/usecases/validate_address_usecase.dart';
 import 'checkout_state.dart';
 
 class CheckoutCubit extends Cubit<CheckoutState> {
   CheckoutCubit(
     this._localStorage,
-    this._nominatimService,
+    this._addressService,
     this._validateAddressUseCase,
+    this._getPreparationSuggestionsUsecase,
   ) : super(const CheckoutState());
 
   final LocalStorage _localStorage;
-  final NominatimService _nominatimService;
+  final AddressService _addressService;
   final ValidateAddressUseCase _validateAddressUseCase;
+  final GetPreparationSuggestionsUsecase _getPreparationSuggestionsUsecase;
   Timer? _debounceTimer;
+  Timer? _suggestionsDebounceTimer;
+  String? _outletId;
 
   static const double _deliveryFeeAmount = 500.0;
   static const double _vatRate = 0.075;
   static const Duration _debounceDuration = Duration(milliseconds: 500);
+  static const Duration _suggestionsDebounceDuration = Duration(
+    milliseconds: 400,
+  );
 
   Future<void> initCheckout(CartEntity cart) async {
     const deliveryFee = _deliveryFeeAmount;
@@ -45,6 +53,42 @@ class CheckoutCubit extends Cubit<CheckoutState> {
 
     final user = await _localStorage.getUser();
     emit(state.copyWith(isLoggedIn: user != null));
+
+    await loadSuggestions(cart);
+  }
+
+  Future<void> loadSuggestions(CartEntity cart) async {
+    if (cart.items.isEmpty) return;
+    _outletId = cart.items.first.outletId;
+
+    emit(state.copyWith(isLoadingSuggestions: true));
+    final suggestions = await _getPreparationSuggestionsUsecase(_outletId!);
+    emit(state.copyWith(suggestions: suggestions, isLoadingSuggestions: false));
+  }
+
+  /// Called on every keystroke in the preparation-instructions field.
+  /// Debounced so we don't fire an API call per keystroke.
+  void filterSuggestions(String query) {
+    _suggestionsDebounceTimer?.cancel();
+
+    final outletId = _outletId;
+    if (outletId == null) return;
+
+    if (query.trim().length < 2) {
+      _suggestionsDebounceTimer = Timer(_suggestionsDebounceDuration, () async {
+        final suggestions = await _getPreparationSuggestionsUsecase(outletId);
+        emit(state.copyWith(suggestions: suggestions));
+      });
+      return;
+    }
+
+    _suggestionsDebounceTimer = Timer(_suggestionsDebounceDuration, () async {
+      final suggestions = await _getPreparationSuggestionsUsecase(
+        outletId,
+        q: query,
+      );
+      emit(state.copyWith(suggestions: suggestions));
+    });
   }
 
   void switchMode(DeliveryMode mode) {
@@ -62,8 +106,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   }
 
   /// Called on every keystroke in the delivery address field. Updates the
-  /// typed text immediately, then debounces the Nominatim lookup so we don't
-  /// exceed its 1 request/second rate limit.
+  /// typed text immediately, then debounces the address-suggestions lookup.
   void onAddressChanged(String query) {
     emit(
       state.copyWith(
@@ -89,7 +132,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
 
     _debounceTimer = Timer(_debounceDuration, () async {
       emit(state.copyWith(isSearchingAddress: true));
-      final results = await _nominatimService.searchAddress(query);
+      final results = await _addressService.searchAddress(query);
       emit(
         state.copyWith(
           addressSuggestions: results,
@@ -100,12 +143,9 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     });
   }
 
-  Future<void> selectAddress(NominatimResult result) async {
+  Future<void> selectAddress(AddressSuggestionModel suggestion) async {
     emit(
       state.copyWith(
-        deliveryAddress: result.shortAddress,
-        currentLatitude: result.latitude,
-        currentLongitude: result.longitude,
         showSuggestions: false,
         addressSuggestions: const [],
         addressVerified: false,
@@ -115,7 +155,30 @@ class CheckoutCubit extends Cubit<CheckoutState> {
       ),
     );
 
-    await _validateSelectedAddress(result.latitude, result.longitude);
+    final resolved = await _addressService.resolveAddress(suggestion);
+    if (resolved == null) {
+      emit(
+        state.copyWith(
+          isValidatingAddress: false,
+          addressResolveError: AppStrings.couldNotResolveAddress,
+        ),
+      );
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        deliveryAddress: resolved.displayName,
+        currentLatitude: resolved.latitude,
+        currentLongitude: resolved.longitude,
+      ),
+    );
+
+    await _validateSelectedAddress(resolved.latitude, resolved.longitude);
+  }
+
+  void consumeAddressResolveError() {
+    emit(state.copyWith(clearAddressResolveError: true));
   }
 
   void dismissSuggestions() {
@@ -143,7 +206,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   }
 
   /// Backend is the single source of truth for the RSC delivery zone — every
-  /// address selection (Nominatim pick or saved default) is checked here
+  /// address selection (autocomplete pick or saved default) is checked here
   /// before the user can proceed to checkout.
   Future<void> _validateSelectedAddress(double lat, double lng) async {
     final response = await _validateAddressUseCase(lat, lng);
@@ -194,6 +257,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   @override
   Future<void> close() {
     _debounceTimer?.cancel();
+    _suggestionsDebounceTimer?.cancel();
     return super.close();
   }
 }

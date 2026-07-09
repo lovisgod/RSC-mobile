@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 
+import '../../../checkout/data/models/address_suggestion_model.dart';
 import '../../domain/entities/delivery_address_entity.dart';
 
 class AddressState {
@@ -22,6 +23,27 @@ class AddressState {
   /// non-deliverable. Doesn't block saving — only checkout delivery cares.
   final bool addressOutOfZone;
 
+  /// Address-line autocomplete suggestions, from [AddressSuggestionModel].
+  final List<AddressSuggestionModel> addressSuggestions;
+  final bool isSearchingAddress;
+  final bool showSuggestions;
+
+  /// Coordinates from the last resolved suggestion — submitted with the
+  /// create/update request in place of the old placeholder lat/lng.
+  final double? selectedLatitude;
+  final double? selectedLongitude;
+
+  /// Address line/city/state auto-populated from the resolve-address
+  /// response — the form never asks the user to type these once a
+  /// suggestion is resolved.
+  final String? resolvedAddressLine;
+  final String? resolvedCity;
+  final String? resolvedState;
+
+  /// One-shot failure message from a failed resolve-address call, surfaced
+  /// by the sheet as a snackbar then cleared.
+  final String? addressResolveError;
+
   const AddressState({
     this.addresses = const [],
     this.isLoading = false,
@@ -31,6 +53,15 @@ class AddressState {
     this.isValidatingAddress = false,
     this.deliveryZoneName,
     this.addressOutOfZone = false,
+    this.addressSuggestions = const [],
+    this.isSearchingAddress = false,
+    this.showSuggestions = false,
+    this.selectedLatitude,
+    this.selectedLongitude,
+    this.resolvedAddressLine,
+    this.resolvedCity,
+    this.resolvedState,
+    this.addressResolveError,
   });
 
   DeliveryAddressEntity? get defaultAddress =>
@@ -47,6 +78,16 @@ class AddressState {
     String? deliveryZoneName,
     bool clearDeliveryZoneName = false,
     bool? addressOutOfZone,
+    List<AddressSuggestionModel>? addressSuggestions,
+    bool? isSearchingAddress,
+    bool? showSuggestions,
+    double? selectedLatitude,
+    double? selectedLongitude,
+    String? resolvedAddressLine,
+    String? resolvedCity,
+    String? resolvedState,
+    String? addressResolveError,
+    bool clearAddressResolveError = false,
   }) {
     return AddressState(
       addresses: addresses ?? this.addresses,
@@ -61,6 +102,17 @@ class AddressState {
           ? null
           : (deliveryZoneName ?? this.deliveryZoneName),
       addressOutOfZone: addressOutOfZone ?? this.addressOutOfZone,
+      addressSuggestions: addressSuggestions ?? this.addressSuggestions,
+      isSearchingAddress: isSearchingAddress ?? this.isSearchingAddress,
+      showSuggestions: showSuggestions ?? this.showSuggestions,
+      selectedLatitude: selectedLatitude ?? this.selectedLatitude,
+      selectedLongitude: selectedLongitude ?? this.selectedLongitude,
+      resolvedAddressLine: resolvedAddressLine ?? this.resolvedAddressLine,
+      resolvedCity: resolvedCity ?? this.resolvedCity,
+      resolvedState: resolvedState ?? this.resolvedState,
+      addressResolveError: clearAddressResolveError
+          ? null
+          : (addressResolveError ?? this.addressResolveError),
     );
   }
 }

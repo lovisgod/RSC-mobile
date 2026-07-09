@@ -102,6 +102,12 @@ class OutletDetailScreen extends StatelessWidget {
                             child: _OutletInfoSection(outlet: outlet),
                           ),
 
+                          // Offline banner — only reachable via search/deep
+                          // link, since the home screen already blocks taps
+                          // on offline outlet cards.
+                          if (!outlet.isOnline)
+                            const SliverToBoxAdapter(child: _OfflineBanner()),
+
                           // Sticky category tabs
                           SliverPersistentHeader(
                             pinned: true,
@@ -138,6 +144,7 @@ class OutletDetailScreen extends StatelessWidget {
                                   children: [
                                     MenuItemCard(
                                       item: item,
+                                      outletIsOnline: outlet.isOnline,
                                       onAddTap: () => context.push(
                                         RouteNames.itemDetailPath(
                                           outlet.id,
@@ -301,6 +308,36 @@ class _OutletInfoSection extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Offline banner ────────────────────────────────────────────────────────────
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.neutralGray,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('⚠️', style: TextStyle(fontSize: 13)),
+          SizedBox(width: 6),
+          Text(
+            AppStrings.kitchenUnavailable,
+            style: TextStyle(
+              color: AppColors.surface,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

@@ -4,13 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/models/nominatim_result.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/loading_overlay.dart';
+import '../../../../core/widgets/overlay_address_field.dart';
+import '../../../../core/widgets/shimmer_box.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
@@ -19,13 +20,15 @@ import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../../track/presentation/cubit/track_cubit.dart';
+import '../../data/models/address_suggestion_model.dart';
+import '../../domain/entities/preparation_suggestion_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 import '../cubit/checkout_cubit.dart';
 import '../cubit/checkout_state.dart';
 import '../cubit/payment_cubit.dart';
 import '../cubit/payment_state.dart';
-import '../widgets/address_suggestions_dropdown.dart';
 import '../widgets/moment_payment_sheet.dart';
+import '../widgets/suggestion_chip.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key, required this.cart});
@@ -63,19 +66,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (defaultAddress == null) return;
 
     context.read<CheckoutCubit>().useDefaultAddress(defaultAddress);
-    _deliveryAddressCtrl.text = defaultAddress.displayAddress;
+  }
+
+  void _selectAddress(AddressSuggestionModel suggestion) {
+    context.read<CheckoutCubit>().selectAddress(suggestion);
+    FocusScope.of(context).unfocus();
+  }
+
+  void _syncAddressController(String address) {
+    if (_deliveryAddressCtrl.text == address) return;
+    _deliveryAddressCtrl.text = address;
     _deliveryAddressCtrl.selection = TextSelection.fromPosition(
       TextPosition(offset: _deliveryAddressCtrl.text.length),
     );
   }
 
-  void _selectAddress(NominatimResult result) {
-    context.read<CheckoutCubit>().selectAddress(result);
-    _deliveryAddressCtrl.text = result.shortAddress;
-    _deliveryAddressCtrl.selection = TextSelection.fromPosition(
-      TextPosition(offset: _deliveryAddressCtrl.text.length),
-    );
-    FocusScope.of(context).unfocus();
+  void _onCheckoutState(BuildContext context, CheckoutState state) {
+    _syncAddressController(state.deliveryAddress);
+    if (state.addressResolveError != null) {
+      AppSnackbar.show(
+        context,
+        message: state.addressResolveError!,
+        type: AppSnackbarType.error,
+      );
+      context.read<CheckoutCubit>().consumeAddressResolveError();
+    }
   }
 
   void _clearAddress() {
@@ -86,6 +101,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _dismissSuggestions() {
     context.read<CheckoutCubit>().dismissSuggestions();
     FocusScope.of(context).unfocus();
+  }
+
+  void _appendPreparationSuggestion(String text) {
+    final existing = _prepInstructionsCtrl.text;
+    final newText = existing.isEmpty ? text : '$existing, $text';
+    _prepInstructionsCtrl.text = newText;
+    _prepInstructionsCtrl.selection = TextSelection.fromPosition(
+      TextPosition(offset: _prepInstructionsCtrl.text.length),
+    );
+    context.read<CheckoutCubit>().updatePreparationInstructions(newText);
   }
 
   /// Validation phase: kick off the backend initiate call. We do NOT open the
@@ -184,9 +209,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: _dismissSuggestions,
-        child: BlocListener<PaymentCubit, PaymentState>(
-          listenWhen: (prev, curr) => prev.status != curr.status,
-          listener: _onPaymentState,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<PaymentCubit, PaymentState>(
+              listenWhen: (prev, curr) => prev.status != curr.status,
+              listener: _onPaymentState,
+            ),
+            BlocListener<CheckoutCubit, CheckoutState>(
+              listenWhen: (prev, curr) =>
+                  prev.deliveryAddress != curr.deliveryAddress ||
+                  prev.addressResolveError != curr.addressResolveError,
+              listener: _onCheckoutState,
+            ),
+          ],
           child: Stack(
             children: [
               SafeArea(
@@ -222,40 +257,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     label: AppStrings.sectionDeliveryAddress,
                                   ),
                                   const SizedBox(height: 10),
-                                  Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      _DeliveryAddressCard(
-                                        state: state,
-                                        defaultAddress: defaultAddress,
-                                        addressCtrl: _deliveryAddressCtrl,
-                                        recipientAddressCtrl:
-                                            _recipientAddressCtrl,
-                                        recipientNameCtrl: _recipientNameCtrl,
-                                        onAddressChanged:
-                                            cubit.onAddressChanged,
-                                        onClearAddress: _clearAddress,
-                                        onUseDefault: _useDefaultAddress,
-                                        onToggleSomeoneElse: _toggleSomeoneElse,
-                                        onRecipientAddressChanged:
-                                            cubit.updateRecipientAddress,
-                                        onRecipientNameChanged:
-                                            cubit.updateRecipientName,
-                                      ),
-                                      if (state.showSuggestions)
-                                        Positioned(
-                                          top: 54,
-                                          left: 0,
-                                          right: 0,
-                                          child: AddressSuggestionsDropdown(
-                                            suggestions:
-                                                state.addressSuggestions,
-                                            isSearching:
-                                                state.isSearchingAddress,
-                                            onSelect: _selectAddress,
-                                          ),
-                                        ),
-                                    ],
+                                  _DeliveryAddressCard(
+                                    state: state,
+                                    defaultAddress: defaultAddress,
+                                    addressCtrl: _deliveryAddressCtrl,
+                                    recipientAddressCtrl: _recipientAddressCtrl,
+                                    recipientNameCtrl: _recipientNameCtrl,
+                                    onAddressChanged: cubit.onAddressChanged,
+                                    onSuggestionTapped: _selectAddress,
+                                    onClearAddress: _clearAddress,
+                                    onUseDefault: _useDefaultAddress,
+                                    onToggleSomeoneElse: _toggleSomeoneElse,
+                                    onRecipientAddressChanged:
+                                        cubit.updateRecipientAddress,
+                                    onRecipientNameChanged:
+                                        cubit.updateRecipientName,
                                   ),
                                   const SizedBox(height: 20),
                                 ],
@@ -267,12 +283,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       AppStrings.sectionPreparationInstructions,
                                 ),
                                 const SizedBox(height: 10),
+                                _SuggestionsRow(
+                                  suggestions: state.suggestions,
+                                  isLoading: state.isLoadingSuggestions,
+                                  onSuggestionTap: _appendPreparationSuggestion,
+                                ),
                                 TextField(
                                   controller: _prepInstructionsCtrl,
                                   minLines: 2,
                                   maxLines: 4,
-                                  onChanged:
-                                      cubit.updatePreparationInstructions,
+                                  onChanged: (value) {
+                                    cubit.updatePreparationInstructions(value);
+                                    cubit.filterSuggestions(value);
+                                  },
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: AppColors.textPrimary,
@@ -410,6 +433,63 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ── Preparation suggestions row ───────────────────────────────────────────────
+
+class _SuggestionsRow extends StatelessWidget {
+  const _SuggestionsRow({
+    required this.suggestions,
+    required this.isLoading,
+    required this.onSuggestionTap,
+  });
+
+  final List<PreparationSuggestionEntity> suggestions;
+  final bool isLoading;
+  final ValueChanged<String> onSuggestionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(
+              3,
+              (index) => const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: ShimmerBox(width: 80, height: 32, radius: 99),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: suggestions
+              .map(
+                (suggestion) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SuggestionChip(
+                    text: suggestion.text,
+                    onTap: () => onSuggestionTap(suggestion.text),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 
 class _ModeToggle extends StatelessWidget {
@@ -501,6 +581,7 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.recipientAddressCtrl,
     required this.recipientNameCtrl,
     required this.onAddressChanged,
+    required this.onSuggestionTapped,
     required this.onClearAddress,
     required this.onUseDefault,
     required this.onToggleSomeoneElse,
@@ -514,6 +595,7 @@ class _DeliveryAddressCard extends StatelessWidget {
   final TextEditingController recipientAddressCtrl;
   final TextEditingController recipientNameCtrl;
   final ValueChanged<String> onAddressChanged;
+  final ValueChanged<AddressSuggestionModel> onSuggestionTapped;
   final VoidCallback onClearAddress;
   final VoidCallback onUseDefault;
   final ValueChanged<bool?> onToggleSomeoneElse;
@@ -531,54 +613,16 @@ class _DeliveryAddressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Address row
-          Row(
-            children: [
-              const Text('🏠', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: addressCtrl,
-                  onChanged: onAddressChanged,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: AppStrings.searchAndSelectAddress,
-                    hintStyle: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textHint,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    suffixIcon: state.isSearchingAddress
-                        ? const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          )
-                        : (state.deliveryAddress.isNotEmpty
-                              ? GestureDetector(
-                                  onTap: onClearAddress,
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: AppColors.textHint,
-                                  ),
-                                )
-                              : null),
-                  ),
-                ),
-              ),
-            ],
+          // Address field
+          OverlayAddressField(
+            controller: addressCtrl,
+            hint: AppStrings.searchAndSelectAddress,
+            suggestions: state.addressSuggestions,
+            isSearching: state.isSearchingAddress,
+            isResolving: state.isValidatingAddress,
+            onChanged: onAddressChanged,
+            onSuggestionTapped: onSuggestionTapped,
+            onClear: onClearAddress,
           ),
           _AddressVerificationHint(state: state),
           const SizedBox(height: 12),

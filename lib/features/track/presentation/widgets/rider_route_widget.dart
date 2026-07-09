@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
 
-class RiderRouteWidget extends StatelessWidget {
-  const RiderRouteWidget({super.key, required this.progress});
+class RiderRouteWidget extends StatefulWidget {
+  const RiderRouteWidget({
+    super.key,
+    required this.progress,
+    this.hasLiveLocation = false,
+  });
 
   final double progress;
 
+  /// True once the backend has reported a real GPS ping for this order. This
+  /// widget has no real map/coordinate space to plot actual lat/lng into, so
+  /// "showing real position" means no longer trusting the timed simulation —
+  /// the marker freezes at whatever position it had reached instead of
+  /// continuing to creep forward on a fake countdown.
+  final bool hasLiveLocation;
+
+  @override
+  State<RiderRouteWidget> createState() => _RiderRouteWidgetState();
+}
+
+class _RiderRouteWidgetState extends State<RiderRouteWidget> {
+  double? _frozenProgress;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.hasLiveLocation) {
+      _frozenProgress = widget.progress;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RiderRouteWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hasLiveLocation && _frozenProgress == null) {
+      _frozenProgress = oldWidget.progress;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final progress = _frozenProgress ?? widget.progress;
+
     return Container(
       height: 140,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -28,9 +64,7 @@ class RiderRouteWidget extends StatelessWidget {
           return Stack(
             children: [
               Positioned.fill(
-                child: CustomPaint(
-                  painter: _RoutePainter(endX: endX),
-                ),
+                child: CustomPaint(painter: _RoutePainter(endX: endX)),
               ),
 
               // Kitchens dot + label
@@ -118,11 +152,7 @@ class _RoutePainter extends CustomPainter {
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round;
 
-    canvas.drawLine(
-      const Offset(36, 98),
-      Offset(endX, 26),
-      paint,
-    );
+    canvas.drawLine(const Offset(36, 98), Offset(endX, 26), paint);
   }
 
   @override

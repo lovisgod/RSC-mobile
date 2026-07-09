@@ -1,5 +1,6 @@
-import '../../../../core/models/nominatim_result.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
+import '../../data/models/address_suggestion_model.dart';
+import '../../domain/entities/preparation_suggestion_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 
 class CheckoutState {
@@ -9,11 +10,11 @@ class CheckoutState {
   final DeliveryAddressEntity? selectedAddress;
   final double? currentLatitude;
   final double? currentLongitude;
-  final List<NominatimResult> addressSuggestions;
+  final List<AddressSuggestionModel> addressSuggestions;
   final bool isSearchingAddress;
   final bool showSuggestions;
 
-  /// True only when the address came from a Nominatim pick, GPS, or the
+  /// True only when the address came from an autocomplete pick, GPS, or the
   /// saved default address — never from free-typed text.
   final bool addressVerified;
 
@@ -31,10 +32,16 @@ class CheckoutState {
   /// flight — blocks the proceed button so the user can't check out with a
   /// not-yet-confirmed address.
   final bool isValidatingAddress;
+
+  /// One-shot failure message from a failed resolve-address call, surfaced by
+  /// the screen as a snackbar then cleared — not a persistent form error.
+  final String? addressResolveError;
   final bool isOrderingForSomeoneElse;
   final String recipientAddress;
   final String recipientName;
   final String preparationInstructions;
+  final List<PreparationSuggestionEntity> suggestions;
+  final bool isLoadingSuggestions;
   final double subtotal;
   final double deliveryFee;
   final double vat;
@@ -55,10 +62,13 @@ class CheckoutState {
     this.addressOutOfZone = false,
     this.deliveryZoneName,
     this.isValidatingAddress = false,
+    this.addressResolveError,
     this.isOrderingForSomeoneElse = false,
     this.recipientAddress = '',
     this.recipientName = '',
     this.preparationInstructions = '',
+    this.suggestions = const [],
+    this.isLoadingSuggestions = false,
     this.subtotal = 0,
     this.deliveryFee = 0,
     this.vat = 0,
@@ -86,7 +96,7 @@ class CheckoutState {
     double? currentLatitude,
     double? currentLongitude,
     bool clearCoordinates = false,
-    List<NominatimResult>? addressSuggestions,
+    List<AddressSuggestionModel>? addressSuggestions,
     bool? isSearchingAddress,
     bool? showSuggestions,
     bool? addressVerified,
@@ -94,10 +104,14 @@ class CheckoutState {
     String? deliveryZoneName,
     bool clearDeliveryZoneName = false,
     bool? isValidatingAddress,
+    String? addressResolveError,
+    bool clearAddressResolveError = false,
     bool? isOrderingForSomeoneElse,
     String? recipientAddress,
     String? recipientName,
     String? preparationInstructions,
+    List<PreparationSuggestionEntity>? suggestions,
+    bool? isLoadingSuggestions,
     double? subtotal,
     double? deliveryFee,
     double? vat,
@@ -127,12 +141,17 @@ class CheckoutState {
           ? null
           : (deliveryZoneName ?? this.deliveryZoneName),
       isValidatingAddress: isValidatingAddress ?? this.isValidatingAddress,
+      addressResolveError: clearAddressResolveError
+          ? null
+          : (addressResolveError ?? this.addressResolveError),
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
       recipientAddress: recipientAddress ?? this.recipientAddress,
       recipientName: recipientName ?? this.recipientName,
       preparationInstructions:
           preparationInstructions ?? this.preparationInstructions,
+      suggestions: suggestions ?? this.suggestions,
+      isLoadingSuggestions: isLoadingSuggestions ?? this.isLoadingSuggestions,
       subtotal: subtotal ?? this.subtotal,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       vat: vat ?? this.vat,

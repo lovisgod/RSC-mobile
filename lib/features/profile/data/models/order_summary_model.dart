@@ -1,4 +1,6 @@
 import '../../../track/domain/entities/order_event_entity.dart';
+import '../../../track/domain/entities/rider_info_entity.dart';
+import '../../../track/domain/entities/rider_location_entity.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../../domain/entities/sub_order_entity.dart';
@@ -78,6 +80,8 @@ class OrderSummaryModel {
     List<SubOrderEntity> subOrders = const [],
     List<LineItemEntity> lineItems = const [],
     List<OrderEventEntity> events = const [],
+    RiderInfoEntity? rider,
+    RiderLocationEntity? latestRiderLocation,
   }) => OrderHistoryEntity(
     id: id,
     paymentReference: paymentReference,
@@ -93,5 +97,7 @@ class OrderSummaryModel {
     subOrders: subOrders,
     lineItems: lineItems,
     events: events,
+    rider: rider,
+    latestRiderLocation: latestRiderLocation,
   );
 }

@@ -8,6 +8,7 @@ class NotificationModel {
   final String body;
   final bool isRead;
   final DateTime createdAt;
+  final Map<String, dynamic> data;
 
   const NotificationModel({
     required this.id,
@@ -17,6 +18,7 @@ class NotificationModel {
     required this.body,
     required this.isRead,
     required this.createdAt,
+    this.data = const {},
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class NotificationModel {
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
+      data: (json['data'] as Map<String, dynamic>?) ?? const {},
     );
   }
 
@@ -41,5 +44,6 @@ class NotificationModel {
     body: body,
     isRead: isRead,
     createdAt: createdAt,
+    data: data,
   );
 }

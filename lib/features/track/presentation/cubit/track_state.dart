@@ -1,6 +1,8 @@
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
 import '../../domain/entities/order_event_entity.dart';
+import '../../domain/entities/rider_info_entity.dart';
+import '../../domain/entities/rider_location_entity.dart';
 
 class TrackState {
   final bool hasActiveOrder;
@@ -21,6 +23,13 @@ class TrackState {
   /// just mirrors its target value for the rest of the UI.
   final double riderProgress;
 
+  /// Real rider assigned to the active order, from activeOrder.rider.
+  final RiderInfoEntity? riderInfo;
+
+  /// Rider's last reported GPS ping, from activeOrder.latestRiderLocation.
+  /// Refreshed on every 10s poll while OUT_FOR_DELIVERY.
+  final RiderLocationEntity? riderLocation;
+
   const TrackState({
     this.hasActiveOrder = false,
     this.activeOrder,
@@ -31,6 +40,8 @@ class TrackState {
     this.outlets = const [],
     this.orderEvents = const [],
     this.riderProgress = 0,
+    this.riderInfo,
+    this.riderLocation,
   });
 
   factory TrackState.empty() => const TrackState();
@@ -47,6 +58,10 @@ class TrackState {
     List<Outlet>? outlets,
     List<OrderEventEntity>? orderEvents,
     double? riderProgress,
+    RiderInfoEntity? riderInfo,
+    bool clearRiderInfo = false,
+    RiderLocationEntity? riderLocation,
+    bool clearRiderLocation = false,
   }) {
     return TrackState(
       hasActiveOrder: hasActiveOrder ?? this.hasActiveOrder,
@@ -58,6 +73,10 @@ class TrackState {
       outlets: outlets ?? this.outlets,
       orderEvents: orderEvents ?? this.orderEvents,
       riderProgress: riderProgress ?? this.riderProgress,
+      riderInfo: clearRiderInfo ? null : (riderInfo ?? this.riderInfo),
+      riderLocation: clearRiderLocation
+          ? null
+          : (riderLocation ?? this.riderLocation),
     );
   }
 }
