@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/overlay_address_field.dart';
 import '../../../../core/widgets/shimmer_box.dart';
@@ -41,8 +42,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _deliveryAddressCtrl = TextEditingController();
-  final _recipientAddressCtrl = TextEditingController();
-  final _recipientNameCtrl = TextEditingController();
+  final _recipientPhoneCtrl = TextEditingController();
   final _prepInstructionsCtrl = TextEditingController();
 
   @override
@@ -55,8 +55,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _deliveryAddressCtrl.dispose();
-    _recipientAddressCtrl.dispose();
-    _recipientNameCtrl.dispose();
+    _recipientPhoneCtrl.dispose();
     _prepInstructionsCtrl.dispose();
     super.dispose();
   }
@@ -142,8 +141,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         message: state.errorMessage ?? AppStrings.paymentFailed,
         type: AppSnackbarType.error,
       );
-      // Session expired → bounce back to home so the user can log in again.
-      if (state.isSessionExpired) context.go(RouteNames.home);
+      // Session-expiry navigation/snackbar is handled globally by
+      // SessionInterceptor now.
       return;
     }
 
@@ -197,8 +196,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final checked = value ?? false;
     context.read<CheckoutCubit>().toggleOrderForSomeoneElse(checked);
     if (!checked) {
-      _recipientAddressCtrl.clear();
-      _recipientNameCtrl.clear();
+      _recipientPhoneCtrl.clear();
     }
   }
 
@@ -247,6 +245,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   selectedMode: state.selectedMode,
                                   onChanged: cubit.switchMode,
                                 ),
+                                if (state.isPrePopulated) ...[
+                                  const SizedBox(height: 12),
+                                  const _ReorderBanner(),
+                                ],
                                 const SizedBox(height: 20),
 
                                 // ── Delivery address (delivery only) ───────────
@@ -261,17 +263,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     state: state,
                                     defaultAddress: defaultAddress,
                                     addressCtrl: _deliveryAddressCtrl,
-                                    recipientAddressCtrl: _recipientAddressCtrl,
-                                    recipientNameCtrl: _recipientNameCtrl,
+                                    recipientPhoneCtrl: _recipientPhoneCtrl,
                                     onAddressChanged: cubit.onAddressChanged,
                                     onSuggestionTapped: _selectAddress,
                                     onClearAddress: _clearAddress,
                                     onUseDefault: _useDefaultAddress,
                                     onToggleSomeoneElse: _toggleSomeoneElse,
-                                    onRecipientAddressChanged:
-                                        cubit.updateRecipientAddress,
-                                    onRecipientNameChanged:
-                                        cubit.updateRecipientName,
+                                    onRecipientPhoneChanged:
+                                        cubit.updateRecipientPhone,
                                   ),
                                   const SizedBox(height: 20),
                                 ],
@@ -571,6 +570,28 @@ class _ToggleTab extends StatelessWidget {
   }
 }
 
+// ── Reorder banner ────────────────────────────────────────────────────────────
+
+class _ReorderBanner extends StatelessWidget {
+  const _ReorderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF3FB),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        AppStrings.reorderBanner,
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
 // ── Delivery address card ─────────────────────────────────────────────────────
 
 class _DeliveryAddressCard extends StatelessWidget {
@@ -578,29 +599,25 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.state,
     required this.defaultAddress,
     required this.addressCtrl,
-    required this.recipientAddressCtrl,
-    required this.recipientNameCtrl,
+    required this.recipientPhoneCtrl,
     required this.onAddressChanged,
     required this.onSuggestionTapped,
     required this.onClearAddress,
     required this.onUseDefault,
     required this.onToggleSomeoneElse,
-    required this.onRecipientAddressChanged,
-    required this.onRecipientNameChanged,
+    required this.onRecipientPhoneChanged,
   });
 
   final CheckoutState state;
   final DeliveryAddressEntity? defaultAddress;
   final TextEditingController addressCtrl;
-  final TextEditingController recipientAddressCtrl;
-  final TextEditingController recipientNameCtrl;
+  final TextEditingController recipientPhoneCtrl;
   final ValueChanged<String> onAddressChanged;
   final ValueChanged<AddressSuggestionModel> onSuggestionTapped;
   final VoidCallback onClearAddress;
   final VoidCallback onUseDefault;
   final ValueChanged<bool?> onToggleSomeoneElse;
-  final ValueChanged<String> onRecipientAddressChanged;
-  final ValueChanged<String> onRecipientNameChanged;
+  final ValueChanged<String> onRecipientPhoneChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -698,7 +715,7 @@ class _DeliveryAddressCard extends StatelessWidget {
                     children: [
                       const SizedBox(height: 14),
                       const Text(
-                        AppStrings.recipientInGeofenceAddress,
+                        AppStrings.recipientPhoneNumber,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -707,26 +724,15 @@ class _DeliveryAddressCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      _RecipientTextField(
-                        controller: recipientAddressCtrl,
-                        hint: AppStrings.recipientInGeofenceAddress,
-                        onChanged: onRecipientAddressChanged,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        AppStrings.recipientNameLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      _RecipientTextField(
-                        controller: recipientNameCtrl,
-                        hint: AppStrings.recipientNameLabel,
-                        onChanged: onRecipientNameChanged,
+                      AppTextField(
+                        controller: recipientPhoneCtrl,
+                        hint: AppStrings.recipientPhoneHint,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11),
+                        ],
+                        onChanged: onRecipientPhoneChanged,
                       ),
                     ],
                   )
@@ -842,52 +848,6 @@ class _OutOfZoneWarningCard extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RecipientTextField extends StatelessWidget {
-  const _RecipientTextField({
-    required this.controller,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(fontSize: 14, color: AppColors.textHint),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: AppColors.inputBorderFocused,
-            width: 1.5,
-          ),
-        ),
-        filled: true,
-        fillColor: AppColors.surface,
       ),
     );
   }

@@ -11,6 +11,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
+import '../../../checkout/domain/services/pending_reorder_holder.dart';
 import '../../../home/domain/repositories/home_repository.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
@@ -19,7 +20,6 @@ import '../../../track/domain/entities/rider_info_entity.dart';
 import '../../../track/presentation/widgets/rider_avatar.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
-import '../../domain/usecases/reorder_usecase.dart';
 import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
 
@@ -53,26 +53,31 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     if (_isReordering) return;
     setState(() => _isReordering = true);
 
-    try {
-      await getIt<ReorderUseCase>().call(order);
-      if (!mounted) return;
-      context.go(RouteNames.home);
-      context.read<ShellBloc>().add(const ShellTabChanged(2));
-      AppSnackbar.show(
-        context,
-        message: AppStrings.itemsAddedToCart,
-        emoji: '',
-        backgroundColor: AppColors.navy,
-      );
-    } catch (_) {
-      if (!mounted) return;
+    final orderHistoryCubit = context.read<OrderHistoryCubit>();
+    final reorderData = await orderHistoryCubit.reorder(order.id);
+
+    if (!mounted) return;
+
+    if (reorderData == null) {
       setState(() => _isReordering = false);
       AppSnackbar.show(
         context,
-        message: AppStrings.reorderFailed,
+        message:
+            orderHistoryCubit.state.reorderError ?? AppStrings.reorderFailed,
         type: AppSnackbarType.error,
       );
+      return;
     }
+
+    context.go(RouteNames.home);
+    context.read<ShellBloc>().add(const ShellTabChanged(2));
+    AppSnackbar.show(
+      context,
+      message: AppStrings.itemsAddedToCart,
+      emoji: '',
+      backgroundColor: AppColors.navy,
+    );
+    getIt<PendingReorderHolder>().stage(reorderData);
   }
 
   @override

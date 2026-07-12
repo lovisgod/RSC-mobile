@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/delivery_address_entity.dart';
@@ -109,12 +108,10 @@ class AddressRepositoryImpl implements AddressRepository {
   Exception _mapError(DioException e) {
     final error = e.error;
     if (error is ServerException) {
-      if (error.statusCode == 401) {
-        return const AuthException(AppStrings.sessionExpiredLogin);
-      }
       if (error.statusCode == 404) {
         return const AuthException('Address not found.');
       }
+      // 401 handling (session expiry) is centralized in SessionInterceptor.
       return AuthException(error.message);
     }
     if (error is NetworkException) return AuthException(error.message);

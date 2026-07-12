@@ -38,7 +38,7 @@ class CheckoutState {
   final String? addressResolveError;
   final bool isOrderingForSomeoneElse;
   final String recipientAddress;
-  final String recipientName;
+  final String recipientPhone;
   final String preparationInstructions;
   final List<PreparationSuggestionEntity> suggestions;
   final bool isLoadingSuggestions;
@@ -47,6 +47,11 @@ class CheckoutState {
   final double vat;
   final double grandTotal;
   final bool isLoggedIn;
+
+  /// True right after [CheckoutCubit.prePopulateFromReorder] fills the mode/
+  /// address/coordinates from a previous order — drives the reorder banner.
+  /// Cleared as soon as the user edits the address or switches mode.
+  final bool isPrePopulated;
 
   const CheckoutState({
     this.selectedMode = DeliveryMode.delivery,
@@ -65,7 +70,7 @@ class CheckoutState {
     this.addressResolveError,
     this.isOrderingForSomeoneElse = false,
     this.recipientAddress = '',
-    this.recipientName = '',
+    this.recipientPhone = '',
     this.preparationInstructions = '',
     this.suggestions = const [],
     this.isLoadingSuggestions = false,
@@ -74,12 +79,13 @@ class CheckoutState {
     this.vat = 0,
     this.grandTotal = 0,
     this.isLoggedIn = false,
+    this.isPrePopulated = false,
   });
 
   bool get isFormValid {
     if (selectedMode == DeliveryMode.takeout) return true;
     if (isOrderingForSomeoneElse) {
-      return recipientAddress.isNotEmpty && recipientName.isNotEmpty;
+      return recipientAddress.isNotEmpty && recipientPhone.isNotEmpty;
     }
     return deliveryAddress.trim().isNotEmpty &&
         addressVerified &&
@@ -108,7 +114,7 @@ class CheckoutState {
     bool clearAddressResolveError = false,
     bool? isOrderingForSomeoneElse,
     String? recipientAddress,
-    String? recipientName,
+    String? recipientPhone,
     String? preparationInstructions,
     List<PreparationSuggestionEntity>? suggestions,
     bool? isLoadingSuggestions,
@@ -117,6 +123,7 @@ class CheckoutState {
     double? vat,
     double? grandTotal,
     bool? isLoggedIn,
+    bool? isPrePopulated,
   }) {
     return CheckoutState(
       selectedMode: selectedMode ?? this.selectedMode,
@@ -147,7 +154,7 @@ class CheckoutState {
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
       recipientAddress: recipientAddress ?? this.recipientAddress,
-      recipientName: recipientName ?? this.recipientName,
+      recipientPhone: recipientPhone ?? this.recipientPhone,
       preparationInstructions:
           preparationInstructions ?? this.preparationInstructions,
       suggestions: suggestions ?? this.suggestions,
@@ -157,6 +164,7 @@ class CheckoutState {
       vat: vat ?? this.vat,
       grandTotal: grandTotal ?? this.grandTotal,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+      isPrePopulated: isPrePopulated ?? this.isPrePopulated,
     );
   }
 }

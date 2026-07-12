@@ -1,6 +1,7 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:injectable/injectable.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,7 @@ import '../../features/checkout/data/repositories/preparation_suggestions_reposi
 import '../../features/checkout/domain/repositories/address_validation_repository.dart';
 import '../../features/checkout/domain/repositories/payment_repository.dart';
 import '../../features/checkout/domain/repositories/preparation_suggestions_repository.dart';
+import '../../features/checkout/domain/services/pending_reorder_holder.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
 import '../../features/checkout/domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
@@ -34,6 +36,7 @@ import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
 import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
 import '../../features/profile/domain/usecases/get_orders_usecase.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../../features/profile/domain/usecases/get_reorder_details_usecase.dart';
 import '../../features/profile/domain/usecases/reorder_usecase.dart';
 import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_address_usecase.dart';
@@ -74,7 +77,10 @@ import '../../features/auth/domain/usecases/reset_password_usecase.dart';
 import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
+import '../../main.dart';
 import '../network/dio_client.dart';
+import '../network/session_interceptor.dart';
+import '../router/app_router.dart';
 import '../services/address_service.dart';
 import '../services/notification_service.dart';
 import '../storage/local_storage.dart';
@@ -90,13 +96,38 @@ final GetIt getIt = GetIt.instance;
 Future<void> configureDependencies() async {
   getIt.init(); // registers FlutterSecureStorage, NetworkInfo
 
+  // ── Local storage ──────────────────────────────────────────────────────────
+  getIt.registerLazySingleton<LocalStorage>(
+    () => LocalStorage(getIt<FlutterSecureStorage>()),
+  );
+
+  // ── Pending reorder bridge — survives the gap between a reorder
+  // succeeding and the next (factory-created) CheckoutCubit picking it up ──
+  getIt.registerLazySingleton<PendingReorderHolder>(
+    () => PendingReorderHolder(),
+  );
+
+  // ── Router — registered so SessionInterceptor can navigate on 401 without
+  // a BuildContext ─────────────────────────────────────────────────────────
+  getIt.registerSingleton<GoRouter>(appRouter);
+
   // ── Cookie-based HTTP auth ─────────────────────────────────────────────────
   final dir = await getApplicationDocumentsDirectory();
   final cookieJar = PersistCookieJar(
     storage: FileStorage('${dir.path}/.cookies/'),
   );
   getIt.registerLazySingleton<PersistCookieJar>(() => cookieJar);
-  getIt.registerLazySingleton<DioClient>(() => DioClient(cookieJar));
+  getIt.registerLazySingleton<SessionInterceptor>(
+    () => SessionInterceptor(
+      cookieJar: getIt<PersistCookieJar>(),
+      localStorage: getIt<LocalStorage>(),
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      router: getIt<GoRouter>(),
+    ),
+  );
+  getIt.registerLazySingleton<DioClient>(
+    () => DioClient(cookieJar, getIt<SessionInterceptor>()),
+  );
 
   // ── Push notifications ──────────────────────────────────────────────────────
   getIt.registerLazySingleton<NotificationService>(
@@ -111,11 +142,6 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<AuthRepository>(
       () => AuthRepositoryImpl(getIt<AuthRemoteDataSource>()),
     );
-
-  // ── Local storage ──────────────────────────────────────────────────────────
-  getIt.registerLazySingleton<LocalStorage>(
-    () => LocalStorage(getIt<FlutterSecureStorage>()),
-  );
 
   // ── Auth use cases ─────────────────────────────────────────────────────────
   getIt
@@ -293,14 +319,22 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<GetOrderByIdUseCase>(
       () => GetOrderByIdUseCase(getIt<OrderRepository>()),
     )
+    ..registerLazySingleton<GetReorderDetailsUsecase>(
+      () => GetReorderDetailsUsecase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<ReorderUseCase>(
+      () => ReorderUseCase(
+        getIt<GetReorderDetailsUsecase>(),
+        getIt<CartCubit>(),
+        getIt<HomeRepository>(),
+      ),
+    )
     ..registerLazySingleton<OrderHistoryCubit>(
       () => OrderHistoryCubit(
         getIt<GetOrdersUseCase>(),
         getIt<GetOrderByIdUseCase>(),
+        getIt<ReorderUseCase>(),
       ),
-    )
-    ..registerLazySingleton<ReorderUseCase>(
-      () => ReorderUseCase(getIt<CartCubit>(), getIt<HomeRepository>()),
     );
 
   // ── Track feature ──────────────────────────────────────────────────────────
@@ -337,6 +371,7 @@ Future<void> configureDependencies() async {
         getIt<AddressService>(),
         getIt<ValidateAddressUseCase>(),
         getIt<GetPreparationSuggestionsUsecase>(),
+        getIt<PendingReorderHolder>(),
       ),
     )
     ..registerFactory<PaymentCubit>(

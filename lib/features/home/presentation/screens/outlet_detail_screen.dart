@@ -228,6 +228,11 @@ class _OutletInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNew = outlet.ratingAverage == 0.0 && outlet.ratingCount == 0;
+    final ratingColor = isNew ? AppColors.textSecondary : AppColors.starRating;
+    final ratingLabel =
+        isNew ? AppStrings.newOutlet : outlet.ratingAverage.toStringAsFixed(1);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       child: Column(
@@ -272,34 +277,34 @@ class _OutletInfoSection extends StatelessWidget {
           // Info row
           Row(
             children: [
-              const Icon(
-                Icons.star_rounded,
-                size: 15,
-                color: AppColors.starRating,
-              ),
+              Icon(Icons.star_rounded, size: 15, color: ratingColor),
               const SizedBox(width: 4),
               Text(
-                outlet.rating.toStringAsFixed(1),
-                style: const TextStyle(
+                ratingLabel,
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: ratingColor,
                 ),
               ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.access_time_rounded,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${outlet.deliveryTimeMins}–${outlet.deliveryTimeMins + 10} min',
-                style: const TextStyle(
-                  fontSize: 13,
+              // Hidden entirely when no menu item on this outlet has a
+              // delivery-time estimate.
+              if (outlet.deliveryTimeRange != null) ...[
+                const SizedBox(width: 16),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
                   color: AppColors.textSecondary,
                 ),
-              ),
+                const SizedBox(width: 4),
+                Text(
+                  outlet.deliveryTimeRange!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(width: 16),
               const Text('🛵', style: TextStyle(fontSize: 13)),
               const SizedBox(width: 4),

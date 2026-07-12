@@ -19,9 +19,6 @@ class PaymentState {
   /// Last failure message, surfaced by the screen on [PaymentStatus.failed].
   final String? errorMessage;
 
-  /// True when the last failure was a 401 — drives the navigate-home behaviour.
-  final bool isSessionExpired;
-
   const PaymentState({
     this.selectedMethod = PaymentMethod.card,
     this.cardNumber = '',
@@ -31,7 +28,6 @@ class PaymentState {
     this.status = PaymentStatus.idle,
     this.initiateResult,
     this.errorMessage,
-    this.isSessionExpired = false,
   });
 
   PaymentState copyWith({
@@ -46,7 +42,6 @@ class PaymentState {
     bool clearInitiateResult = false,
     String? errorMessage,
     bool clearError = false,
-    bool? isSessionExpired,
   }) {
     return PaymentState(
       selectedMethod: selectedMethod ?? this.selectedMethod,
@@ -61,7 +56,6 @@ class PaymentState {
           ? null
           : (initiateResult ?? this.initiateResult),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      isSessionExpired: isSessionExpired ?? this.isSessionExpired,
     );
   }
 }

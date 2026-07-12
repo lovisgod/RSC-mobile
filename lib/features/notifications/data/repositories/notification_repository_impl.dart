@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/api_constants.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -18,6 +17,8 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<List<NotificationEntity>> getNotifications() async {
+    // 401 handling (session expiry) is centralized in SessionInterceptor;
+    // any other failure here just falls back to an empty list.
     try {
       final response = await _client.dio.get(ApiConstants.notifications);
       final data = response.data['data'] as List? ?? [];
@@ -27,12 +28,6 @@ class NotificationRepositoryImpl implements NotificationRepository {
           .toList();
       notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return notifications;
-    } on DioException catch (e) {
-      if (e.error is ServerException &&
-          (e.error as ServerException).statusCode == 401) {
-        throw AuthException(AppStrings.sessionExpiredLogin);
-      }
-      return [];
     } catch (_) {
       return [];
     }

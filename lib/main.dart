@@ -10,6 +10,12 @@ import 'features/cart/data/datasources/cart_local_datasource.dart';
 import 'features/cart/data/models/hive/cart_item_hive_model.dart';
 import 'features/cart/data/models/hive/selected_modifier_hive_model.dart';
 
+/// Lets non-widget code (SessionInterceptor) navigate and show a snackbar
+/// without a BuildContext. Wired into GoRouter and MaterialApp.router below.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

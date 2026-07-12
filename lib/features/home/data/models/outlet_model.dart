@@ -20,6 +20,13 @@ class OutletModel {
   final String? imageUrl;
   final bool isOnline;
 
+  final double ratingAverage;
+  final int ratingCount;
+  final double? deliveryRadiusKm;
+  final double? latitude;
+  final double? longitude;
+  final String? paystackSubaccountCode;
+
   final List<MenuCategoryModel> categories;
   final List<MenuItemModel> items;
   final List<ModifierGroupModel> modifierGroups;
@@ -27,10 +34,8 @@ class OutletModel {
   final List<MenuItemModifierGroupModel> itemModifierMappings;
 
   // ── Placeholder values (not yet provided by the outlets API) ──────────────
-  // TODO: Backend needs to add rating, deliveryTimeRange, and deliveryFee to
-  // the outlets API response — using hardcoded placeholders until then.
-  static const double _placeholderRating = 4.5;
-  static const int _placeholderDeliveryTimeMins = 25; // renders "25–35 min"
+  // TODO: Backend needs to add deliveryFee to the outlets API response —
+  // using a hardcoded placeholder until then.
   static const double _placeholderDeliveryFee = 500.0;
 
   OutletModel({
@@ -40,6 +45,12 @@ class OutletModel {
     required this.cuisineType,
     required this.imageUrl,
     required this.isOnline,
+    required this.ratingAverage,
+    required this.ratingCount,
+    this.deliveryRadiusKm,
+    this.latitude,
+    this.longitude,
+    this.paystackSubaccountCode,
     required this.categories,
     required this.items,
     required this.modifierGroups,
@@ -64,6 +75,13 @@ class OutletModel {
       cuisineType: json['cuisineType'] as String? ?? '',
       imageUrl: json['imageUrl'] as String?,
       isOnline: json['isOnline'] as bool? ?? false,
+      ratingAverage:
+          double.tryParse(json['ratingAverage'] as String? ?? '0') ?? 0.0,
+      ratingCount: json['ratingCount'] as int? ?? 0,
+      deliveryRadiusKm: (json['deliveryRadiusKm'] as num?)?.toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      paystackSubaccountCode: json['paystackSubaccountCode'] as String?,
       categories: parseList('menuCategories', MenuCategoryModel.fromJson),
       items: parseList('menuItems', MenuItemModel.fromJson),
       modifierGroups: parseList('itemModifierGroups', ModifierGroupModel.fromJson),
@@ -81,11 +99,50 @@ class OutletModel {
         cuisineType: cuisineType,
         imageUrl: imageUrl ?? '',
         isOnline: isOnline,
-        rating: _placeholderRating,
-        deliveryTimeMins: _placeholderDeliveryTimeMins,
+        ratingAverage: ratingAverage,
+        ratingCount: ratingCount,
+        deliveryRadiusKm: deliveryRadiusKm,
+        latitude: latitude,
+        longitude: longitude,
+        deliveryTimeRange: _computeDeliveryTimeRange(),
         minOrder: _placeholderDeliveryFee,
         isFeatured: isFeatured,
       );
+
+  /// Aggregates each menu item's `deliveryTimeRange` ("15", "35-40", ...)
+  /// into a single outlet-level range: the minimum lower bound and maximum
+  /// upper bound across all items that have one. Null if none do.
+  String? _computeDeliveryTimeRange() {
+    final ranges = items
+        .where(
+          (i) =>
+              i.deliveryTimeRange != null && i.deliveryTimeRange!.isNotEmpty,
+        )
+        .map((i) => i.deliveryTimeRange!)
+        .toList();
+
+    if (ranges.isEmpty) return null;
+
+    var minVal = 999;
+    var maxVal = 0;
+
+    for (final range in ranges) {
+      final parts = range.split('-');
+      if (parts.length == 1) {
+        final val = int.tryParse(parts[0].trim()) ?? 0;
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+      } else if (parts.length == 2) {
+        final lo = int.tryParse(parts[0].trim()) ?? 0;
+        final hi = int.tryParse(parts[1].trim()) ?? 0;
+        if (lo < minVal) minVal = lo;
+        if (hi > maxVal) maxVal = hi;
+      }
+    }
+
+    if (minVal == maxVal) return '$minVal min';
+    return '$minVal-$maxVal min';
+  }
 
   // ── Menu assembly ─────────────────────────────────────────────────────────
 

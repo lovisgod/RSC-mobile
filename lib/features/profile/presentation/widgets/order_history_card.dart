@@ -8,11 +8,11 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../checkout/domain/services/pending_reorder_holder.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../../track/presentation/cubit/track_cubit.dart';
 import '../../domain/entities/order_history_entity.dart';
-import '../../domain/usecases/reorder_usecase.dart';
 import '../cubit/order_history_cubit.dart';
 
 class OrderHistoryCard extends StatefulWidget {
@@ -66,43 +66,30 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
     // once this card is hidden — rather than disposed — inside the shell's
     // IndexedStack after navigating to the Cart tab.
     if (orderHistoryCubit.state.isReordering) return;
-    orderHistoryCubit.startReorder(widget.order.id);
 
-    await orderHistoryCubit.loadOrderDetail(widget.order.id);
-    final detail = orderHistoryCubit.state.selectedOrder;
+    final reorderData = await orderHistoryCubit.reorder(widget.order.id);
 
-    if (detail == null || detail.id != widget.order.id) {
-      orderHistoryCubit.finishReorder();
+    if (reorderData == null) {
       if (!mounted) return;
       AppSnackbar.show(
         context,
-        message: AppStrings.reorderFailed,
+        message:
+            orderHistoryCubit.state.reorderError ?? AppStrings.reorderFailed,
         type: AppSnackbarType.error,
       );
       return;
     }
 
-    try {
-      await getIt<ReorderUseCase>().call(detail);
-      orderHistoryCubit.finishReorder();
-      if (!mounted) return;
-      context.go(RouteNames.home);
-      context.read<ShellBloc>().add(const ShellTabChanged(2));
-      AppSnackbar.show(
-        context,
-        message: AppStrings.itemsAddedToCart,
-        emoji: '',
-        backgroundColor: AppColors.navy,
-      );
-    } catch (_) {
-      orderHistoryCubit.finishReorder();
-      if (!mounted) return;
-      AppSnackbar.show(
-        context,
-        message: AppStrings.reorderFailed,
-        type: AppSnackbarType.error,
-      );
-    }
+    if (!mounted) return;
+    context.go(RouteNames.home);
+    context.read<ShellBloc>().add(const ShellTabChanged(2));
+    AppSnackbar.show(
+      context,
+      message: AppStrings.itemsAddedToCart,
+      emoji: '',
+      backgroundColor: AppColors.navy,
+    );
+    getIt<PendingReorderHolder>().stage(reorderData);
   }
 
   @override

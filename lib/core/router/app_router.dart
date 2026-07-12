@@ -32,9 +32,11 @@ import '../../features/profile/presentation/screens/order_details_screen.dart';
 import '../../features/profile/presentation/screens/order_history_screen.dart';
 import '../../features/profile/presentation/screens/profile_verify_otp_screen.dart';
 import '../../features/shell/presentation/shell_screen.dart';
+import '../../main.dart';
 import '../di/injection.dart';
 
 final GoRouter appRouter = GoRouter(
+  navigatorKey: navigatorKey,
   initialLocation: '/splash',
   debugLogDiagnostics: kDebugMode,
   routes: [

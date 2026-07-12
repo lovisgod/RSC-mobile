@@ -50,7 +50,6 @@ class PaymentCubit extends Cubit<PaymentState> {
         status: PaymentStatus.initiating,
         clearInitiateResult: true,
         clearError: true,
-        isSessionExpired: false,
       ),
     );
 
@@ -70,15 +69,12 @@ class PaymentCubit extends Cubit<PaymentState> {
       );
     } catch (e) {
       if (isClosed) return;
-      final isAuth =
-          e is AuthException && e.message == AppStrings.sessionExpiredLogin;
       emit(
         state.copyWith(
           status: PaymentStatus.failed,
           errorMessage: e is AuthException
               ? e.message
               : AppStrings.paymentFailed,
-          isSessionExpired: isAuth,
         ),
       );
     }

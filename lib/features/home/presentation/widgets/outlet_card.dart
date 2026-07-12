@@ -218,22 +218,23 @@ class _BottomRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNew = outlet.ratingAverage == 0.0 && outlet.ratingCount == 0;
+    final ratingColor = isNew ? AppColors.textSecondary : AppColors.starRating;
+    final ratingLabel =
+        isNew ? AppStrings.newOutlet : outlet.ratingAverage.toStringAsFixed(1);
+
     return Row(
       children: [
-        // LEFT: star + rating (both orange)
+        // LEFT: star + rating
         Expanded(
           child: Row(
             children: [
-              const Icon(
-                Icons.star_rounded,
-                color: AppColors.primary,
-                size: 15,
-              ),
+              Icon(Icons.star_rounded, color: ratingColor, size: 15),
               const SizedBox(width: 3),
               Text(
-                outlet.rating.toStringAsFixed(1),
-                style: const TextStyle(
-                  color: AppColors.primary,
+                ratingLabel,
+                style: TextStyle(
+                  color: ratingColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -242,27 +243,29 @@ class _BottomRow extends StatelessWidget {
           ),
         ),
 
-        // CENTER: clock + time (both gray)
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                color: AppColors.textSecondary,
-                size: 14,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${outlet.deliveryTimeMins}–${outlet.deliveryTimeMins + 10} min',
-                style: const TextStyle(
+        // CENTER: clock + time (both gray) — hidden entirely when no menu
+        // item on this outlet has a delivery-time estimate.
+        if (outlet.deliveryTimeRange != null)
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.access_time_rounded,
                   color: AppColors.textSecondary,
-                  fontSize: 12,
+                  size: 14,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  outlet.deliveryTimeRange!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
 
         // RIGHT: Order Now (orange bold) or Unavailable (gray)
         Expanded(

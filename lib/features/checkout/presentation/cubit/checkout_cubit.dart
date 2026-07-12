@@ -6,9 +6,11 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/address_service.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
+import '../../../profile/data/models/reorder_response_model.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../data/models/address_suggestion_model.dart';
 import '../../domain/enums/delivery_mode.dart';
+import '../../domain/services/pending_reorder_holder.dart';
 import '../../domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../domain/usecases/validate_address_usecase.dart';
 import 'checkout_state.dart';
@@ -19,12 +21,14 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     this._addressService,
     this._validateAddressUseCase,
     this._getPreparationSuggestionsUsecase,
+    this._pendingReorderHolder,
   ) : super(const CheckoutState());
 
   final LocalStorage _localStorage;
   final AddressService _addressService;
   final ValidateAddressUseCase _validateAddressUseCase;
   final GetPreparationSuggestionsUsecase _getPreparationSuggestionsUsecase;
+  final PendingReorderHolder _pendingReorderHolder;
   Timer? _debounceTimer;
   Timer? _suggestionsDebounceTimer;
   String? _outletId;
@@ -54,7 +58,38 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     final user = await _localStorage.getUser();
     emit(state.copyWith(isLoggedIn: user != null));
 
+    final pendingReorder = _pendingReorderHolder.consume();
+    if (pendingReorder != null) prePopulateFromReorder(pendingReorder);
+
     await loadSuggestions(cart);
+  }
+
+  /// Fills mode/address/coordinates from a previous order right as checkout
+  /// opens. Coordinates came from a previously successful order, so they're
+  /// treated as already verified — no need to re-hit the validate-address
+  /// endpoint before the user can proceed.
+  void prePopulateFromReorder(ReorderResponseModel reorder) {
+    final mode = reorder.deliveryMode == 'TAKEOUT'
+        ? DeliveryMode.takeout
+        : DeliveryMode.delivery;
+    final deliveryFee = mode == DeliveryMode.delivery
+        ? _deliveryFeeAmount
+        : 0.0;
+    final grandTotal = state.subtotal + deliveryFee + state.vat;
+
+    emit(
+      state.copyWith(
+        selectedMode: mode,
+        deliveryFee: deliveryFee,
+        grandTotal: grandTotal,
+        deliveryAddress: reorder.deliveryAddress,
+        currentLatitude: reorder.deliveryLatitude,
+        currentLongitude: reorder.deliveryLongitude,
+        addressVerified: true,
+        addressOutOfZone: false,
+        isPrePopulated: true,
+      ),
+    );
   }
 
   Future<void> loadSuggestions(CartEntity cart) async {
@@ -101,6 +136,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         selectedMode: mode,
         deliveryFee: deliveryFee,
         grandTotal: grandTotal,
+        isPrePopulated: false,
       ),
     );
   }
@@ -118,6 +154,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         addressOutOfZone: false,
         clearDeliveryZoneName: true,
         isValidatingAddress: false,
+        isPrePopulated: false,
       ),
     );
 
@@ -152,6 +189,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         addressOutOfZone: false,
         clearDeliveryZoneName: true,
         isValidatingAddress: true,
+        isPrePopulated: false,
       ),
     );
 
@@ -199,6 +237,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         addressOutOfZone: false,
         clearDeliveryZoneName: true,
         isValidatingAddress: true,
+        isPrePopulated: false,
       ),
     );
 
@@ -226,7 +265,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
       state.copyWith(
         isOrderingForSomeoneElse: value,
         recipientAddress: value ? state.recipientAddress : '',
-        recipientName: value ? state.recipientName : '',
+        recipientPhone: value ? state.recipientPhone : '',
       ),
     );
   }
@@ -235,8 +274,8 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     emit(state.copyWith(recipientAddress: address));
   }
 
-  void updateRecipientName(String name) {
-    emit(state.copyWith(recipientName: name));
+  void updateRecipientPhone(String phone) {
+    emit(state.copyWith(recipientPhone: phone));
   }
 
   void updatePreparationInstructions(String instructions) {

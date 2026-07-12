@@ -63,6 +63,7 @@ abstract final class AppStrings {
   static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
+  static const String newOutlet = 'New';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';
@@ -97,7 +98,7 @@ abstract final class AppStrings {
   static const String reorder = 'Re-order';
   static const String trackOrder = 'Track';
   static const String itemsAddedToCart =
-      '✓ Items added to cart. Review your order!';
+      '✓ Items added to cart. Review and proceed to checkout!';
   static const String reorderFailed = 'Could not re-order. Please try again.';
   static const String trackOrderFailed =
       'Could not load this order. Please try again.';
@@ -107,6 +108,9 @@ abstract final class AppStrings {
   static const String moreItemsSuffix = 'more items';
   static const String subOrderSuffix = ' Sub-Order';
   static const String kitchenFallbackName = 'Kitchen';
+  static const String itemFallbackName = 'Item';
+  static const String reorderBanner =
+      '🔄 Reorder from previous order. Review and update if needed.';
 
   // ─── Track ────────────────────────────────────────────────────────────────
   static const String orderProgress = 'Order Progress';
@@ -244,9 +248,8 @@ abstract final class AppStrings {
   static const String useDefaultAddress = '📍 Use Default Address';
   static const String orderForSomeoneElse =
       'Order on behalf of someone inside geofence';
-  static const String recipientInGeofenceAddress =
-      'RECIPIENT IN-GEOFENCE ADDRESS';
-  static const String recipientNameLabel = 'RECIPIENT NAME';
+  static const String recipientPhoneNumber = 'RECIPIENT PHONE NUMBER';
+  static const String recipientPhoneHint = 'e.g. 08031234567';
   static const String sectionPreparationInstructions =
       'PREPARATION INSTRUCTIONS';
   static const String preparationInstructionsHint =
@@ -327,6 +330,8 @@ abstract final class AppStrings {
       'New password must be different from current password';
   static const String sessionExpiredLogin =
       'Session expired. Please log in again.';
+  static const String sessionExpired =
+      'Your session has expired. Please log in again.';
 
   // ─── Forgot / Reset password ──────────────────────────────────────────────
   static const String forgotPasswordTitle = 'Forgot Password';

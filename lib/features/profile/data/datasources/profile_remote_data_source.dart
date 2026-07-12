@@ -36,7 +36,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         response.data['data'] as Map<String, dynamic>,
       );
     } on DioException catch (e) {
-      throw _mapError(e, unauthorizedMessage: AppStrings.sessionExpiredLogin);
+      // 401 handling (session expiry) is centralized in SessionInterceptor.
+      throw _mapError(e);
     }
   }
 
@@ -77,7 +78,8 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         response.data['data'] as Map<String, dynamic>,
       );
     } on DioException catch (e) {
-      throw _mapError(e, unauthorizedMessage: AppStrings.sessionExpiredLogin);
+      // 401 handling (session expiry) is centralized in SessionInterceptor.
+      throw _mapError(e);
     }
   }
 
@@ -94,6 +96,9 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
         response.data['data'] as Map<String, dynamic>,
       );
     } on DioException catch (e) {
+      // This endpoint's 401 means "wrong/expired OTP", not session expiry —
+      // it's excluded from SessionInterceptor, so it still needs its own
+      // 401 mapping here.
       throw _mapError(e, unauthorizedMessage: AppStrings.invalidOrExpiredCode);
     }
   }

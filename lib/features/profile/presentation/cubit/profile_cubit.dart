@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../domain/usecases/get_profile_usecase.dart';
@@ -39,12 +38,10 @@ class ProfileCubit extends Cubit<ProfileState> {
       final profile = await _getProfileUseCase();
       emit(ProfileState.loaded(profile));
     } on AuthException catch (e) {
-      if (e.message == AppStrings.sessionExpiredLogin) {
-        await _localStorage.clearAll();
-        emit(ProfileState.guest());
-      } else {
-        emit(state.copyWith(isLoading: false, error: e.message));
-      }
+      // Session-expiry storage clearing/guest reset is handled globally by
+      // SessionInterceptor + AuthBloc now; any other AuthException just
+      // surfaces as a normal error.
+      emit(state.copyWith(isLoading: false, error: e.message));
     } catch (_) {
       emit(
         state.copyWith(

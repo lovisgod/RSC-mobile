@@ -48,10 +48,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
   Exception _mapError(DioException e) {
     final error = e.error;
     if (error is ServerException) {
-      if (error.statusCode == 401) {
-        return const AuthException(AppStrings.sessionExpiredLogin);
-      }
       // The DioClient interceptor already extracted errors[0]/message.
+      // 401 handling (session expiry) is centralized in SessionInterceptor.
       return AuthException(error.message);
     }
     if (error is NetworkException) return AuthException(error.message);
