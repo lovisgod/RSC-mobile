@@ -11,6 +11,7 @@ import '../../../profile/domain/entities/order_history_entity.dart';
 import '../../../profile/domain/usecases/get_order_by_id_usecase.dart';
 import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../domain/entities/order_event_entity.dart';
+import '../../domain/entities/rider_location_entity.dart';
 import '../../domain/usecases/get_rider_location_usecase.dart';
 import 'track_state.dart';
 
@@ -92,6 +93,11 @@ class TrackCubit extends Cubit<TrackState> {
       _trackedOrderId = orderId;
       _socketService.subscribeToRoom('order:$orderId');
       _socketService.on('order:status_update', _onOrderStatusUpdate);
+      _socketService.on('rider:location_update', _onRiderLocationUpdate);
+      debugPrint(
+        '[RSC Track] Listening for rider:location_update in '
+        'order:$orderId room',
+      );
       if (!_socketService.isConnected) {
         startRiderLocationPolling(orderId);
       }
@@ -105,7 +111,8 @@ class TrackCubit extends Cubit<TrackState> {
     final orderId = _trackedOrderId;
     if (orderId == null) return;
     _socketService.unsubscribeFromRoom('order:$orderId');
-    _socketService.off('order:status_update');
+    _socketService.off('order:status_update', _onOrderStatusUpdate);
+    _socketService.off('rider:location_update', _onRiderLocationUpdate);
     _trackedOrderId = null;
   }
 
@@ -201,6 +208,39 @@ class TrackCubit extends Cubit<TrackState> {
     }
 
     _refreshOrderData(masterOrderId);
+  }
+
+  /// Handles a live `rider:location_update` GPS ping from the order's room —
+  /// updates only [TrackState.riderLocation], no REST refetch.
+  void _onRiderLocationUpdate(dynamic data) {
+    if (isClosed) return;
+    try {
+      final payload = data as Map<String, dynamic>;
+      final masterOrderId = payload['masterOrderId'] as String?;
+      if (masterOrderId == null || masterOrderId != _trackedOrderId) return;
+
+      final latitude = (payload['latitude'] as num?)?.toDouble();
+      final longitude = (payload['longitude'] as num?)?.toDouble();
+      if (latitude == null || longitude == null) return;
+
+      debugPrint('[RSC Track] 📍 Rider location: $latitude, $longitude');
+
+      emit(
+        state.copyWith(
+          riderLocation: RiderLocationEntity(
+            riderId: payload['riderId'] as String? ?? '',
+            masterOrderId: masterOrderId,
+            latitude: latitude,
+            longitude: longitude,
+            recordedAt:
+                DateTime.tryParse(payload['recordedAt'] as String? ?? '') ??
+                DateTime.now(),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[RSC Track] rider:location_update parse error: $e');
+    }
   }
 
   /// Silent background refresh — no loading state, no UI flicker.

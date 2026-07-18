@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -130,9 +132,11 @@ class _TrackScreenState extends State<TrackScreen>
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerRight,
-                      child: _SocketStatusIndicator(),
+                      child: _SocketStatusIndicator(
+                        riderLocation: state.riderLocation,
+                      ),
                     ),
                   ],
                 ),
@@ -178,15 +182,54 @@ class _TrackScreenState extends State<TrackScreen>
 
 // ── Socket status indicator ──────────────────────────────────────────────────
 
-class _SocketStatusIndicator extends StatelessWidget {
-  const _SocketStatusIndicator();
+class _SocketStatusIndicator extends StatefulWidget {
+  const _SocketStatusIndicator({this.riderLocation});
+
+  /// Latest rider GPS ping, if any — the badge only shows green while the
+  /// socket is connected AND this ping (when one exists) is fresh.
+  final RiderLocationEntity? riderLocation;
+
+  @override
+  State<_SocketStatusIndicator> createState() => _SocketStatusIndicatorState();
+}
+
+class _SocketStatusIndicatorState extends State<_SocketStatusIndicator> {
+  static const _staleAfter = Duration(seconds: 30);
+  static const _staleCheckInterval = Duration(seconds: 10);
+
+  /// Freshness decays with wall-clock time, not with state changes, so the
+  /// badge re-evaluates itself periodically while a ping is being tracked.
+  Timer? _staleCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _staleCheckTimer = Timer.periodic(_staleCheckInterval, (_) {
+      if (mounted && widget.riderLocation != null) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _staleCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  /// No ping yet counts as live (pre-dispatch there is nothing to be stale).
+  bool get _hasLiveSignal {
+    final location = widget.riderLocation;
+    if (location == null) return true;
+    return DateTime.now().difference(location.recordedAt) < _staleAfter;
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: getIt<SocketService>().isConnectedNotifier,
       builder: (context, isConnected, _) {
-        final color = isConnected ? AppColors.success : AppColors.textHint;
+        final color = isConnected && _hasLiveSignal
+            ? AppColors.success
+            : AppColors.textHint;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
