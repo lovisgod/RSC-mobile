@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -17,19 +16,18 @@ import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
-import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
-import '../../../track/presentation/cubit/track_cubit.dart';
 import '../../data/models/address_suggestion_model.dart';
+import '../../data/models/initiate_payment_response_model.dart';
 import '../../domain/entities/preparation_suggestion_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 import '../cubit/checkout_cubit.dart';
 import '../cubit/checkout_state.dart';
 import '../cubit/payment_cubit.dart';
 import '../cubit/payment_state.dart';
-import '../widgets/moment_payment_sheet.dart';
 import '../widgets/suggestion_chip.dart';
+import 'payment_webview_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key, required this.cart});
@@ -135,61 +133,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _onPaymentState(BuildContext context, PaymentState state) {
-    if (state.status == PaymentStatus.failed) {
-      AppSnackbar.show(
-        context,
-        message: state.errorMessage ?? AppStrings.paymentFailed,
-        type: AppSnackbarType.error,
-      );
-      // Session-expiry navigation/snackbar is handled globally by
-      // SessionInterceptor now.
-      return;
-    }
-
-    if (state.status == PaymentStatus.initiated) {
-      _openMomentSheet(state);
+    switch (state.status) {
+      case PaymentStatus.failed:
+        AppSnackbar.show(
+          context,
+          message: state.errorMessage ?? AppStrings.paymentFailed,
+          type: AppSnackbarType.error,
+        );
+        // Session-expiry navigation/snackbar is handled globally by
+        // SessionInterceptor now.
+        break;
+      case PaymentStatus.initiated:
+        _handleRedirectPayment(context, state.initiateResult, state.reference);
+        break;
+      case PaymentStatus.success:
+        context.read<ShellBloc>().add(const ShellTabChanged(3));
+        context.pop();
+        break;
+      case PaymentStatus.cancelled:
+        AppSnackbar.show(
+          context,
+          message: AppStrings.paymentCancelled,
+          backgroundColor: AppColors.navy,
+        );
+        break;
+      default:
+        break;
     }
   }
 
-  /// Opens the Moment sheet using the same [PaymentCubit] instance that ran
-  /// the initiate call — never a fresh one — so the sheet's own processing
-  /// simulation shares state with the screen.
-  Future<void> _openMomentSheet(PaymentState paymentState) async {
-    final checkoutState = context.read<CheckoutCubit>().state;
+  /// Opens the hosted payment gateway (Moment Pay) checkout URL inside an
+  /// in-app WebView. The WebView screen intercepts the tracking redirect (or
+  /// a manual close) and reports back through [PaymentCubit.verifyPaymentResult].
+  void _handleRedirectPayment(
+    BuildContext context,
+    InitiatePaymentResponseModel? initiateResult,
+    String? reference,
+  ) {
+    final url = initiateResult?.checkoutUrl;
+    if (url == null || url.isEmpty || reference == null || reference.isEmpty) {
+      AppSnackbar.show(
+        context,
+        message: 'Payment checkout link is unavailable.',
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
 
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider.value(
-        value: context.read<PaymentCubit>(),
-        child: MomentPaymentSheet(
-          amount: checkoutState.grandTotal,
-          reference: paymentState.initiateResult?.reference,
-          accessCode: paymentState.initiateResult?.accessCode,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<PaymentCubit>(),
+          child: PaymentWebViewScreen(checkoutUrl: url, reference: reference),
         ),
       ),
     );
-
-    if (result != 'success' || !mounted) return;
-
-    // Real order data (id, payment reference, delivery code, status) now
-    // comes from the backend — fetch it and let TrackCubit pick up whichever
-    // order is still active.
-    await getIt<OrderHistoryCubit>().loadOrders();
-    await getIt<TrackCubit>().loadActiveOrder();
-    if (!mounted) return;
-
-    context.read<CartCubit>().clearCart();
-    AppSnackbar.show(
-      context,
-      message: AppStrings.orderPlacedSuccessfully,
-      type: AppSnackbarType.success,
-    );
-    context.read<ShellBloc>().add(const ShellTabChanged(3));
-    context.pop();
   }
 
   void _toggleSomeoneElse(bool? value) {
@@ -349,12 +347,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ],
                 ),
               ),
-              // Loading overlay while the initiate call is in flight.
-              BlocSelector<PaymentCubit, PaymentState, bool>(
-                selector: (state) => state.status == PaymentStatus.initiating,
-                builder: (_, isInitiating) => isInitiating
-                    ? const LoadingOverlay(label: AppStrings.initiatingPayment)
-                    : const SizedBox.shrink(),
+              // Loading overlay while the initiate/verify calls are in flight.
+              BlocSelector<PaymentCubit, PaymentState, PaymentStatus>(
+                selector: (state) => state.status,
+                builder: (_, status) => switch (status) {
+                  PaymentStatus.initiating => const LoadingOverlay(
+                    label: AppStrings.preparingPayment,
+                  ),
+                  PaymentStatus.verifying => const LoadingOverlay(
+                    label: AppStrings.verifyingPayment,
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
               ),
             ],
           ),
@@ -882,6 +886,11 @@ class _PriceBreakdown extends StatelessWidget {
         _PriceRow(
           label: AppStrings.deliveryFeeLabel,
           value: formatNaira(state.deliveryFee),
+        ),
+        const SizedBox(height: 6),
+        _PriceRow(
+          label: 'Platform Commission',
+          value: formatNaira(state.platformCommission),
         ),
         const SizedBox(height: 6),
         _PriceRow(label: AppStrings.vatLabel, value: formatNaira(state.vat)),

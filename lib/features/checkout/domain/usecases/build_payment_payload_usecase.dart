@@ -3,6 +3,7 @@ import '../../data/models/initiate_payment_item_model.dart';
 import '../../data/models/initiate_payment_request_model.dart';
 import '../../data/models/modifier_id_model.dart';
 import '../../presentation/cubit/checkout_state.dart';
+import '../entities/platform_charges_entity.dart';
 import '../enums/delivery_mode.dart';
 
 /// Maps the current cart + checkout selections into the initiate-payment
@@ -26,7 +27,11 @@ class BuildPaymentPayloadUseCase {
   // takeout orders, where the address is otherwise irrelevant.
   static const String _takeoutAddressPlaceholder = 'TAKEOUT';
 
-  InitiatePaymentRequestModel call(CartEntity cart, CheckoutState checkout) {
+  InitiatePaymentRequestModel call({
+    required CartEntity cart,
+    required CheckoutState checkout,
+    required PlatformChargesEntity platformCharges,
+  }) {
     final isDelivery = checkout.selectedMode == DeliveryMode.delivery;
 
     final items = cart.items.map((item) {
@@ -36,8 +41,6 @@ class BuildPaymentPayloadUseCase {
         modifiers: item.selectedModifiers
             .map((m) => ModifierIdModel(modifierId: m.modifierId))
             .toList(),
-        // One order-level instruction is applied to every item for now.
-        customerNote: checkout.preparationInstructions,
       );
     }).toList();
 
@@ -61,13 +64,33 @@ class BuildPaymentPayloadUseCase {
     final latitude = !useRealCoords
         ? _placeholderLatitude
         : checkout.currentLatitude ??
-              selectedAddress?.latitude ??
-              _placeholderLatitude;
+            selectedAddress?.latitude ??
+            _placeholderLatitude;
     final longitude = !useRealCoords
         ? _placeholderLongitude
         : checkout.currentLongitude ??
-              selectedAddress?.longitude ??
-              _placeholderLongitude;
+            selectedAddress?.longitude ??
+            _placeholderLongitude;
+
+    // Calculate Minor values (in kobo/cents)
+    // subtotal from cart is in major units (Naira)
+    final subtotalMinor = (cart.subtotal * 100).round();
+    final deliveryFeeMinor = isDelivery ? platformCharges.deliveryFeeMinor : 0;
+    final serviceFeeMinor = platformCharges.serviceFeeMinor;
+
+    // platformCommissionMinor = (platformCommissionBps / 10000) * subtotalMinor
+    final platformCommissionMinor =
+        (subtotalMinor * platformCharges.platformCommissionBps / 10000).round();
+
+    // vatMinor = (defaultVatBps / 10000) * subtotalMinor
+    final vatMinor =
+        (subtotalMinor * platformCharges.defaultVatBps / 10000).round();
+
+    final totalMinor = subtotalMinor +
+        deliveryFeeMinor +
+        serviceFeeMinor +
+        vatMinor +
+        platformCommissionMinor;
 
     return InitiatePaymentRequestModel(
       items: items,
@@ -75,6 +98,23 @@ class BuildPaymentPayloadUseCase {
       deliveryAddress: deliveryAddress,
       deliveryLatitude: latitude,
       deliveryLongitude: longitude,
+      subtotalMinor: subtotalMinor,
+      deliveryFeeMinor: deliveryFeeMinor,
+      serviceFeeMinor: serviceFeeMinor,
+      vatMinor: vatMinor,
+      platformCommissionMinor: platformCommissionMinor,
+      totalMinor: totalMinor,
+      // Only send recipientPhone when ordering for someone else and the
+      // field is non-empty; null suppresses the key from the JSON body.
+      recipientPhone: checkout.isOrderingForSomeoneElse &&
+              checkout.recipientPhone.isNotEmpty
+          ? checkout.recipientPhone
+          : null,
+      // Top-level preparation note — mirrors per-item customerNote for
+      // backends that read it at the order level.
+      preparationNote: checkout.preparationInstructions.isNotEmpty
+          ? checkout.preparationInstructions
+          : null,
     );
   }
 }

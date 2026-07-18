@@ -31,4 +31,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<Profile> verifyProfileChange(String code) =>
       _remote.verifyProfileChange(VerifyProfileChangeRequestModel(code: code));
+
+  @override
+  Future<void> deactivateAccount() => _remote.deactivateAccount();
 }

@@ -29,6 +29,8 @@ class OrderDetailModel {
         json['latestRiderLocation'] as Map<String, dynamic>?;
 
     return OrderDetailModel(
+      // Confirmed shape: the detail endpoint always nests the master order
+      // under data.order.
       order: OrderSummaryModel.fromJson(
         json['order'] as Map<String, dynamic>? ?? {},
       ),

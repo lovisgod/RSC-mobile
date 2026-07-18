@@ -5,6 +5,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'app.dart';
 import 'core/di/injection.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/socket_service.dart';
+import 'core/storage/local_storage.dart';
 import 'firebase_options.dart';
 import 'features/cart/data/datasources/cart_local_datasource.dart';
 import 'features/cart/data/models/hive/cart_item_hive_model.dart';
@@ -39,6 +41,15 @@ void main() async {
     await getIt<NotificationService>().initialize();
   } catch (e) {
     debugPrint('[RSC] Notification service init failed: $e');
+  }
+
+  // Resume the realtime socket for an already-logged-in user on cold start.
+  final storedUser = await getIt<LocalStorage>().getUser();
+  if (storedUser != null) {
+    getIt<SocketService>().connect();
+    debugPrint('[RSC Socket] Connecting on app start (session found)');
+  } else {
+    debugPrint('[RSC] Skipping socket connect — guest user');
   }
 
   runApp(const App());

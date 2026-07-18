@@ -9,6 +9,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../checkout/domain/services/pending_reorder_holder.dart';
+import '../../../checkout/presentation/cubit/payment_cubit.dart';
+import '../../../checkout/presentation/cubit/payment_state.dart';
+import '../../../checkout/presentation/screens/payment_webview_screen.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../../track/presentation/cubit/track_cubit.dart';
@@ -29,11 +32,70 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
 
   bool _isTracking = false;
 
+  /// Owned by this card, created only for PENDING_PAYMENT orders — the
+  /// factory-scoped PaymentCubit isn't provided outside the checkout route.
+  PaymentCubit? _paymentCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.order.isPendingPayment) {
+      _paymentCubit = getIt<PaymentCubit>();
+    }
+  }
+
+  @override
+  void dispose() {
+    _paymentCubit?.close();
+    super.dispose();
+  }
+
+  void _handlePayNow() {
+    final cubit = _paymentCubit;
+    if (cubit == null) return;
+    if (cubit.state.status == PaymentStatus.initiating ||
+        cubit.state.status == PaymentStatus.verifying) {
+      return;
+    }
+    cubit.retryPaymentForOrder(widget.order.id);
+  }
+
+  void _onPaymentStateChanged(PaymentState pState) {
+    final cubit = _paymentCubit;
+    if (cubit == null || !mounted) return;
+
+    switch (pState.status) {
+      case PaymentStatus.initiated:
+        final checkoutUrl = pState.checkoutUrl;
+        final reference = pState.reference;
+        if (checkoutUrl == null || reference == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: cubit,
+              child: PaymentWebViewScreen(
+                checkoutUrl: checkoutUrl,
+                reference: reference,
+              ),
+            ),
+          ),
+        );
+      case PaymentStatus.success:
+        context.read<OrderHistoryCubit>().loadOrders();
+      case PaymentStatus.failed:
+        AppSnackbar.show(
+          context,
+          message: pState.errorMessage ?? AppStrings.paymentFailed,
+          type: AppSnackbarType.error,
+        );
+      default:
+        break;
+    }
+  }
+
   void _handleCardTap() {
     final order = widget.order;
-    // Active orders are only ever tracked via the explicit "Track" button
-    // below — the card itself no longer switches tabs on tap.
-    if (order.isActive) return;
     context.read<OrderHistoryCubit>().loadOrderDetail(order.id);
     context.push(RouteNames.orderDetails, extra: order.id);
   }
@@ -42,14 +104,25 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
     if (_isTracking) return;
     setState(() => _isTracking = true);
 
+    debugPrint('[RSC Track] Tapped Track for order: ${widget.order.id}');
+
     final trackCubit = getIt<TrackCubit>();
     await trackCubit.loadSpecificOrder(widget.order.id);
+
+    debugPrint(
+      '[RSC Track] After load — hasActiveOrder: '
+      '${trackCubit.state.hasActiveOrder}',
+    );
+    debugPrint(
+      '[RSC Track] activeOrder id: ${trackCubit.state.activeOrder?.id}',
+    );
+    debugPrint('[RSC Track] error: ${trackCubit.state.error}');
 
     if (!mounted) return;
     setState(() => _isTracking = false);
 
-    final loaded = trackCubit.state.activeOrder;
-    if (trackCubit.state.hasActiveOrder && loaded?.id == widget.order.id) {
+    if (trackCubit.state.error == null &&
+        trackCubit.state.activeOrder != null) {
       context.read<ShellBloc>().add(const ShellTabChanged(3));
     } else {
       AppSnackbar.show(
@@ -100,7 +173,7 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
     final isReorderingThis =
         historyState.isReordering && historyState.reorderingOrderId == order.id;
 
-    return GestureDetector(
+    final card = GestureDetector(
       onTap: _handleCardTap,
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -118,17 +191,20 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top row: date + delivery mode ─────────────────────────────
+            // ── Top row: date + delivery mode + status badge ───────────────
             Row(
               children: [
-                Text(
-                  formatDateTime(order.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                Expanded(
+                  child: Text(
+                    formatDateTime(order.createdAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -148,6 +224,8 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 6),
+                _StatusBadge(status: order.status),
               ],
             ),
             const SizedBox(height: 10),
@@ -188,60 +266,151 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
                     color: AppColors.primary,
                   ),
                 ),
-                const Spacer(),
-                if (order.status == 'CANCELLED') ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
+                if (order.isPendingPayment) ...[
+                  // Payment is the only sensible action here — no Track, no
+                  // Re-order until the order is actually paid for.
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: BlocBuilder<PaymentCubit, PaymentState>(
+                      bloc: _paymentCubit,
+                      builder: (context, pState) {
+                        final isBusy =
+                            pState.status == PaymentStatus.initiating ||
+                            pState.status == PaymentStatus.verifying;
+                        return _PillButton(
+                          label: AppStrings.payNow,
+                          backgroundColor: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          isLoading: isBusy,
+                          expanded: true,
+                          onTap: _handlePayNow,
+                        );
+                      },
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
+                  ),
+                ] else ...[
+                  const Spacer(),
+                  if (order.status.toUpperCase() == 'CANCELLED')
+                    _PillButton(
+                      label: AppStrings.viewDetails,
+                      backgroundColor: AppColors.navy,
+                      isLoading: false,
+                      onTap: _handleCardTap,
+                    )
+                  else if (order.isActive) ...[
+                    _PillButton(
+                      label: AppStrings.trackOrder,
+                      leadingEmoji: '📍',
+                      backgroundColor: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                      isLoading: _isTracking,
+                      onTap: _handleTrack,
                     ),
-                    child: Text(
-                      order.status,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.error,
-                        letterSpacing: 0.4,
-                      ),
+                    const SizedBox(width: 8),
+                    _PillButton(
+                      label: AppStrings.reorder,
+                      backgroundColor: AppColors.navy,
+                      isLoading: isReorderingThis,
+                      onTap: _handleReorder,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  _PillButton(
-                    label: AppStrings.viewDetails,
-                    backgroundColor: AppColors.navy,
-                    isLoading: false,
-                    onTap: _handleCardTap,
-                  ),
-                ] else if (order.isActive) ...[
-                  _PillButton(
-                    label: AppStrings.trackOrder,
-                    leadingEmoji: '📍',
-                    backgroundColor: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    isLoading: _isTracking,
-                    onTap: _handleTrack,
-                  ),
-                  const SizedBox(width: 8),
-                  _PillButton(
-                    label: AppStrings.reorder,
-                    backgroundColor: AppColors.navy,
-                    isLoading: isReorderingThis,
-                    onTap: _handleReorder,
-                  ),
-                ] else
-                  _PillButton(
-                    label: AppStrings.reorder,
-                    backgroundColor: AppColors.navy,
-                    isLoading: isReorderingThis,
-                    onTap: _handleReorder,
-                  ),
+                  ] else
+                    _PillButton(
+                      label: AppStrings.reorder,
+                      backgroundColor: AppColors.navy,
+                      isLoading: isReorderingThis,
+                      onTap: _handleReorder,
+                    ),
+                ],
               ],
             ),
           ],
+        ),
+      ),
+    );
+
+    final paymentCubit = _paymentCubit;
+    if (paymentCubit == null) return card;
+
+    return BlocListener<PaymentCubit, PaymentState>(
+      bloc: paymentCubit,
+      listenWhen: (previous, current) => previous.status != current.status,
+      listener: (_, pState) => _onPaymentStateChanged(pState),
+      child: card,
+    );
+  }
+}
+
+// ── Status badge ────────────────────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color background, Color foreground, String label) = switch (status
+        .toUpperCase()) {
+      'PENDING_PAYMENT' => (
+        AppColors.warningLight,
+        AppColors.warning,
+        AppStrings.statusPendingPayment,
+      ),
+      'PENDING' => (
+        AppColors.neutralGray.withValues(alpha: 0.15),
+        AppColors.neutralGray,
+        AppStrings.statusPending,
+      ),
+      'CONFIRMED' => (
+        AppColors.info.withValues(alpha: 0.15),
+        AppColors.info,
+        AppStrings.statusConfirmed,
+      ),
+      'PARTIALLY_READY' => (
+        AppColors.warning.withValues(alpha: 0.15),
+        AppColors.warning,
+        AppStrings.statusAlmostReady,
+      ),
+      'READY' => (
+        AppColors.success.withValues(alpha: 0.15),
+        AppColors.success,
+        AppStrings.statusReady,
+      ),
+      'OUT_FOR_DELIVERY' => (
+        AppColors.navy.withValues(alpha: 0.15),
+        AppColors.navy,
+        AppStrings.statusOnTheWay,
+      ),
+      'DELIVERED' => (
+        AppColors.success.withValues(alpha: 0.15),
+        AppColors.success,
+        AppStrings.statusDeliveredBadge,
+      ),
+      'CANCELLED' => (
+        AppColors.error.withValues(alpha: 0.15),
+        AppColors.error,
+        AppStrings.statusCancelled,
+      ),
+      // Unknown status — show it raw rather than hide it.
+      _ => (
+        AppColors.neutralGray.withValues(alpha: 0.15),
+        AppColors.neutralGray,
+        status,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: foreground,
         ),
       ),
     );
@@ -258,6 +427,7 @@ class _PillButton extends StatelessWidget {
     required this.onTap,
     this.leadingEmoji,
     this.fontWeight = FontWeight.w600,
+    this.expanded = false,
   });
 
   final String label;
@@ -267,12 +437,17 @@ class _PillButton extends StatelessWidget {
   final String? leadingEmoji;
   final FontWeight fontWeight;
 
+  /// When true the pill fills its parent's width and centers its content
+  /// (e.g. the full-width "Pay Now" button).
+  final bool expanded;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: isLoading ? null : onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        alignment: expanded ? Alignment.center : null,
         decoration: BoxDecoration(
           color: backgroundColor.withValues(alpha: isLoading ? 0.6 : 1),
           borderRadius: BorderRadius.circular(20),
@@ -287,7 +462,8 @@ class _PillButton extends StatelessWidget {
                 ),
               )
             : Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (leadingEmoji != null) ...[
                     Text(leadingEmoji!, style: const TextStyle(fontSize: 12)),

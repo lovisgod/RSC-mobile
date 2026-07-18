@@ -45,6 +45,7 @@ class CheckoutState {
   final double subtotal;
   final double deliveryFee;
   final double vat;
+  final double platformCommission;
   final double grandTotal;
   final bool isLoggedIn;
 
@@ -77,6 +78,7 @@ class CheckoutState {
     this.subtotal = 0,
     this.deliveryFee = 0,
     this.vat = 0,
+    this.platformCommission = 0,
     this.grandTotal = 0,
     this.isLoggedIn = false,
     this.isPrePopulated = false,
@@ -121,6 +123,7 @@ class CheckoutState {
     double? subtotal,
     double? deliveryFee,
     double? vat,
+    double? platformCommission,
     double? grandTotal,
     bool? isLoggedIn,
     bool? isPrePopulated,
@@ -162,6 +165,7 @@ class CheckoutState {
       subtotal: subtotal ?? this.subtotal,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       vat: vat ?? this.vat,
+      platformCommission: platformCommission ?? this.platformCommission,
       grandTotal: grandTotal ?? this.grandTotal,
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
       isPrePopulated: isPrePopulated ?? this.isPrePopulated,

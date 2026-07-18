@@ -17,11 +17,16 @@ import '../../../menu/domain/entities/outlet.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
 import '../../../track/domain/entities/rider_info_entity.dart';
+import '../../../track/presentation/cubit/track_cubit.dart';
 import '../../../track/presentation/widgets/rider_avatar.dart';
 import '../../domain/entities/line_item_entity.dart';
 import '../../domain/entities/order_history_entity.dart';
 import '../cubit/order_history_cubit.dart';
 import '../cubit/order_history_state.dart';
+import '../cubit/rating_cubit.dart';
+import '../cubit/rating_state.dart';
+import '../widgets/rate_order_bottom_sheet.dart';
+import '../widgets/refund_request_bottom_sheet.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   const OrderDetailsScreen({super.key, required this.orderId});
@@ -35,6 +40,7 @@ class OrderDetailsScreen extends StatefulWidget {
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   List<Outlet> _outlets = const [];
   bool _isReordering = false;
+  bool _isTracking = false;
 
   @override
   void initState() {
@@ -80,6 +86,27 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     getIt<PendingReorderHolder>().stage(reorderData);
   }
 
+  Future<void> _handleTrackOrder(String orderId) async {
+    if (_isTracking) return;
+    setState(() => _isTracking = true);
+
+    final trackCubit = getIt<TrackCubit>();
+    await trackCubit.loadSpecificOrder(orderId);
+
+    if (!mounted) return;
+    setState(() => _isTracking = false);
+
+    if (trackCubit.state.error == null && trackCubit.state.activeOrder != null) {
+      context.read<ShellBloc>().add(const ShellTabChanged(3));
+    } else {
+      AppSnackbar.show(
+        context,
+        message: trackCubit.state.error ?? AppStrings.trackOrderFailed,
+        type: AppSnackbarType.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,6 +129,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     outletName: _outletName,
                     onReorder: () => _handleReorder(order),
                     isReordering: _isReordering,
+                    onTrack: () => _handleTrackOrder(order.id),
+                    isTracking: _isTracking,
                   );
                 },
               ),
@@ -186,12 +215,16 @@ class _OrderDetailsBody extends StatelessWidget {
     required this.outletName,
     required this.onReorder,
     required this.isReordering,
+    required this.onTrack,
+    required this.isTracking,
   });
 
   final OrderHistoryEntity order;
   final String Function(String outletId) outletName;
   final VoidCallback onReorder;
   final bool isReordering;
+  final VoidCallback onTrack;
+  final bool isTracking;
 
   @override
   Widget build(BuildContext context) {
@@ -240,13 +273,136 @@ class _OrderDetailsBody extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          AppButton(
-            label: AppStrings.reorderEntireOrder,
-            backgroundColor: AppColors.navy,
-            isLoading: isReordering,
-            onPressed: onReorder,
-          ),
+          if (order.isActive)
+            AppButton(
+              label: AppStrings.trackOrderCta,
+              backgroundColor: AppColors.primary,
+              isLoading: isTracking,
+              onPressed: onTrack,
+            )
+          else ...[
+            AppButton(
+              label: AppStrings.reorderEntireOrder,
+              backgroundColor: AppColors.navy,
+              isLoading: isReordering,
+              onPressed: onReorder,
+            ),
+            if (order.isDelivered) ...[
+              const SizedBox(height: 12),
+              _RateOrderButton(order: order),
+            ],
+            if (order.isDelivered || order.isCancelled) ...[
+              const SizedBox(height: 12),
+              _RequestRefundButton(order: order),
+            ],
+          ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Rate order button ─────────────────────────────────────────────────────────
+
+class _RateOrderButton extends StatelessWidget {
+  const _RateOrderButton({required this.order});
+  final OrderHistoryEntity order;
+
+  void _showRatingSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => BlocProvider.value(
+        value: getIt<RatingCubit>(),
+        child: RateOrderBottomSheet(
+          lineItems: order.lineItems,
+          orderId: order.id,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<RatingCubit, RatingState>(
+      bloc: getIt<RatingCubit>(),
+      builder: (context, state) {
+        final allRated =
+            order.lineItems.isNotEmpty &&
+            order.lineItems.every(
+              (item) => state.ratedItemIds.contains(item.menuItemId),
+            );
+        if (allRated) return const SizedBox.shrink();
+
+        return SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: () => _showRatingSheet(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: const StadiumBorder(),
+            ),
+            child: const Text(
+              AppStrings.rateThisOrder,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Request refund button ─────────────────────────────────────────────────────
+
+class _RequestRefundButton extends StatelessWidget {
+  const _RequestRefundButton({required this.order});
+  final OrderHistoryEntity order;
+
+  Future<void> _showRefundSheet(BuildContext context) async {
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RefundRequestBottomSheet(order: order),
+    );
+    if (submitted == true && context.mounted) {
+      AppSnackbar.show(
+        context,
+        message: AppStrings.refundSubmitted,
+        emoji: '',
+        backgroundColor: AppColors.navy,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: () => _showRefundSheet(context),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.error,
+          side: const BorderSide(color: AppColors.error),
+          shape: const StadiumBorder(),
+        ),
+        child: const Text(
+          AppStrings.requestRefund,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.error,
+          ),
+        ),
       ),
     );
   }

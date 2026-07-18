@@ -97,6 +97,7 @@ abstract final class AppStrings {
   static const String startOrdering = 'Start ordering from RSC Food Kitchens';
   static const String reorder = 'Re-order';
   static const String trackOrder = 'Track';
+  static const String trackOrderCta = 'Track Order 🛵';
   static const String itemsAddedToCart =
       '✓ Items added to cart. Review and proceed to checkout!';
   static const String reorderFailed = 'Could not re-order. Please try again.';
@@ -138,8 +139,8 @@ abstract final class AppStrings {
   static const String orderCancelledSubtitle = 'This order has been cancelled';
   static const String orderTimeline = 'ORDER TIMELINE';
   static const String viewDetails = 'View Details';
-  static const String updatedJustNow = 'Updated just now';
-  static String updatedMinsAgo(int mins) => 'Updated $mins mins ago';
+  static const String live = 'Live';
+  static const String reconnecting = 'Reconnecting...';
   static const String kitchenBreakdowns = 'KITCHEN BREAKDOWNS';
   static const String deliveryHandoffCode = 'DELIVERY HANDOFF CODE';
   static const String shareDeliveryCode =
@@ -239,6 +240,13 @@ abstract final class AppStrings {
   static const String statusPreparing = 'Preparing';
   static const String statusDispatched = 'Dispatched';
   static const String statusReady = 'Ready';
+  static const String statusPendingPayment = 'Pending Payment';
+  static const String statusAlmostReady = 'Almost Ready';
+  static const String statusOnTheWay = 'On the Way';
+  static const String statusDeliveredBadge = 'Delivered ✅';
+  static const String payNow = 'Pay Now 💳';
+  static const String completePaymentToConfirm =
+      'Complete payment to confirm your order';
 
   // ─── Checkout ─────────────────────────────────────────────────────────────
   static const String checkout = 'Checkout';
@@ -313,7 +321,13 @@ abstract final class AppStrings {
   static const String paymentInitiatedSuccess =
       'Payment initiated successfully.';
   static const String paymentReferenceLabel = 'Reference:';
-  static const String initiatingPayment = 'Initiating payment...';
+  static const String preparingPayment = 'Preparing your payment...';
+  static const String verifyingPayment = 'Verifying your payment...';
+  static const String paymentCancelled = 'Payment cancelled.';
+  static const String couldNotVerifyPayment =
+      'Could not verify payment. Please check your order history.';
+  static const String securePayment = 'Secure Payment';
+  static const String loadingPaymentPage = 'Loading payment page...';
 
   // ─── Change password (logged-in flow) ────────────────────────────────────
   static const String changePassword = 'Change Password';
@@ -403,4 +417,35 @@ abstract final class AppStrings {
   // ─── Rider ────────────────────────────────────────────────────────────────
   static const String deliveredBy = 'DELIVERED BY';
   static const String call = 'Call';
+
+  // ─── Ratings ──────────────────────────────────────────────────────────────
+  static const String rateThisOrder = '⭐ Rate This Order';
+  static const String rateYourOrder = 'Rate Your Order';
+  static const String howWasYourFood = 'How was your food?';
+  static const String submitRatings = 'Submit Ratings';
+  static const String skip = 'Skip';
+  static const String thanksForFeedback = '✓ Thanks for your feedback!';
+  static const String addComment = 'Add a comment (optional)';
+
+  // ─── Refunds ──────────────────────────────────────────────────────────────
+  static const String requestRefund = 'Request Refund';
+  static const String orderTotalLabel = '💰 Order Total:';
+  static const String reasonForRefund = 'REASON FOR REFUND';
+  static const String refundReason =
+      'Please describe why you are requesting a refund...';
+  static const String submitRequest = 'Submit Request';
+  static const String refundSubmitted =
+      '✓ Refund request submitted. Our team will review within 24-48 hours.';
+  static const String somethingWentWrong =
+      'Something went wrong. Please try again.';
+
+  // ─── Account deactivation ─────────────────────────────────────────────────
+  static const String deactivateAccount = 'Deactivate Account';
+  static const String deactivateConfirmTitle = 'Deactivate Account';
+  static const String deactivateConfirmMessage =
+      'Are you sure you want to deactivate your account? You will be logged '
+      'out and will need to contact support to reactivate.';
+  static const String accountDeactivated =
+      'Your account has been deactivated. We\'re sorry to see you go.';
+  static const String deactivate = 'Deactivate';
 }

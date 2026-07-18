@@ -9,8 +9,6 @@ class TrackState {
   final OrderHistoryEntity? activeOrder;
   final bool isLoading;
   final String? error;
-  final bool isPolling;
-  final DateTime? lastRefreshedAt;
 
   /// Cached outlets (name/emoji lookups for the kitchen-breakdowns section).
   final List<Outlet> outlets;
@@ -27,7 +25,7 @@ class TrackState {
   final RiderInfoEntity? riderInfo;
 
   /// Rider's last reported GPS ping, from activeOrder.latestRiderLocation.
-  /// Refreshed on every 10s poll while OUT_FOR_DELIVERY.
+  /// Refreshed on every socket-triggered order refresh while OUT_FOR_DELIVERY.
   final RiderLocationEntity? riderLocation;
 
   const TrackState({
@@ -35,8 +33,6 @@ class TrackState {
     this.activeOrder,
     this.isLoading = false,
     this.error,
-    this.isPolling = false,
-    this.lastRefreshedAt,
     this.outlets = const [],
     this.orderEvents = const [],
     this.riderProgress = 0,
@@ -53,8 +49,6 @@ class TrackState {
     bool? isLoading,
     String? error,
     bool clearError = false,
-    bool? isPolling,
-    DateTime? lastRefreshedAt,
     List<Outlet>? outlets,
     List<OrderEventEntity>? orderEvents,
     double? riderProgress,
@@ -68,8 +62,6 @@ class TrackState {
       activeOrder: clearActiveOrder ? null : (activeOrder ?? this.activeOrder),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
-      isPolling: isPolling ?? this.isPolling,
-      lastRefreshedAt: lastRefreshedAt ?? this.lastRefreshedAt,
       outlets: outlets ?? this.outlets,
       orderEvents: orderEvents ?? this.orderEvents,
       riderProgress: riderProgress ?? this.riderProgress,

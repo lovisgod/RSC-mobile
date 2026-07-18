@@ -8,6 +8,7 @@ import '../constants/api_constants.dart';
 import '../di/injection.dart';
 import '../network/dio_client.dart';
 import '../router/app_router.dart';
+import '../storage/local_storage.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_event.dart';
 
@@ -20,9 +21,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationService {
-  NotificationService(this._client);
+  NotificationService(this._client, this._localStorage);
 
   final DioClient _client;
+  final LocalStorage _localStorage;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -58,7 +60,25 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
+  /// Re-registers the current FCM token with the backend. Called after a
+  /// successful login so the token is always saved under a valid session.
+  Future<void> refreshAndSaveToken() async {
+    final token = await _fcm.getToken();
+    if (token != null) {
+      await _saveTokenToBackend(token);
+    }
+  }
+
   Future<void> _saveTokenToBackend(String token) async {
+    // The device-token endpoint requires a session — a guest POST would 401
+    // and trip the SessionInterceptor. Token is registered after login via
+    // [refreshAndSaveToken] instead.
+    final userId = await _localStorage.getUserId();
+    if (userId == null) {
+      debugPrint('[RSC] Skipping FCM token save — user not logged in');
+      return;
+    }
+
     try {
       final response = await _client.dio.post(
         ApiConstants.deviceToken,

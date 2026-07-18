@@ -27,6 +27,8 @@ dependencies:
   dio_cookie_manager: ^3.1.1
   path_provider: ^2.1.0
   # retrofit added in Phase 3 when data sources are implemented
+  socket_io_client: ^2.0.3+1
+  connectivity_plus: ^6.0.3
 
   # dependency injection
   get_it: ^7.6.7
@@ -47,6 +49,7 @@ dependencies:
   geocoding: ^4.0.0
   google_maps_flutter: ^2.6.0
   url_launcher: ^6.3.0
+  webview_flutter: ^4.8.0
 
   # serialization
   json_annotation: ^4.9.0

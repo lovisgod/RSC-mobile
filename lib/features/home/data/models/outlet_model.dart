@@ -18,7 +18,11 @@ class OutletModel {
   final String description;
   final String cuisineType;
   final String? imageUrl;
-  final bool isOnline;
+
+  /// Mutable — patched in place by [HomeRepositoryImpl.updateOutletOnlineStatus]
+  /// when an `outlet:status_update` socket event arrives, so every consumer
+  /// reading from the shared cache (search, outlet detail) sees it too.
+  bool isOnline;
 
   final double ratingAverage;
   final int ratingCount;

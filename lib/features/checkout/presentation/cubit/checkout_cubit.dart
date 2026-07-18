@@ -11,6 +11,7 @@ import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../data/models/address_suggestion_model.dart';
 import '../../domain/enums/delivery_mode.dart';
 import '../../domain/services/pending_reorder_holder.dart';
+import '../../domain/usecases/get_platform_charges_usecase.dart';
 import '../../domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../domain/usecases/validate_address_usecase.dart';
 import 'checkout_state.dart';
@@ -21,6 +22,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     this._addressService,
     this._validateAddressUseCase,
     this._getPreparationSuggestionsUsecase,
+    this._getPlatformChargesUseCase,
     this._pendingReorderHolder,
   ) : super(const CheckoutState());
 
@@ -28,40 +30,70 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   final AddressService _addressService;
   final ValidateAddressUseCase _validateAddressUseCase;
   final GetPreparationSuggestionsUsecase _getPreparationSuggestionsUsecase;
+  final GetPlatformChargesUseCase _getPlatformChargesUseCase;
   final PendingReorderHolder _pendingReorderHolder;
   Timer? _debounceTimer;
   Timer? _suggestionsDebounceTimer;
   String? _outletId;
 
-  static const double _deliveryFeeAmount = 500.0;
-  static const double _vatRate = 0.075;
+  // These will be overridden by the platform-charges API response.
+  double _deliveryFeeAmount = 0.0;
+  int _platformCommissionBps = 0;
+  int _defaultVatBps = 0;
+  int _serviceFeeMinor = 0;
+
   static const Duration _debounceDuration = Duration(milliseconds: 500);
   static const Duration _suggestionsDebounceDuration = Duration(
     milliseconds: 400,
   );
 
   Future<void> initCheckout(CartEntity cart) async {
-    const deliveryFee = _deliveryFeeAmount;
-    final subtotal = cart.subtotal;
-    final vat = subtotal * _vatRate;
-    final grandTotal = subtotal + deliveryFee + vat;
+    final user = await _localStorage.getUser();
+    emit(state.copyWith(isLoggedIn: user != null));
+
+    try {
+      final charges = await _getPlatformChargesUseCase();
+      _deliveryFeeAmount = charges.deliveryFeeMinor / 100.0;
+      _platformCommissionBps = charges.platformCommissionBps;
+      _defaultVatBps = charges.defaultVatBps;
+      _serviceFeeMinor = charges.serviceFeeMinor;
+    } catch (_) {
+      // Fallback values if API fails
+      _deliveryFeeAmount = 1500.0;
+      _platformCommissionBps = 1000;
+    }
+
+    _updateTotals(cart.subtotal, state.selectedMode);
+
+    final pendingReorder = _pendingReorderHolder.consume();
+    if (pendingReorder != null) prePopulateFromReorder(pendingReorder);
+
+    await loadSuggestions(cart);
+  }
+
+  void _updateTotals(double subtotal, DeliveryMode mode) {
+    final isDelivery = mode == DeliveryMode.delivery;
+    final deliveryFee = isDelivery ? _deliveryFeeAmount : 0.0;
+    final serviceFee = _serviceFeeMinor / 100.0;
+
+    // platformCommission = (platformCommissionBps / 10000) * subtotal
+    final platformCommission = (subtotal * _platformCommissionBps / 10000);
+
+    // vat = (defaultVatBps / 10000) * subtotal
+    final vat = (subtotal * _defaultVatBps / 10000);
+
+    final grandTotal =
+        subtotal + deliveryFee + serviceFee + vat + platformCommission;
 
     emit(
       state.copyWith(
         subtotal: subtotal,
         deliveryFee: deliveryFee,
         vat: vat,
+        platformCommission: platformCommission,
         grandTotal: grandTotal,
       ),
     );
-
-    final user = await _localStorage.getUser();
-    emit(state.copyWith(isLoggedIn: user != null));
-
-    final pendingReorder = _pendingReorderHolder.consume();
-    if (pendingReorder != null) prePopulateFromReorder(pendingReorder);
-
-    await loadSuggestions(cart);
   }
 
   /// Fills mode/address/coordinates from a previous order right as checkout
@@ -72,22 +104,17 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     final mode = reorder.deliveryMode == 'TAKEOUT'
         ? DeliveryMode.takeout
         : DeliveryMode.delivery;
-    final deliveryFee = mode == DeliveryMode.delivery
-        ? _deliveryFeeAmount
-        : 0.0;
-    final grandTotal = state.subtotal + deliveryFee + state.vat;
+
+    emit(state.copyWith(selectedMode: mode, isPrePopulated: true));
+    _updateTotals(state.subtotal, mode);
 
     emit(
       state.copyWith(
-        selectedMode: mode,
-        deliveryFee: deliveryFee,
-        grandTotal: grandTotal,
         deliveryAddress: reorder.deliveryAddress,
         currentLatitude: reorder.deliveryLatitude,
         currentLongitude: reorder.deliveryLongitude,
         addressVerified: true,
         addressOutOfZone: false,
-        isPrePopulated: true,
       ),
     );
   }
@@ -127,18 +154,13 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   }
 
   void switchMode(DeliveryMode mode) {
-    final deliveryFee = mode == DeliveryMode.delivery
-        ? _deliveryFeeAmount
-        : 0.0;
-    final grandTotal = state.subtotal + deliveryFee + state.vat;
     emit(
       state.copyWith(
         selectedMode: mode,
-        deliveryFee: deliveryFee,
-        grandTotal: grandTotal,
         isPrePopulated: false,
       ),
     );
+    _updateTotals(state.subtotal, mode);
   }
 
   /// Called on every keystroke in the delivery address field. Updates the

@@ -7,6 +7,11 @@ class ProfileState {
   final bool isUploadingAvatar;
   final bool requiresOtpVerification;
   final int otpExpiresInSeconds;
+  final bool isDeactivating;
+
+  /// The deactivate call succeeded — the screen reacts by running the full
+  /// logout flow.
+  final bool deactivated;
   final String? error;
 
   const ProfileState({
@@ -16,6 +21,8 @@ class ProfileState {
     this.isUploadingAvatar = false,
     this.requiresOtpVerification = false,
     this.otpExpiresInSeconds = 0,
+    this.isDeactivating = false,
+    this.deactivated = false,
     this.error,
   });
 
@@ -28,6 +35,8 @@ class ProfileState {
     bool? isUploadingAvatar,
     bool? requiresOtpVerification,
     int? otpExpiresInSeconds,
+    bool? isDeactivating,
+    bool? deactivated,
     String? error,
   }) {
     return ProfileState(
@@ -38,6 +47,8 @@ class ProfileState {
       requiresOtpVerification:
           requiresOtpVerification ?? this.requiresOtpVerification,
       otpExpiresInSeconds: otpExpiresInSeconds ?? this.otpExpiresInSeconds,
+      isDeactivating: isDeactivating ?? this.isDeactivating,
+      deactivated: deactivated ?? this.deactivated,
       error: error,
     );
   }

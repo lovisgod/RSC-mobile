@@ -21,6 +21,7 @@ abstract class ProfileRemoteDataSource {
   Future<ProfileModel> verifyProfileChange(
     VerifyProfileChangeRequestModel request,
   );
+  Future<void> deactivateAccount();
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
@@ -100,6 +101,15 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       // it's excluded from SessionInterceptor, so it still needs its own
       // 401 mapping here.
       throw _mapError(e, unauthorizedMessage: AppStrings.invalidOrExpiredCode);
+    }
+  }
+
+  @override
+  Future<void> deactivateAccount() async {
+    try {
+      await _client.dio.post(ApiConstants.deactivateAccount);
+    } on DioException catch (e) {
+      throw _mapError(e);
     }
   }
 

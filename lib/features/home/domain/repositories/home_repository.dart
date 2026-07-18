@@ -22,4 +22,9 @@ abstract class HomeRepository {
   /// Forces a re-fetch of the outlets payload, bypassing the in-memory cache.
   /// Call on pull-to-refresh.
   Future<List<Outlet>> refreshOutlets();
+
+  /// Patches the cached outlet's online status in place, so search results
+  /// and outlet-detail screens reflect an `outlet:status_update` socket
+  /// event immediately without a re-fetch.
+  void updateOutletOnlineStatus(String outletId, bool isOnline);
 }

@@ -243,51 +243,59 @@ class _NotificationBellButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(RouteNames.notifications),
-      child: SizedBox(
-        width: 28,
-        height: 28,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const Center(
-              child: Icon(
-                Icons.notifications_outlined,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-            BlocBuilder<NotificationsCubit, NotificationsState>(
-              builder: (context, state) {
-                final unreadCount = state.unreadCount;
-                if (unreadCount == 0) return const SizedBox.shrink();
-                return Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      unreadCount > 9 ? '9+' : '$unreadCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+    return BlocBuilder<ShellBloc, ShellState>(
+      builder: (context, shellState) {
+        // Guests have no notifications endpoint access — remove the bell
+        // from the layout entirely so no badge or API call can happen.
+        if (!shellState.isAuthenticated) return const SizedBox.shrink();
+
+        return GestureDetector(
+          onTap: () => context.push(RouteNames.notifications),
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 24,
                   ),
-                );
-              },
+                ),
+                BlocBuilder<NotificationsCubit, NotificationsState>(
+                  builder: (context, state) {
+                    final unreadCount = state.unreadCount;
+                    if (unreadCount == 0) return const SizedBox.shrink();
+                    return Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

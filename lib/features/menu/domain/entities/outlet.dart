@@ -42,4 +42,21 @@ class Outlet {
     required this.minOrder,
     this.isFeatured = false,
   });
+
+  Outlet copyWith({bool? isOnline}) => Outlet(
+    id: id,
+    name: name,
+    description: description,
+    cuisineType: cuisineType,
+    imageUrl: imageUrl,
+    isOnline: isOnline ?? this.isOnline,
+    ratingAverage: ratingAverage,
+    ratingCount: ratingCount,
+    deliveryRadiusKm: deliveryRadiusKm,
+    latitude: latitude,
+    longitude: longitude,
+    deliveryTimeRange: deliveryTimeRange,
+    minOrder: minOrder,
+    isFeatured: isFeatured,
+  );
 }

@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
@@ -88,7 +90,6 @@ class _TrackScreenState extends State<TrackScreen>
             order: order,
             outlets: state.outlets,
             orderEvents: state.orderEvents,
-            lastRefreshedAt: state.lastRefreshedAt,
             riderController: _riderController,
             pulseAnimation: _pulseAnimation,
             riderInfo: state.riderInfo,
@@ -128,6 +129,11 @@ class _TrackScreenState extends State<TrackScreen>
                         color: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: _SocketStatusIndicator(),
+                    ),
                   ],
                 ),
               ),
@@ -164,6 +170,37 @@ class _TrackScreenState extends State<TrackScreen>
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+// ── Socket status indicator ──────────────────────────────────────────────────
+
+class _SocketStatusIndicator extends StatelessWidget {
+  const _SocketStatusIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: getIt<SocketService>().isConnectedNotifier,
+      builder: (context, isConnected, _) {
+        final color = isConnected ? AppColors.success : AppColors.textHint;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              isConnected ? AppStrings.live : AppStrings.reconnecting,
+              style: TextStyle(fontSize: 10, color: color),
+            ),
+          ],
         );
       },
     );
@@ -258,7 +295,6 @@ class _ActiveOrderBody extends StatelessWidget {
     required this.order,
     required this.outlets,
     required this.orderEvents,
-    required this.lastRefreshedAt,
     required this.riderController,
     required this.pulseAnimation,
     required this.riderInfo,
@@ -268,7 +304,6 @@ class _ActiveOrderBody extends StatelessWidget {
   final OrderHistoryEntity order;
   final List<Outlet> outlets;
   final List<OrderEventEntity> orderEvents;
-  final DateTime? lastRefreshedAt;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
   final RiderInfoEntity? riderInfo;
@@ -284,11 +319,7 @@ class _ActiveOrderBody extends StatelessWidget {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: _EtaCard(
-          order: order,
-          pulseAnimation: pulseAnimation,
-          lastRefreshedAt: lastRefreshedAt,
-        ),
+        child: _EtaCard(order: order, pulseAnimation: pulseAnimation),
       );
     }
 
@@ -300,11 +331,7 @@ class _ActiveOrderBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _EtaCard(
-            order: order,
-            pulseAnimation: pulseAnimation,
-            lastRefreshedAt: lastRefreshedAt,
-          ),
+          _EtaCard(order: order, pulseAnimation: pulseAnimation),
           const SizedBox(height: 16),
 
           // Rider route widget — animated in when out for delivery.
@@ -403,7 +430,14 @@ class _StatusDisplay {
 }
 
 _StatusDisplay _getStatusDisplay(String status) {
-  switch (status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING_PAYMENT':
+      return const _StatusDisplay(
+        title: AppStrings.statusPendingPayment,
+        subtitle: AppStrings.completePaymentToConfirm,
+        titleColor: AppColors.warning,
+        pulsing: true,
+      );
     case 'PENDING':
       return const _StatusDisplay(
         title: AppStrings.etaProcessing,
@@ -462,24 +496,10 @@ _StatusDisplay _getStatusDisplay(String status) {
 }
 
 class _EtaCard extends StatelessWidget {
-  const _EtaCard({
-    required this.order,
-    required this.pulseAnimation,
-    required this.lastRefreshedAt,
-  });
+  const _EtaCard({required this.order, required this.pulseAnimation});
 
   final OrderHistoryEntity order;
   final Animation<double> pulseAnimation;
-  final DateTime? lastRefreshedAt;
-
-  String get _lastRefreshedLabel {
-    final at = lastRefreshedAt;
-    if (at == null) return '';
-    final mins = DateTime.now().difference(at).inMinutes;
-    return mins < 1
-        ? AppStrings.updatedJustNow
-        : AppStrings.updatedMinsAgo(mins);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -516,16 +536,6 @@ class _EtaCard extends StatelessWidget {
           if (display.showConfetti) ...[
             const SizedBox(height: 8),
             Image.asset(AppAssets.imgConfetti, height: 32),
-          ],
-          if (lastRefreshedAt != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                _lastRefreshedLabel,
-                style: const TextStyle(fontSize: 10, color: AppColors.textHint),
-              ),
-            ),
           ],
         ],
       ),

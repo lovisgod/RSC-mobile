@@ -71,6 +71,18 @@ class SessionInterceptor extends Interceptor {
   }
 
   Future<void> _handleExpiry() async {
+    // A 401 with no stored user is a guest hitting an authenticated endpoint,
+    // not an expired session — nothing to clear, nothing to tell the user.
+    final userId = await localStorage.getUserId();
+    if (userId == null) {
+      debugPrint(
+        '[RSC] 401 received but no user session exists — '
+        'skipping expiry handler',
+      );
+      _isHandlingExpiry = false;
+      return;
+    }
+
     try {
       try {
         await cookieJar.deleteAll();

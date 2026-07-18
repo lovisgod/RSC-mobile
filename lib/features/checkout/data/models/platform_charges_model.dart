@@ -1,3 +1,5 @@
+import '../../domain/entities/platform_charges_entity.dart';
+
 class PlatformChargesModel {
   final int platformCommissionBps;
   final int defaultVatBps;
@@ -23,4 +25,12 @@ class PlatformChargesModel {
       currency: data['currency'] ?? 'NGN',
     );
   }
+
+  PlatformChargesEntity toEntity() => PlatformChargesEntity(
+        platformCommissionBps: platformCommissionBps,
+        defaultVatBps: defaultVatBps,
+        deliveryFeeMinor: deliveryFeeMinor,
+        serviceFeeMinor: serviceFeeMinor,
+        currency: currency,
+      );
 }

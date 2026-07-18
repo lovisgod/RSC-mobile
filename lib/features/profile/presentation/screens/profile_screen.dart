@@ -7,6 +7,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -49,7 +50,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _addressCubit,
-      child: BlocBuilder<ProfileCubit, ProfileState>(
+      child: BlocConsumer<ProfileCubit, ProfileState>(
+        listenWhen: (prev, curr) =>
+            (!prev.deactivated && curr.deactivated) ||
+            (prev.isDeactivating && !curr.isDeactivating && curr.error != null),
+        listener: (context, state) {
+          if (state.deactivated) {
+            // SessionExpired runs the same cleanup as logout: cookies +
+            // storage here, cart clear + socket disconnect via the
+            // LogoutSuccess listener in app.dart.
+            context.read<AuthBloc>().add(const SessionExpired());
+            context.go(RouteNames.auth);
+            AppSnackbar.show(
+              context,
+              message: AppStrings.accountDeactivated,
+              emoji: '',
+              backgroundColor: AppColors.navy,
+            );
+          } else if (state.error != null) {
+            AppSnackbar.show(
+              context,
+              message: state.error!,
+              type: AppSnackbarType.error,
+            );
+          }
+        },
         builder: (context, state) {
           return Scaffold(
             backgroundColor: AppColors.background,
@@ -213,6 +238,8 @@ class _LoggedInBody extends StatelessWidget {
           const _OrderHistorySection(),
           const SizedBox(height: 20),
           const _LogoutButton(),
+          const SizedBox(height: 12),
+          const _DeactivateAccountButton(),
           const SizedBox(height: 32),
         ],
       ),
@@ -549,6 +576,67 @@ class _LogoutButton extends StatelessWidget {
         value: context.read<AuthBloc>(),
         child: const _LogoutConfirmSheet(),
       ),
+    );
+  }
+}
+
+// ── Deactivate account ────────────────────────────────────────────────────────
+
+class _DeactivateAccountButton extends StatelessWidget {
+  const _DeactivateAccountButton();
+
+  void _confirmDeactivation(BuildContext context) {
+    final profileCubit = context.read<ProfileCubit>();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.deactivateConfirmTitle),
+        content: const Text(AppStrings.deactivateConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(
+              AppStrings.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              profileCubit.deactivateAccount();
+            },
+            child: const Text(
+              AppStrings.deactivate,
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        return Center(
+          child: TextButton(
+            onPressed: state.isDeactivating
+                ? null
+                : () => _confirmDeactivation(context),
+            child: Text(
+              AppStrings.deactivateAccount,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.error.withValues(
+                  alpha: state.isDeactivating ? 0.5 : 1,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

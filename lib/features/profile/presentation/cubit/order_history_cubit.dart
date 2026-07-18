@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../data/models/reorder_response_model.dart';
+import '../../domain/entities/order_history_entity.dart';
 import '../../domain/usecases/get_order_by_id_usecase.dart';
 import '../../domain/usecases/get_orders_usecase.dart';
 import '../../domain/usecases/reorder_usecase.dart';
@@ -23,7 +24,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       final orders = await _getOrdersUseCase();
-      emit(state.copyWith(orders: orders, isLoading: false));
+      emit(state.copyWith(orders: _sortForDisplay(orders), isLoading: false));
     } on AuthException catch (e) {
       emit(state.copyWith(orders: [], isLoading: false, error: e.message));
     } catch (_) {
@@ -34,6 +35,22 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         ),
       );
     }
+  }
+
+  /// PENDING_PAYMENT orders first (they need immediate user action), then
+  /// active orders, then completed ones — newest first within each group.
+  List<OrderHistoryEntity> _sortForDisplay(List<OrderHistoryEntity> orders) {
+    int rank(OrderHistoryEntity o) {
+      if (o.isPendingPayment) return 0;
+      if (o.isActive) return 1;
+      return 2;
+    }
+
+    return [...orders]..sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
+      return b.createdAt.compareTo(a.createdAt);
+    });
   }
 
   Future<void> loadOrderDetail(String orderId) async {

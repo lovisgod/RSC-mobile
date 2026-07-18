@@ -11,6 +11,7 @@ class LineItemModel {
   final double unitPrice;
   final int quantity;
   final double lineTotal;
+  final String? customerNote;
   final List<ModifierSnapshotModel> modifiersSnapshot;
 
   const LineItemModel({
@@ -23,6 +24,7 @@ class LineItemModel {
     required this.unitPrice,
     required this.quantity,
     required this.lineTotal,
+    this.customerNote,
     required this.modifiersSnapshot,
   });
 
@@ -37,6 +39,7 @@ class LineItemModel {
       unitPrice: ((json['unitPriceMinor'] as num?) ?? 0) / 100,
       quantity: json['quantity'] as int? ?? 0,
       lineTotal: ((json['lineTotalMinor'] as num?) ?? 0) / 100,
+      customerNote: json['customerNote'] as String?,
       modifiersSnapshot: ((json['modifiersSnapshot'] as List?) ?? [])
           .whereType<Map<String, dynamic>>()
           .map(ModifierSnapshotModel.fromJson)
@@ -53,6 +56,7 @@ class LineItemModel {
     unitPrice: unitPrice,
     quantity: quantity,
     lineTotal: lineTotal,
+    customerNote: customerNote,
     modifiers: modifiersSnapshot.map((m) => m.toEntity()).toList(),
   );
 }

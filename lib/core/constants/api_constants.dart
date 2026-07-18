@@ -25,16 +25,35 @@ abstract final class ApiConstants {
 
   // Payments
   static const String initiatePayment = '/api/v1/payments/initiate';
+  static const String platformCharges = '/api/v1/payments/platform-charges';
+  static String verifyPayment(String reference) =>
+      '/api/v1/payments/verify/$reference';
+
+  /// `{orderId}` is substituted at call time (retry payment on an unpaid
+  /// order).
+  static const String retryPayment = '/api/v1/payments/orders/{orderId}/retry';
+
+  /// `{reference}` is substituted at call time.
+  static const String requestRefund =
+      '/api/v1/payments/{reference}/refund-request';
 
   // Orders
   static const String orders = '/api/v1/orders';
   static String orderById(String id) => '/api/v1/orders/$id';
   static String reorderPath(String id) => '/api/v1/orders/$id/reorder';
 
+  /// `{id}` is substituted at call time (REST fallback when the socket is
+  /// down).
+  static const String riderLocation = '/api/v1/orders/{id}/rider-location';
+
+  // Menu item rating — `{id}` is substituted at call time.
+  static const String rateMenuItem = '/api/v1/menu-items/{id}/rating';
+
   // Profile
   static const String profile = '/api/v1/profile';
   static const String userMe = '/api/v1/users/me';
   static const String uploadAvatar = '/api/v1/users/me/avatar';
+  static const String deactivateAccount = '/api/v1/users/me/deactivate';
   static const String verifyProfileChange = '/api/v1/users/me/verify-change';
 
   // Delivery addresses

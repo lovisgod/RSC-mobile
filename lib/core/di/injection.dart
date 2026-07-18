@@ -19,25 +19,35 @@ import '../../features/checkout/domain/repositories/preparation_suggestions_repo
 import '../../features/checkout/domain/services/pending_reorder_holder.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
 import '../../features/checkout/domain/usecases/get_preparation_suggestions_usecase.dart';
+import '../../features/checkout/domain/usecases/get_platform_charges_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
+import '../../features/checkout/domain/usecases/retry_payment_usecase.dart';
 import '../../features/checkout/domain/usecases/validate_address_usecase.dart';
+import '../../features/checkout/domain/usecases/verify_payment_usecase.dart';
 import '../../features/checkout/presentation/cubit/checkout_cubit.dart';
 import '../../features/checkout/presentation/cubit/payment_cubit.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
 import '../../features/profile/data/repositories/address_repository_impl.dart';
 import '../../features/profile/data/repositories/order_repository_impl.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/data/repositories/rating_repository_impl.dart';
+import '../../features/profile/data/repositories/refund_repository_impl.dart';
 import '../../features/profile/domain/repositories/address_repository.dart';
 import '../../features/profile/domain/repositories/order_repository.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/domain/repositories/rating_repository.dart';
+import '../../features/profile/domain/repositories/refund_repository.dart';
 import '../../features/profile/domain/usecases/create_address_usecase.dart';
+import '../../features/profile/domain/usecases/deactivate_account_usecase.dart';
 import '../../features/profile/domain/usecases/delete_address_usecase.dart';
 import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
 import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
 import '../../features/profile/domain/usecases/get_orders_usecase.dart';
 import '../../features/profile/domain/usecases/get_profile_usecase.dart';
 import '../../features/profile/domain/usecases/get_reorder_details_usecase.dart';
+import '../../features/profile/domain/usecases/rate_menu_item_usecase.dart';
 import '../../features/profile/domain/usecases/reorder_usecase.dart';
+import '../../features/profile/domain/usecases/request_refund_usecase.dart';
 import '../../features/profile/domain/usecases/set_default_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_address_usecase.dart';
 import '../../features/profile/domain/usecases/update_profile_usecase.dart';
@@ -46,6 +56,8 @@ import '../../features/profile/domain/usecases/verify_profile_change_usecase.dar
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
+import '../../features/profile/presentation/cubit/rating_cubit.dart';
+import '../../features/track/domain/usecases/get_rider_location_usecase.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
 import '../../features/home/data/repositories/home_repository_impl.dart';
 import '../../features/search/data/repositories/search_repository_impl.dart';
@@ -83,6 +95,7 @@ import '../network/session_interceptor.dart';
 import '../router/app_router.dart';
 import '../services/address_service.dart';
 import '../services/notification_service.dart';
+import '../services/socket_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
 
@@ -131,8 +144,11 @@ Future<void> configureDependencies() async {
 
   // ── Push notifications ──────────────────────────────────────────────────────
   getIt.registerLazySingleton<NotificationService>(
-    () => NotificationService(getIt<DioClient>()),
+    () => NotificationService(getIt<DioClient>(), getIt<LocalStorage>()),
   );
+
+  // ── Realtime socket ──────────────────────────────────────────────────────────
+  getIt.registerSingleton<SocketService>(SocketService());
 
   // ── Auth data layer ────────────────────────────────────────────────────────
   getIt
@@ -189,6 +205,32 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<VerifyProfileChangeUseCase>(
       () => VerifyProfileChangeUseCase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<DeactivateAccountUsecase>(
+      () => DeactivateAccountUsecase(getIt<ProfileRepository>()),
+    );
+
+  // ── Menu item ratings ──────────────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<RatingRepository>(
+      () => RatingRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<RateMenuItemUsecase>(
+      () => RateMenuItemUsecase(getIt<RatingRepository>()),
+    )
+    // Singleton — ratedItemIds must survive across screens for the whole
+    // session so an item is never rated twice.
+    ..registerLazySingleton<RatingCubit>(
+      () => RatingCubit(getIt<RateMenuItemUsecase>()),
+    );
+
+  // ── Refund requests ────────────────────────────────────────────────────────
+  getIt
+    ..registerLazySingleton<RefundRepository>(
+      () => RefundRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<RequestRefundUsecase>(
+      () => RequestRefundUsecase(getIt<RefundRepository>()),
     );
 
   // ── Address validation (backend delivery-zone check) ────────────────────────
@@ -261,6 +303,7 @@ Future<void> configureDependencies() async {
         getIt<UploadAvatarUseCase>(),
         getIt<UpdateProfileUseCase>(),
         getIt<VerifyProfileChangeUseCase>(),
+        getIt<DeactivateAccountUsecase>(),
       ),
     );
 
@@ -278,7 +321,11 @@ Future<void> configureDependencies() async {
       () => GetOutletMenuUseCase(getIt<HomeRepository>()),
     )
     ..registerLazySingleton<HomeBloc>(
-      () => HomeBloc(getIt<GetOutletsUseCase>()),
+      () => HomeBloc(
+        getIt<GetOutletsUseCase>(),
+        getIt<HomeRepository>(),
+        getIt<SocketService>(),
+      ),
     )
     ..registerFactory<OutletDetailBloc>(
       () => OutletDetailBloc(getIt<GetOutletMenuUseCase>()),
@@ -338,13 +385,20 @@ Future<void> configureDependencies() async {
     );
 
   // ── Track feature ──────────────────────────────────────────────────────────
-  getIt.registerLazySingleton<TrackCubit>(
-    () => TrackCubit(
-      getIt<OrderHistoryCubit>(),
-      getIt<GetOrderByIdUseCase>(),
-      getIt<HomeRepository>(),
-    ),
-  );
+  getIt
+    ..registerLazySingleton<GetRiderLocationUsecase>(
+      () => GetRiderLocationUsecase(getIt<OrderRepository>()),
+    )
+    ..registerLazySingleton<TrackCubit>(
+      () => TrackCubit(
+        getIt<OrderHistoryCubit>(),
+        getIt<GetOrderByIdUseCase>(),
+        getIt<HomeRepository>(),
+        getIt<SocketService>(),
+        getIt<GetRiderLocationUsecase>(),
+        getIt<LocalStorage>(),
+      ),
+    );
 
   // ── Checkout feature ────────────────────────────────────────────────────────
   getIt
@@ -356,6 +410,15 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
+    )
+    ..registerLazySingleton<GetPlatformChargesUseCase>(
+      () => GetPlatformChargesUseCase(getIt<PaymentRepository>()),
+    )
+    ..registerLazySingleton<VerifyPaymentUseCase>(
+      () => VerifyPaymentUseCase(getIt<PaymentRepository>()),
+    )
+    ..registerLazySingleton<RetryPaymentUseCase>(
+      () => RetryPaymentUseCase(getIt<PaymentRepository>()),
     )
     ..registerLazySingleton<PreparationSuggestionsRepository>(
       () => PreparationSuggestionsRepositoryImpl(getIt<DioClient>()),
@@ -371,6 +434,7 @@ Future<void> configureDependencies() async {
         getIt<AddressService>(),
         getIt<ValidateAddressUseCase>(),
         getIt<GetPreparationSuggestionsUsecase>(),
+        getIt<GetPlatformChargesUseCase>(),
         getIt<PendingReorderHolder>(),
       ),
     )
@@ -378,6 +442,9 @@ Future<void> configureDependencies() async {
       () => PaymentCubit(
         getIt<BuildPaymentPayloadUseCase>(),
         getIt<InitiatePaymentUseCase>(),
+        getIt<GetPlatformChargesUseCase>(),
+        getIt<VerifyPaymentUseCase>(),
+        getIt<RetryPaymentUseCase>(),
       ),
     );
 
@@ -403,6 +470,7 @@ Future<void> configureDependencies() async {
       () => NotificationsCubit(
         getIt<GetNotificationsUseCase>(),
         getIt<MarkNotificationReadUseCase>(),
+        getIt<LocalStorage>(),
       ),
     )
     ..registerFactory<NotificationPreferencesCubit>(
