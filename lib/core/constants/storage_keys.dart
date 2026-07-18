@@ -5,4 +5,7 @@ abstract final class StorageKeys {
 
   // ─── Hive boxes ───────────────────────────────────────────────────────────
   static const String cartBox = 'cart_box';
+
+  // ─── Pending rating prompts (one key per delivered order) ─────────────────
+  static const String pendingRatingPrefix = 'pending_rating_';
 }

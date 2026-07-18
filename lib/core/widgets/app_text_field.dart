@@ -20,6 +20,8 @@ class AppTextField extends StatelessWidget {
     this.inputFormatters,
     this.autocorrect = false,
     this.enableSuggestions = false,
+    this.maxLines = 1,
+    this.minLines,
   });
 
   final TextEditingController controller;
@@ -36,6 +38,8 @@ class AppTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final bool autocorrect;
   final bool enableSuggestions;
+  final int maxLines;
+  final int? minLines;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +54,8 @@ class AppTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       autocorrect: autocorrect,
       enableSuggestions: enableSuggestions,
+      maxLines: maxLines,
+      minLines: minLines,
       style: const TextStyle(
         fontSize: 14,
         color: AppColors.textPrimary,

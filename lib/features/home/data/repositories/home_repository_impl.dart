@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_constants.dart';
@@ -37,6 +38,12 @@ class HomeRepositoryImpl implements HomeRepository {
   Future<List<Outlet>> refreshOutlets() async {
     _cache = null;
     return getOutlets();
+  }
+
+  @override
+  void updateOutletOnlineStatus(String outletId, bool isOnline) {
+    final outlet = _cache?.firstWhereOrNull((o) => o.id == outletId);
+    outlet?.isOnline = isOnline;
   }
 
   @override

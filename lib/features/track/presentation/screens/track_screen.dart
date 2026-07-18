@@ -1,20 +1,24 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/line_item_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
 import '../../domain/entities/order_event_entity.dart';
-import '../../domain/entities/rider_summary.dart';
-import '../../domain/enums/order_tracking_status.dart';
+import '../../domain/entities/rider_info_entity.dart';
+import '../../domain/entities/rider_location_entity.dart';
 import '../cubit/track_cubit.dart';
 import '../cubit/track_state.dart';
 import '../widgets/order_timeline_widget.dart';
+import '../widgets/rider_avatar.dart';
 import '../widgets/rider_route_widget.dart';
 
 class TrackScreen extends StatefulWidget {
@@ -86,9 +90,10 @@ class _TrackScreenState extends State<TrackScreen>
             order: order,
             outlets: state.outlets,
             orderEvents: state.orderEvents,
-            lastRefreshedAt: state.lastRefreshedAt,
             riderController: _riderController,
             pulseAnimation: _pulseAnimation,
+            riderInfo: state.riderInfo,
+            riderLocation: state.riderLocation,
           );
         } else if (state.isLoading) {
           body = const _LoadingBody();
@@ -123,6 +128,11 @@ class _TrackScreenState extends State<TrackScreen>
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: _SocketStatusIndicator(),
                     ),
                   ],
                 ),
@@ -160,6 +170,37 @@ class _TrackScreenState extends State<TrackScreen>
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+// ── Socket status indicator ──────────────────────────────────────────────────
+
+class _SocketStatusIndicator extends StatelessWidget {
+  const _SocketStatusIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: getIt<SocketService>().isConnectedNotifier,
+      builder: (context, isConnected, _) {
+        final color = isConnected ? AppColors.success : AppColors.textHint;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              isConnected ? AppStrings.live : AppStrings.reconnecting,
+              style: TextStyle(fontSize: 10, color: color),
+            ),
+          ],
         );
       },
     );
@@ -254,17 +295,19 @@ class _ActiveOrderBody extends StatelessWidget {
     required this.order,
     required this.outlets,
     required this.orderEvents,
-    required this.lastRefreshedAt,
     required this.riderController,
     required this.pulseAnimation,
+    required this.riderInfo,
+    required this.riderLocation,
   });
 
   final OrderHistoryEntity order;
   final List<Outlet> outlets;
   final List<OrderEventEntity> orderEvents;
-  final DateTime? lastRefreshedAt;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
+  final RiderInfoEntity? riderInfo;
+  final RiderLocationEntity? riderLocation;
 
   static const _riderStatuses = {'OUT_FOR_DELIVERY', 'DELIVERED'};
 
@@ -276,11 +319,7 @@ class _ActiveOrderBody extends StatelessWidget {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: _EtaCard(
-          order: order,
-          pulseAnimation: pulseAnimation,
-          lastRefreshedAt: lastRefreshedAt,
-        ),
+        child: _EtaCard(order: order, pulseAnimation: pulseAnimation),
       );
     }
 
@@ -292,11 +331,7 @@ class _ActiveOrderBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _EtaCard(
-            order: order,
-            pulseAnimation: pulseAnimation,
-            lastRefreshedAt: lastRefreshedAt,
-          ),
+          _EtaCard(order: order, pulseAnimation: pulseAnimation),
           const SizedBox(height: 16),
 
           // Rider route widget — animated in when out for delivery.
@@ -316,8 +351,10 @@ class _ActiveOrderBody extends StatelessWidget {
                 ? AnimatedBuilder(
                     key: const ValueKey('route'),
                     animation: riderController,
-                    builder: (_, child) =>
-                        RiderRouteWidget(progress: riderController.value),
+                    builder: (_, child) => RiderRouteWidget(
+                      progress: riderController.value,
+                      hasLiveLocation: riderLocation != null,
+                    ),
                   )
                 : const SizedBox(key: ValueKey('no-route')),
           ),
@@ -355,11 +392,14 @@ class _ActiveOrderBody extends StatelessWidget {
                 child: child,
               ),
             ),
-            child: hasRider
+            child: riderInfo != null
                 ? Padding(
                     key: const ValueKey('rider'),
                     padding: const EdgeInsets.only(top: 24),
-                    child: _RiderSection(rider: _mockRiderFor(order.status)),
+                    child: _RiderCard(
+                      rider: riderInfo!,
+                      orderStatus: order.status,
+                    ),
                   )
                 : const SizedBox(key: ValueKey('no-rider')),
           ),
@@ -367,20 +407,6 @@ class _ActiveOrderBody extends StatelessWidget {
       ),
     );
   }
-}
-
-// TODO: Replace with real rider data once the backend populates
-// latestRiderLocation on the order — there is no rider entity on the API yet.
-RiderSummary _mockRiderFor(String status) {
-  final activeStatus = status == 'DELIVERED'
-      ? RiderActiveStatus.delivered
-      : RiderActiveStatus.pickedUp;
-  return RiderSummary(
-    name: 'Emeka Chukwu',
-    rating: 4.95,
-    partnerType: 'In-House Partner',
-    activeStatus: activeStatus,
-  );
 }
 
 // ── ETA Card ──────────────────────────────────────────────────────────────────
@@ -404,7 +430,14 @@ class _StatusDisplay {
 }
 
 _StatusDisplay _getStatusDisplay(String status) {
-  switch (status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING_PAYMENT':
+      return const _StatusDisplay(
+        title: AppStrings.statusPendingPayment,
+        subtitle: AppStrings.completePaymentToConfirm,
+        titleColor: AppColors.warning,
+        pulsing: true,
+      );
     case 'PENDING':
       return const _StatusDisplay(
         title: AppStrings.etaProcessing,
@@ -463,24 +496,10 @@ _StatusDisplay _getStatusDisplay(String status) {
 }
 
 class _EtaCard extends StatelessWidget {
-  const _EtaCard({
-    required this.order,
-    required this.pulseAnimation,
-    required this.lastRefreshedAt,
-  });
+  const _EtaCard({required this.order, required this.pulseAnimation});
 
   final OrderHistoryEntity order;
   final Animation<double> pulseAnimation;
-  final DateTime? lastRefreshedAt;
-
-  String get _lastRefreshedLabel {
-    final at = lastRefreshedAt;
-    if (at == null) return '';
-    final mins = DateTime.now().difference(at).inMinutes;
-    return mins < 1
-        ? AppStrings.updatedJustNow
-        : AppStrings.updatedMinsAgo(mins);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -517,16 +536,6 @@ class _EtaCard extends StatelessWidget {
           if (display.showConfetti) ...[
             const SizedBox(height: 8),
             Image.asset(AppAssets.imgConfetti, height: 32),
-          ],
-          if (lastRefreshedAt != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                _lastRefreshedLabel,
-                style: const TextStyle(fontSize: 10, color: AppColors.textHint),
-              ),
-            ),
           ],
         ],
       ),
@@ -792,80 +801,156 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(_DashedBorderPainter old) => old.color != color;
 }
 
-// ── Rider section ─────────────────────────────────────────────────────────────
+// ── Rider card ─────────────────────────────────────────────────────────────────
 
-class _RiderSection extends StatelessWidget {
-  const _RiderSection({required this.rider});
+class _RiderCard extends StatelessWidget {
+  const _RiderCard({required this.rider, required this.orderStatus});
 
-  final RiderSummary rider;
+  final RiderInfoEntity rider;
+  final String orderStatus;
 
-  String get _statusLabel {
-    switch (rider.activeStatus) {
-      case RiderActiveStatus.assigned:
+  String? get _statusLabel {
+    switch (orderStatus) {
+      case 'READY':
         return AppStrings.riderStatusAssigned;
-      case RiderActiveStatus.pickedUp:
+      case 'OUT_FOR_DELIVERY':
         return AppStrings.riderStatusPickedUp;
-      case RiderActiveStatus.delivered:
+      case 'DELIVERED':
         return AppStrings.riderStatusDelivered;
+      default:
+        return null;
     }
   }
 
-  Color get _statusColor {
-    switch (rider.activeStatus) {
-      case RiderActiveStatus.delivered:
-        return AppColors.success;
-      case RiderActiveStatus.assigned:
-      case RiderActiveStatus.pickedUp:
-        return AppColors.primary;
+  Color get _statusColor =>
+      orderStatus == 'DELIVERED' ? AppColors.success : AppColors.primary;
+
+  Future<void> _callRider() async {
+    final uri = Uri.parse('tel:${rider.displayPhone}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+    final statusLabel = _statusLabel;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🏍️', style: TextStyle(fontSize: 22)),
-          const SizedBox(height: 4),
-          Text(
-            rider.name,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '⭐ ${rider.rating} · ${rider.partnerType}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 14),
-              children: [
-                const TextSpan(
-                  text: AppStrings.riderActiveStatusPrefix,
-                  style: TextStyle(color: AppColors.textSecondary),
+          // Row 1 — avatar + name/vehicle
+          Row(
+            children: [
+              RiderAvatar(
+                initials: rider.initials,
+                avatarUrl: rider.avatarUrl,
+                size: 44,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rider.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      rider.displayVehicle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                TextSpan(
-                  text: _statusLabel,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: _statusColor,
+              ),
+            ],
+          ),
+
+          // Row 2 — active status
+          if (statusLabel != null) ...[
+            const SizedBox(height: 10),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13),
+                children: [
+                  const TextSpan(
+                    text: AppStrings.riderActiveStatusPrefix,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  TextSpan(
+                    text: statusLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: _statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: 12),
+
+          // Row 3 — call button
+          Row(
+            children: [
+              const Icon(Icons.call, size: 16, color: AppColors.navy),
+              const SizedBox(width: 6),
+              Text(
+                rider.displayPhone,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.navy,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: _callRider,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    AppStrings.call,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          const Text('📞', style: TextStyle(fontSize: 20)),
         ],
       ),
     );

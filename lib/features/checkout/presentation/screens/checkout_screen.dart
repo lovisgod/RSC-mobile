@@ -1,31 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/models/nominatim_result.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/loading_overlay.dart';
+import '../../../../core/widgets/overlay_address_field.dart';
+import '../../../../core/widgets/shimmer_box.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
-import '../../../profile/presentation/cubit/order_history_cubit.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_event.dart';
-import '../../../track/presentation/cubit/track_cubit.dart';
+import '../../data/models/address_suggestion_model.dart';
+import '../../data/models/initiate_payment_response_model.dart';
+import '../../domain/entities/preparation_suggestion_entity.dart';
 import '../../domain/enums/delivery_mode.dart';
 import '../cubit/checkout_cubit.dart';
 import '../cubit/checkout_state.dart';
 import '../cubit/payment_cubit.dart';
 import '../cubit/payment_state.dart';
-import '../widgets/address_suggestions_dropdown.dart';
-import '../widgets/moment_payment_sheet.dart';
+import '../widgets/suggestion_chip.dart';
+import 'payment_webview_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key, required this.cart});
@@ -38,8 +40,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _deliveryAddressCtrl = TextEditingController();
-  final _recipientAddressCtrl = TextEditingController();
-  final _recipientNameCtrl = TextEditingController();
+  final _recipientPhoneCtrl = TextEditingController();
   final _prepInstructionsCtrl = TextEditingController();
 
   @override
@@ -52,8 +53,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _deliveryAddressCtrl.dispose();
-    _recipientAddressCtrl.dispose();
-    _recipientNameCtrl.dispose();
+    _recipientPhoneCtrl.dispose();
     _prepInstructionsCtrl.dispose();
     super.dispose();
   }
@@ -63,19 +63,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (defaultAddress == null) return;
 
     context.read<CheckoutCubit>().useDefaultAddress(defaultAddress);
-    _deliveryAddressCtrl.text = defaultAddress.displayAddress;
+  }
+
+  void _selectAddress(AddressSuggestionModel suggestion) {
+    context.read<CheckoutCubit>().selectAddress(suggestion);
+    FocusScope.of(context).unfocus();
+  }
+
+  void _syncAddressController(String address) {
+    if (_deliveryAddressCtrl.text == address) return;
+    _deliveryAddressCtrl.text = address;
     _deliveryAddressCtrl.selection = TextSelection.fromPosition(
       TextPosition(offset: _deliveryAddressCtrl.text.length),
     );
   }
 
-  void _selectAddress(NominatimResult result) {
-    context.read<CheckoutCubit>().selectAddress(result);
-    _deliveryAddressCtrl.text = result.shortAddress;
-    _deliveryAddressCtrl.selection = TextSelection.fromPosition(
-      TextPosition(offset: _deliveryAddressCtrl.text.length),
-    );
-    FocusScope.of(context).unfocus();
+  void _onCheckoutState(BuildContext context, CheckoutState state) {
+    _syncAddressController(state.deliveryAddress);
+    if (state.addressResolveError != null) {
+      AppSnackbar.show(
+        context,
+        message: state.addressResolveError!,
+        type: AppSnackbarType.error,
+      );
+      context.read<CheckoutCubit>().consumeAddressResolveError();
+    }
   }
 
   void _clearAddress() {
@@ -88,82 +100,101 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     FocusScope.of(context).unfocus();
   }
 
+  void _appendPreparationSuggestion(String text) {
+    final existing = _prepInstructionsCtrl.text;
+    final newText = existing.isEmpty ? text : '$existing, $text';
+    _prepInstructionsCtrl.text = newText;
+    _prepInstructionsCtrl.selection = TextSelection.fromPosition(
+      TextPosition(offset: _prepInstructionsCtrl.text.length),
+    );
+    context.read<CheckoutCubit>().updatePreparationInstructions(newText);
+  }
+
   /// Validation phase: kick off the backend initiate call. We do NOT open the
   /// Moment sheet here yet — that gets wired to the real payment UI in a
   /// follow-up once this call is confirmed end to end.
   void _onProceedToPayment() {
+    final checkoutCubit = context.read<CheckoutCubit>();
+    final validationError = checkoutCubit.validateBeforePayment();
+    if (validationError != null) {
+      AppSnackbar.show(
+        context,
+        message: validationError,
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
+
     final cart = context.read<CartCubit>().state.cart;
-    final checkoutState = context.read<CheckoutCubit>().state;
     context.read<PaymentCubit>().initiatePaymentWithBackend(
       cart,
-      checkoutState,
+      checkoutCubit.state,
     );
   }
 
   void _onPaymentState(BuildContext context, PaymentState state) {
-    if (state.status == PaymentStatus.failed) {
-      AppSnackbar.show(
-        context,
-        message: state.errorMessage ?? AppStrings.paymentFailed,
-        type: AppSnackbarType.error,
-      );
-      // Session expired → bounce back to home so the user can log in again.
-      if (state.isSessionExpired) context.go(RouteNames.home);
-      return;
-    }
-
-    if (state.status == PaymentStatus.initiated) {
-      _openMomentSheet(state);
+    switch (state.status) {
+      case PaymentStatus.failed:
+        AppSnackbar.show(
+          context,
+          message: state.errorMessage ?? AppStrings.paymentFailed,
+          type: AppSnackbarType.error,
+        );
+        // Session-expiry navigation/snackbar is handled globally by
+        // SessionInterceptor now.
+        break;
+      case PaymentStatus.initiated:
+        _handleRedirectPayment(context, state.initiateResult, state.reference);
+        break;
+      case PaymentStatus.success:
+        context.read<ShellBloc>().add(const ShellTabChanged(3));
+        context.pop();
+        break;
+      case PaymentStatus.cancelled:
+        AppSnackbar.show(
+          context,
+          message: AppStrings.paymentCancelled,
+          backgroundColor: AppColors.navy,
+        );
+        break;
+      default:
+        break;
     }
   }
 
-  /// Opens the Moment sheet using the same [PaymentCubit] instance that ran
-  /// the initiate call — never a fresh one — so the sheet's own processing
-  /// simulation shares state with the screen.
-  Future<void> _openMomentSheet(PaymentState paymentState) async {
-    final checkoutState = context.read<CheckoutCubit>().state;
+  /// Opens the hosted payment gateway (Moment Pay) checkout URL inside an
+  /// in-app WebView. The WebView screen intercepts the tracking redirect (or
+  /// a manual close) and reports back through [PaymentCubit.verifyPaymentResult].
+  void _handleRedirectPayment(
+    BuildContext context,
+    InitiatePaymentResponseModel? initiateResult,
+    String? reference,
+  ) {
+    final url = initiateResult?.checkoutUrl;
+    if (url == null || url.isEmpty || reference == null || reference.isEmpty) {
+      AppSnackbar.show(
+        context,
+        message: 'Payment checkout link is unavailable.',
+        type: AppSnackbarType.error,
+      );
+      return;
+    }
 
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider.value(
-        value: context.read<PaymentCubit>(),
-        child: MomentPaymentSheet(
-          amount: checkoutState.grandTotal,
-          reference: paymentState.initiateResult?.reference,
-          accessCode: paymentState.initiateResult?.accessCode,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<PaymentCubit>(),
+          child: PaymentWebViewScreen(checkoutUrl: url, reference: reference),
         ),
       ),
     );
-
-    if (result != 'success' || !mounted) return;
-
-    // Real order data (id, payment reference, delivery code, status) now
-    // comes from the backend — fetch it and let TrackCubit pick up whichever
-    // order is still active.
-    await getIt<OrderHistoryCubit>().loadOrders();
-    await getIt<TrackCubit>().loadActiveOrder();
-    if (!mounted) return;
-
-    context.read<CartCubit>().clearCart();
-    AppSnackbar.show(
-      context,
-      message: AppStrings.orderPlacedSuccessfully,
-      type: AppSnackbarType.success,
-    );
-    context.read<ShellBloc>().add(const ShellTabChanged(3));
-    context.pop();
   }
 
   void _toggleSomeoneElse(bool? value) {
     final checked = value ?? false;
     context.read<CheckoutCubit>().toggleOrderForSomeoneElse(checked);
     if (!checked) {
-      _recipientAddressCtrl.clear();
-      _recipientNameCtrl.clear();
+      _recipientPhoneCtrl.clear();
     }
   }
 
@@ -174,9 +205,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: _dismissSuggestions,
-        child: BlocListener<PaymentCubit, PaymentState>(
-          listenWhen: (prev, curr) => prev.status != curr.status,
-          listener: _onPaymentState,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<PaymentCubit, PaymentState>(
+              listenWhen: (prev, curr) => prev.status != curr.status,
+              listener: _onPaymentState,
+            ),
+            BlocListener<CheckoutCubit, CheckoutState>(
+              listenWhen: (prev, curr) =>
+                  prev.deliveryAddress != curr.deliveryAddress ||
+                  prev.addressResolveError != curr.addressResolveError,
+              listener: _onCheckoutState,
+            ),
+          ],
           child: Stack(
             children: [
               SafeArea(
@@ -202,6 +243,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   selectedMode: state.selectedMode,
                                   onChanged: cubit.switchMode,
                                 ),
+                                if (state.isPrePopulated) ...[
+                                  const SizedBox(height: 12),
+                                  const _ReorderBanner(),
+                                ],
                                 const SizedBox(height: 20),
 
                                 // ── Delivery address (delivery only) ───────────
@@ -212,40 +257,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     label: AppStrings.sectionDeliveryAddress,
                                   ),
                                   const SizedBox(height: 10),
-                                  Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      _DeliveryAddressCard(
-                                        state: state,
-                                        defaultAddress: defaultAddress,
-                                        addressCtrl: _deliveryAddressCtrl,
-                                        recipientAddressCtrl:
-                                            _recipientAddressCtrl,
-                                        recipientNameCtrl: _recipientNameCtrl,
-                                        onAddressChanged:
-                                            cubit.onAddressChanged,
-                                        onClearAddress: _clearAddress,
-                                        onUseDefault: _useDefaultAddress,
-                                        onToggleSomeoneElse: _toggleSomeoneElse,
-                                        onRecipientAddressChanged:
-                                            cubit.updateRecipientAddress,
-                                        onRecipientNameChanged:
-                                            cubit.updateRecipientName,
-                                      ),
-                                      if (state.showSuggestions)
-                                        Positioned(
-                                          top: 54,
-                                          left: 0,
-                                          right: 0,
-                                          child: AddressSuggestionsDropdown(
-                                            suggestions:
-                                                state.addressSuggestions,
-                                            isSearching:
-                                                state.isSearchingAddress,
-                                            onSelect: _selectAddress,
-                                          ),
-                                        ),
-                                    ],
+                                  _DeliveryAddressCard(
+                                    state: state,
+                                    defaultAddress: defaultAddress,
+                                    addressCtrl: _deliveryAddressCtrl,
+                                    recipientPhoneCtrl: _recipientPhoneCtrl,
+                                    onAddressChanged: cubit.onAddressChanged,
+                                    onSuggestionTapped: _selectAddress,
+                                    onClearAddress: _clearAddress,
+                                    onUseDefault: _useDefaultAddress,
+                                    onToggleSomeoneElse: _toggleSomeoneElse,
+                                    onRecipientPhoneChanged:
+                                        cubit.updateRecipientPhone,
                                   ),
                                   const SizedBox(height: 20),
                                 ],
@@ -257,12 +280,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       AppStrings.sectionPreparationInstructions,
                                 ),
                                 const SizedBox(height: 10),
+                                _SuggestionsRow(
+                                  suggestions: state.suggestions,
+                                  isLoading: state.isLoadingSuggestions,
+                                  onSuggestionTap: _appendPreparationSuggestion,
+                                ),
                                 TextField(
                                   controller: _prepInstructionsCtrl,
                                   minLines: 2,
                                   maxLines: 4,
-                                  onChanged:
-                                      cubit.updatePreparationInstructions,
+                                  onChanged: (value) {
+                                    cubit.updatePreparationInstructions(value);
+                                    cubit.filterSuggestions(value);
+                                  },
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: AppColors.textPrimary,
@@ -317,12 +347,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ],
                 ),
               ),
-              // Loading overlay while the initiate call is in flight.
-              BlocSelector<PaymentCubit, PaymentState, bool>(
-                selector: (state) => state.status == PaymentStatus.initiating,
-                builder: (_, isInitiating) => isInitiating
-                    ? const LoadingOverlay(label: AppStrings.initiatingPayment)
-                    : const SizedBox.shrink(),
+              // Loading overlay while the initiate/verify calls are in flight.
+              BlocSelector<PaymentCubit, PaymentState, PaymentStatus>(
+                selector: (state) => state.status,
+                builder: (_, status) => switch (status) {
+                  PaymentStatus.initiating => const LoadingOverlay(
+                    label: AppStrings.preparingPayment,
+                  ),
+                  PaymentStatus.verifying => const LoadingOverlay(
+                    label: AppStrings.verifyingPayment,
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
               ),
             ],
           ),
@@ -396,6 +432,63 @@ class _SectionHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Preparation suggestions row ───────────────────────────────────────────────
+
+class _SuggestionsRow extends StatelessWidget {
+  const _SuggestionsRow({
+    required this.suggestions,
+    required this.isLoading,
+    required this.onSuggestionTap,
+  });
+
+  final List<PreparationSuggestionEntity> suggestions;
+  final bool isLoading;
+  final ValueChanged<String> onSuggestionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(
+              3,
+              (index) => const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: ShimmerBox(width: 80, height: 32, radius: 99),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: suggestions
+              .map(
+                (suggestion) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SuggestionChip(
+                    text: suggestion.text,
+                    onTap: () => onSuggestionTap(suggestion.text),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 }
@@ -481,6 +574,28 @@ class _ToggleTab extends StatelessWidget {
   }
 }
 
+// ── Reorder banner ────────────────────────────────────────────────────────────
+
+class _ReorderBanner extends StatelessWidget {
+  const _ReorderBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF3FB),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Text(
+        AppStrings.reorderBanner,
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
 // ── Delivery address card ─────────────────────────────────────────────────────
 
 class _DeliveryAddressCard extends StatelessWidget {
@@ -488,27 +603,25 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.state,
     required this.defaultAddress,
     required this.addressCtrl,
-    required this.recipientAddressCtrl,
-    required this.recipientNameCtrl,
+    required this.recipientPhoneCtrl,
     required this.onAddressChanged,
+    required this.onSuggestionTapped,
     required this.onClearAddress,
     required this.onUseDefault,
     required this.onToggleSomeoneElse,
-    required this.onRecipientAddressChanged,
-    required this.onRecipientNameChanged,
+    required this.onRecipientPhoneChanged,
   });
 
   final CheckoutState state;
   final DeliveryAddressEntity? defaultAddress;
   final TextEditingController addressCtrl;
-  final TextEditingController recipientAddressCtrl;
-  final TextEditingController recipientNameCtrl;
+  final TextEditingController recipientPhoneCtrl;
   final ValueChanged<String> onAddressChanged;
+  final ValueChanged<AddressSuggestionModel> onSuggestionTapped;
   final VoidCallback onClearAddress;
   final VoidCallback onUseDefault;
   final ValueChanged<bool?> onToggleSomeoneElse;
-  final ValueChanged<String> onRecipientAddressChanged;
-  final ValueChanged<String> onRecipientNameChanged;
+  final ValueChanged<String> onRecipientPhoneChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -521,54 +634,16 @@ class _DeliveryAddressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Address row
-          Row(
-            children: [
-              const Text('🏠', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: addressCtrl,
-                  onChanged: onAddressChanged,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: AppStrings.searchAndSelectAddress,
-                    hintStyle: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textHint,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    suffixIcon: state.isSearchingAddress
-                        ? const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          )
-                        : (state.deliveryAddress.isNotEmpty
-                              ? GestureDetector(
-                                  onTap: onClearAddress,
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: AppColors.textHint,
-                                  ),
-                                )
-                              : null),
-                  ),
-                ),
-              ),
-            ],
+          // Address field
+          OverlayAddressField(
+            controller: addressCtrl,
+            hint: AppStrings.searchAndSelectAddress,
+            suggestions: state.addressSuggestions,
+            isSearching: state.isSearchingAddress,
+            isResolving: state.isValidatingAddress,
+            onChanged: onAddressChanged,
+            onSuggestionTapped: onSuggestionTapped,
+            onClear: onClearAddress,
           ),
           _AddressVerificationHint(state: state),
           const SizedBox(height: 12),
@@ -644,7 +719,7 @@ class _DeliveryAddressCard extends StatelessWidget {
                     children: [
                       const SizedBox(height: 14),
                       const Text(
-                        AppStrings.recipientInGeofenceAddress,
+                        AppStrings.recipientPhoneNumber,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -653,26 +728,15 @@ class _DeliveryAddressCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      _RecipientTextField(
-                        controller: recipientAddressCtrl,
-                        hint: AppStrings.recipientInGeofenceAddress,
-                        onChanged: onRecipientAddressChanged,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        AppStrings.recipientNameLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      _RecipientTextField(
-                        controller: recipientNameCtrl,
-                        hint: AppStrings.recipientNameLabel,
-                        onChanged: onRecipientNameChanged,
+                      AppTextField(
+                        controller: recipientPhoneCtrl,
+                        hint: AppStrings.recipientPhoneHint,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(11),
+                        ],
+                        onChanged: onRecipientPhoneChanged,
                       ),
                     ],
                   )
@@ -695,12 +759,45 @@ class _AddressVerificationHint extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.deliveryAddress.isEmpty) return const SizedBox.shrink();
 
-    if (state.addressVerified) {
+    if (state.isValidatingAddress) {
       return const Padding(
-        padding: EdgeInsets.only(top: 6),
+        padding: EdgeInsets.only(top: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              AppStrings.checkingDeliveryAvailability,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.addressOutOfZone) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: _OutOfZoneWarningCard(),
+      );
+    }
+
+    if (state.addressVerified) {
+      final zoneName = state.deliveryZoneName;
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
         child: Text(
-          AppStrings.addressVerified,
-          style: TextStyle(
+          zoneName != null
+              ? '${AppStrings.deliveringToZone} $zoneName'
+              : AppStrings.addressVerifiedSimple,
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.success,
@@ -727,47 +824,34 @@ class _AddressVerificationHint extends StatelessWidget {
   }
 }
 
-class _RecipientTextField extends StatelessWidget {
-  const _RecipientTextField({
-    required this.controller,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hint;
-  final ValueChanged<String> onChanged;
+class _OutOfZoneWarningCard extends StatelessWidget {
+  const _OutOfZoneWarningCard();
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(fontSize: 14, color: AppColors.textHint),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.inputBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: AppColors.inputBorderFocused,
-            width: 1.5,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.outsideDeliveryArea,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
           ),
-        ),
-        filled: true,
-        fillColor: AppColors.surface,
+          SizedBox(height: 2),
+          Text(
+            AppStrings.outsideDeliveryAreaMessage,
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }
@@ -802,6 +886,11 @@ class _PriceBreakdown extends StatelessWidget {
         _PriceRow(
           label: AppStrings.deliveryFeeLabel,
           value: formatNaira(state.deliveryFee),
+        ),
+        const SizedBox(height: 6),
+        _PriceRow(
+          label: 'Platform Commission',
+          value: formatNaira(state.platformCommission),
         ),
         const SizedBox(height: 6),
         _PriceRow(label: AppStrings.vatLabel, value: formatNaira(state.vat)),
@@ -880,9 +969,13 @@ class _ProceedButton extends StatelessWidget {
     final bool isActive = !formInvalid;
 
     String? hintText;
+    Color hintColor = AppColors.textSecondary;
     if (formInvalid && state.selectedMode == DeliveryMode.delivery) {
       if (state.isOrderingForSomeoneElse) {
         hintText = AppStrings.pleaseEnterDeliveryAddress;
+      } else if (state.addressOutOfZone) {
+        hintText = AppStrings.selectAddressInArea;
+        hintColor = AppColors.error;
       } else if (state.deliveryAddress.trim().isEmpty) {
         hintText = AppStrings.enterDeliveryAddress;
       } else {
@@ -906,10 +999,7 @@ class _ProceedButton extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hintText,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: hintColor),
             textAlign: TextAlign.center,
           ),
         ],

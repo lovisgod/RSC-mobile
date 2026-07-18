@@ -1,26 +1,33 @@
 /// Parsed `data` object from a successful `POST /api/v1/payments/initiate`
-/// (201) response — the Paystack handoff details used by the follow-up step.
+/// (201) response.
 class InitiatePaymentResponseModel {
-  final String authorizationUrl;
+  final String checkoutUrl;
   final String reference;
-  final String accessCode;
+  final String? masterOrderId;
+  final String? paymentId;
+
+  // Compatibility getters for legacy fields
+  String get authorizationUrl => checkoutUrl;
+  String get accessCode => '';
 
   const InitiatePaymentResponseModel({
-    required this.authorizationUrl,
+    required this.checkoutUrl,
     required this.reference,
-    required this.accessCode,
+    this.masterOrderId,
+    this.paymentId,
   });
 
   factory InitiatePaymentResponseModel.fromJson(Map<String, dynamic> json) {
     return InitiatePaymentResponseModel(
-      authorizationUrl: json['authorizationUrl'] as String? ?? '',
+      checkoutUrl: json['checkoutUrl'] as String? ?? json['authorizationUrl'] as String? ?? '',
       reference: json['reference'] as String? ?? '',
-      accessCode: json['accessCode'] as String? ?? '',
+      masterOrderId: json['masterOrderId'] as String?,
+      paymentId: json['paymentId'] as String?,
     );
   }
 
   @override
   String toString() =>
       'InitiatePaymentResponseModel(reference: $reference, '
-      'accessCode: $accessCode, authorizationUrl: $authorizationUrl)';
+      'checkoutUrl: $checkoutUrl, masterOrderId: $masterOrderId, paymentId: $paymentId)';
 }

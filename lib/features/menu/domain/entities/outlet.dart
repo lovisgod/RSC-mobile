@@ -6,11 +6,20 @@ class Outlet {
   final String imageUrl;
   final bool isOnline;
 
-  // TODO: Backend needs to add rating, deliveryTimeMins (range), and
-  // deliveryFee/minOrder to the outlets API response — these are populated
-  // with hardcoded placeholders in OutletModel until then.
-  final double rating;
-  final int deliveryTimeMins;
+  final double ratingAverage;
+  final int ratingCount;
+  final double? deliveryRadiusKm;
+  final double? latitude;
+  final double? longitude;
+
+  /// Aggregated across the outlet's menu items (min lower bound, max upper
+  /// bound of each item's `deliveryTimeRange`), computed in OutletModel. Null
+  /// when none of the outlet's items have a delivery-time estimate.
+  final String? deliveryTimeRange;
+
+  // TODO: Backend needs to add deliveryFee/minOrder to the outlets API
+  // response — this is populated with a hardcoded placeholder in OutletModel
+  // until then.
   final double minOrder;
 
   /// Simulates a "Popular" badge — true for the first outlet in the list only
@@ -24,9 +33,30 @@ class Outlet {
     required this.cuisineType,
     required this.imageUrl,
     required this.isOnline,
-    required this.rating,
-    required this.deliveryTimeMins,
+    required this.ratingAverage,
+    required this.ratingCount,
+    this.deliveryRadiusKm,
+    this.latitude,
+    this.longitude,
+    this.deliveryTimeRange,
     required this.minOrder,
     this.isFeatured = false,
   });
+
+  Outlet copyWith({bool? isOnline}) => Outlet(
+    id: id,
+    name: name,
+    description: description,
+    cuisineType: cuisineType,
+    imageUrl: imageUrl,
+    isOnline: isOnline ?? this.isOnline,
+    ratingAverage: ratingAverage,
+    ratingCount: ratingCount,
+    deliveryRadiusKm: deliveryRadiusKm,
+    latitude: latitude,
+    longitude: longitude,
+    deliveryTimeRange: deliveryTimeRange,
+    minOrder: minOrder,
+    isFeatured: isFeatured,
+  );
 }

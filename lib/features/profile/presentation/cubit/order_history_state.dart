@@ -13,6 +13,10 @@ class OrderHistoryState {
   final bool isReordering;
   final String? reorderingOrderId;
 
+  /// One-shot failure message from the last failed [OrderHistoryCubit.reorder]
+  /// call, surfaced by the caller as a snackbar.
+  final String? reorderError;
+
   const OrderHistoryState({
     this.orders = const [],
     this.isLoading = false,
@@ -21,6 +25,7 @@ class OrderHistoryState {
     this.isLoadingDetail = false,
     this.isReordering = false,
     this.reorderingOrderId,
+    this.reorderError,
   });
 
   OrderHistoryState copyWith({
@@ -34,6 +39,8 @@ class OrderHistoryState {
     bool? isReordering,
     String? reorderingOrderId,
     bool clearReorderingOrderId = false,
+    String? reorderError,
+    bool clearReorderError = false,
   }) => OrderHistoryState(
     orders: orders ?? this.orders,
     isLoading: isLoading ?? this.isLoading,
@@ -46,5 +53,8 @@ class OrderHistoryState {
     reorderingOrderId: clearReorderingOrderId
         ? null
         : (reorderingOrderId ?? this.reorderingOrderId),
+    reorderError: clearReorderError
+        ? null
+        : (reorderError ?? this.reorderError),
   );
 }

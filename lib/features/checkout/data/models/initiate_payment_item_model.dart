@@ -8,13 +8,11 @@ class InitiatePaymentItemModel {
   final String menuItemId;
   final int quantity;
   final List<ModifierIdModel> modifiers;
-  final String customerNote;
 
   const InitiatePaymentItemModel({
     required this.menuItemId,
     required this.quantity,
     required this.modifiers,
-    required this.customerNote,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +21,5 @@ class InitiatePaymentItemModel {
         // Always include `modifiers` — as an empty array when none are
         // selected (the API accepts []), so the key is never absent.
         'modifiers': modifiers.map((m) => m.toJson()).toList(),
-        'customerNote': customerNote,
       };
 }

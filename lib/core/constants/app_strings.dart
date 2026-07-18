@@ -60,11 +60,10 @@ abstract final class AppStrings {
   static const String deliveryAddress = 'Lagos, Nigeria';
   static const String addDeliveryAddress = 'Add a delivery address';
   static const String rscFoodKitchens = 'RSC Food Kitchens';
-  static const String freeDeliveryToday = 'Free Delivery Today!';
-  static const String freeDeliverySubtitle = 'On all orders above ₦2,000';
+  static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
-  static const String closed = 'Closed';
+  static const String newOutlet = 'New';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';
@@ -98,8 +97,9 @@ abstract final class AppStrings {
   static const String startOrdering = 'Start ordering from RSC Food Kitchens';
   static const String reorder = 'Re-order';
   static const String trackOrder = 'Track';
+  static const String trackOrderCta = 'Track Order 🛵';
   static const String itemsAddedToCart =
-      '✓ Items added to cart. Review your order!';
+      '✓ Items added to cart. Review and proceed to checkout!';
   static const String reorderFailed = 'Could not re-order. Please try again.';
   static const String trackOrderFailed =
       'Could not load this order. Please try again.';
@@ -109,6 +109,9 @@ abstract final class AppStrings {
   static const String moreItemsSuffix = 'more items';
   static const String subOrderSuffix = ' Sub-Order';
   static const String kitchenFallbackName = 'Kitchen';
+  static const String itemFallbackName = 'Item';
+  static const String reorderBanner =
+      '🔄 Reorder from previous order. Review and update if needed.';
 
   // ─── Track ────────────────────────────────────────────────────────────────
   static const String orderProgress = 'Order Progress';
@@ -136,8 +139,8 @@ abstract final class AppStrings {
   static const String orderCancelledSubtitle = 'This order has been cancelled';
   static const String orderTimeline = 'ORDER TIMELINE';
   static const String viewDetails = 'View Details';
-  static const String updatedJustNow = 'Updated just now';
-  static String updatedMinsAgo(int mins) => 'Updated $mins mins ago';
+  static const String live = 'Live';
+  static const String reconnecting = 'Reconnecting...';
   static const String kitchenBreakdowns = 'KITCHEN BREAKDOWNS';
   static const String deliveryHandoffCode = 'DELIVERY HANDOFF CODE';
   static const String shareDeliveryCode =
@@ -237,6 +240,13 @@ abstract final class AppStrings {
   static const String statusPreparing = 'Preparing';
   static const String statusDispatched = 'Dispatched';
   static const String statusReady = 'Ready';
+  static const String statusPendingPayment = 'Pending Payment';
+  static const String statusAlmostReady = 'Almost Ready';
+  static const String statusOnTheWay = 'On the Way';
+  static const String statusDeliveredBadge = 'Delivered ✅';
+  static const String payNow = 'Pay Now 💳';
+  static const String completePaymentToConfirm =
+      'Complete payment to confirm your order';
 
   // ─── Checkout ─────────────────────────────────────────────────────────────
   static const String checkout = 'Checkout';
@@ -246,9 +256,8 @@ abstract final class AppStrings {
   static const String useDefaultAddress = '📍 Use Default Address';
   static const String orderForSomeoneElse =
       'Order on behalf of someone inside geofence';
-  static const String recipientInGeofenceAddress =
-      'RECIPIENT IN-GEOFENCE ADDRESS';
-  static const String recipientNameLabel = 'RECIPIENT NAME';
+  static const String recipientPhoneNumber = 'RECIPIENT PHONE NUMBER';
+  static const String recipientPhoneHint = 'e.g. 08031234567';
   static const String sectionPreparationInstructions =
       'PREPARATION INSTRUCTIONS';
   static const String preparationInstructionsHint =
@@ -262,17 +271,33 @@ abstract final class AppStrings {
       'Please log in to place your order 👋';
   static const String pleaseEnterDeliveryAddress =
       'Please enter a delivery address';
+  static const String pleaseEnterValidDeliveryAddress =
+      'Please enter a valid delivery address';
   static const String searchingAddresses = 'Searching addresses...';
   static const String noAddressesInZone =
       'No addresses found in our delivery area';
   static const String searchAndSelectAddress = 'Search and select your address';
   static const String pleaseSelectFromSuggestions =
       '⚠️ Please select an address from the suggestions above';
-  static const String addressVerified = '✅ Address verified';
   static const String selectValidAddress =
       'Select a valid delivery address to continue';
   static const String enterDeliveryAddress =
       'Enter your delivery address to continue';
+  static const String checkingDeliveryAvailability =
+      'Checking delivery availability...';
+  static const String couldNotResolveAddress =
+      'Could not resolve address. Please try again.';
+  static const String deliveringToZone = '✅ Delivering to';
+  static const String addressVerifiedSimple = '✅ Address verified';
+  static const String deliversToZone = '✅ Delivers to';
+  static const String dontDeliverHereShort = '⚠️ We don\'t deliver here yet';
+  static const String outsideDeliveryArea = '🚫 Outside delivery area';
+  static const String outsideDeliveryAreaMessage =
+      'We don\'t deliver to this location yet. Please select an address '
+      'within our delivery zones.';
+  static const String selectAddressInArea =
+      'Please select an address in our delivery area';
+  static const String outsideZoneBadge = '⚠️ Outside delivery zone';
 
   // ─── Payment (Moment) ─────────────────────────────────────────────────────
   static const String tabCard = '💳 Card';
@@ -296,7 +321,13 @@ abstract final class AppStrings {
   static const String paymentInitiatedSuccess =
       'Payment initiated successfully.';
   static const String paymentReferenceLabel = 'Reference:';
-  static const String initiatingPayment = 'Initiating payment...';
+  static const String preparingPayment = 'Preparing your payment...';
+  static const String verifyingPayment = 'Verifying your payment...';
+  static const String paymentCancelled = 'Payment cancelled.';
+  static const String couldNotVerifyPayment =
+      'Could not verify payment. Please check your order history.';
+  static const String securePayment = 'Secure Payment';
+  static const String loadingPaymentPage = 'Loading payment page...';
 
   // ─── Change password (logged-in flow) ────────────────────────────────────
   static const String changePassword = 'Change Password';
@@ -313,6 +344,8 @@ abstract final class AppStrings {
       'New password must be different from current password';
   static const String sessionExpiredLogin =
       'Session expired. Please log in again.';
+  static const String sessionExpired =
+      'Your session has expired. Please log in again.';
 
   // ─── Forgot / Reset password ──────────────────────────────────────────────
   static const String forgotPasswordTitle = 'Forgot Password';
@@ -348,4 +381,71 @@ abstract final class AppStrings {
   static const String errorPhoneInvalidChars =
       'Phone number contains invalid characters';
   static const String errorInactiveAccount = 'Please verify your account first';
+
+  // ─── Notifications ────────────────────────────────────────────────────────
+  static const String notifications = 'Notifications';
+  static const String markAllRead = 'Mark all read';
+  static const String noNotificationsYet = 'No notifications yet';
+  static const String notificationsSubtitle =
+      'Order updates and promotions will appear here';
+  static const String notificationSettings = 'Notification Settings';
+  static const String aboutNotifications = 'About notifications';
+  static const String notificationInfoText =
+      'Order status notifications are always enabled to keep you updated on '
+      'your deliveries. You can control promotional notifications below.';
+  static const String orderUpdates = 'Order Updates';
+  static const String orderUpdatesSubtitle =
+      'Delivery confirmations, status changes';
+  static const String promotions = 'Promotions';
+  static const String promotionsSubtitle = 'Special deals and offers';
+  static const String discounts = 'Discounts';
+  static const String discountsSubtitle = 'Exclusive discount notifications';
+  static const String seasonalOffers = 'Seasonal Offers';
+  static const String seasonalOffersSubtitle =
+      'Holiday and seasonal promotions';
+  static const String yesterday = 'Yesterday';
+
+  // ─── Outlet / item availability ──────────────────────────────────────────
+  static const String currentlyUnavailable = 'Currently Unavailable';
+  static const String unavailable = 'Unavailable';
+  static const String kitchenUnavailable =
+      'This kitchen is currently unavailable';
+  static const String itemUnavailable =
+      'This item is currently unavailable and cannot be added to cart.';
+  static const String kitchenClosed = 'This kitchen is currently closed.';
+
+  // ─── Rider ────────────────────────────────────────────────────────────────
+  static const String deliveredBy = 'DELIVERED BY';
+  static const String call = 'Call';
+
+  // ─── Ratings ──────────────────────────────────────────────────────────────
+  static const String rateThisOrder = '⭐ Rate This Order';
+  static const String rateYourOrder = 'Rate Your Order';
+  static const String howWasYourFood = 'How was your food?';
+  static const String submitRatings = 'Submit Ratings';
+  static const String skip = 'Skip';
+  static const String thanksForFeedback = '✓ Thanks for your feedback!';
+  static const String addComment = 'Add a comment (optional)';
+
+  // ─── Refunds ──────────────────────────────────────────────────────────────
+  static const String requestRefund = 'Request Refund';
+  static const String orderTotalLabel = '💰 Order Total:';
+  static const String reasonForRefund = 'REASON FOR REFUND';
+  static const String refundReason =
+      'Please describe why you are requesting a refund...';
+  static const String submitRequest = 'Submit Request';
+  static const String refundSubmitted =
+      '✓ Refund request submitted. Our team will review within 24-48 hours.';
+  static const String somethingWentWrong =
+      'Something went wrong. Please try again.';
+
+  // ─── Account deactivation ─────────────────────────────────────────────────
+  static const String deactivateAccount = 'Deactivate Account';
+  static const String deactivateConfirmTitle = 'Deactivate Account';
+  static const String deactivateConfirmMessage =
+      'Are you sure you want to deactivate your account? You will be logged '
+      'out and will need to contact support to reactivate.';
+  static const String accountDeactivated =
+      'Your account has been deactivated. We\'re sorry to see you go.';
+  static const String deactivate = 'Deactivate';
 }

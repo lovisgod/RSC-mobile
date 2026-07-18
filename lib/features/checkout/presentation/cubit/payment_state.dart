@@ -3,7 +3,16 @@ import '../../data/models/ussd_bank.dart';
 
 enum PaymentMethod { card, transfer, ussd }
 
-enum PaymentStatus { idle, initiating, initiated, processing, success, failed }
+enum PaymentStatus {
+  idle,
+  initiating,
+  initiated,
+  processing,
+  verifying,
+  success,
+  failed,
+  cancelled,
+}
 
 class PaymentState {
   final PaymentMethod selectedMethod;
@@ -16,11 +25,16 @@ class PaymentState {
   /// Set once the backend initiate call succeeds (Paystack handoff details).
   final InitiatePaymentResponseModel? initiateResult;
 
+  /// Moment reference from the initiate response, stored so [PaymentCubit]
+  /// can verify the outcome after the WebView closes.
+  final String? reference;
+
+  /// Hosted checkout URL from the last initiate/retry call — what the
+  /// WebView should load on [PaymentStatus.initiated].
+  String? get checkoutUrl => initiateResult?.checkoutUrl;
+
   /// Last failure message, surfaced by the screen on [PaymentStatus.failed].
   final String? errorMessage;
-
-  /// True when the last failure was a 401 — drives the navigate-home behaviour.
-  final bool isSessionExpired;
 
   const PaymentState({
     this.selectedMethod = PaymentMethod.card,
@@ -30,8 +44,8 @@ class PaymentState {
     this.selectedUssdBank,
     this.status = PaymentStatus.idle,
     this.initiateResult,
+    this.reference,
     this.errorMessage,
-    this.isSessionExpired = false,
   });
 
   PaymentState copyWith({
@@ -44,9 +58,9 @@ class PaymentState {
     PaymentStatus? status,
     InitiatePaymentResponseModel? initiateResult,
     bool clearInitiateResult = false,
+    String? reference,
     String? errorMessage,
     bool clearError = false,
-    bool? isSessionExpired,
   }) {
     return PaymentState(
       selectedMethod: selectedMethod ?? this.selectedMethod,
@@ -60,8 +74,8 @@ class PaymentState {
       initiateResult: clearInitiateResult
           ? null
           : (initiateResult ?? this.initiateResult),
+      reference: reference ?? this.reference,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      isSessionExpired: isSessionExpired ?? this.isSessionExpired,
     );
   }
 }

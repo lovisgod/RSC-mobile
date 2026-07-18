@@ -6,6 +6,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/rsc_image.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/category.dart';
 import '../../../menu/domain/entities/outlet.dart';
@@ -35,7 +36,21 @@ class OutletDetailScreen extends StatelessWidget {
       backgroundColor: AppColors.navyDark,
       body: Stack(
         children: [
-          // ── Navy header with emoji ───────────────────────────────────────
+          // ── Navy header: outlet photo when available, else emoji ────────
+          if (outlet.imageUrl.isNotEmpty)
+            Positioned.fill(
+              child: RscImage(
+                imageUrl: outlet.imageUrl,
+                width: double.infinity,
+                height: double.infinity,
+                fallback: ColoredBox(
+                  color: AppColors.navyDark,
+                  child: Center(
+                    child: Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  ),
+                ),
+              ),
+            ),
           SafeArea(
             bottom: false,
             child: Padding(
@@ -47,8 +62,10 @@ class OutletDetailScreen extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: _CircleBackButton(onTap: () => context.pop()),
                   ),
-                  const SizedBox(height: 20),
-                  Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  if (outlet.imageUrl.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(_emoji, style: const TextStyle(fontSize: 84)),
+                  ],
                 ],
               ),
             ),
@@ -85,6 +102,12 @@ class OutletDetailScreen extends StatelessWidget {
                             child: _OutletInfoSection(outlet: outlet),
                           ),
 
+                          // Offline banner — only reachable via search/deep
+                          // link, since the home screen already blocks taps
+                          // on offline outlet cards.
+                          if (!outlet.isOnline)
+                            const SliverToBoxAdapter(child: _OfflineBanner()),
+
                           // Sticky category tabs
                           SliverPersistentHeader(
                             pinned: true,
@@ -112,34 +135,37 @@ class OutletDetailScreen extends StatelessWidget {
                             )
                           else
                             SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final item = state.selectedItems[index];
-                                  return Column(
-                                    children: [
-                                      MenuItemCard(
-                                        item: item,
-                                        onAddTap: () => context.push(
-                                          RouteNames.itemDetailPath(
-                                              outlet.id, item.id),
-                                          extra: {
-                                            'menuItem': item,
-                                            'outlet': outlet,
-                                          },
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final item = state.selectedItems[index];
+                                return Column(
+                                  children: [
+                                    MenuItemCard(
+                                      item: item,
+                                      outletIsOnline: outlet.isOnline,
+                                      onAddTap: () => context.push(
+                                        RouteNames.itemDetailPath(
+                                          outlet.id,
+                                          item.id,
                                         ),
+                                        extra: {
+                                          'menuItem': item,
+                                          'outlet': outlet,
+                                        },
                                       ),
-                                      if (index < state.selectedItems.length - 1)
-                                        const Divider(
-                                          height: 1,
-                                          indent: 16,
-                                          endIndent: 16,
-                                          color: AppColors.divider,
-                                        ),
-                                    ],
-                                  );
-                                },
-                                childCount: state.selectedItems.length,
-                              ),
+                                    ),
+                                    if (index < state.selectedItems.length - 1)
+                                      const Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: AppColors.divider,
+                                      ),
+                                  ],
+                                );
+                              }, childCount: state.selectedItems.length),
                             ),
 
                           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -202,6 +228,11 @@ class _OutletInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNew = outlet.ratingAverage == 0.0 && outlet.ratingCount == 0;
+    final ratingColor = isNew ? AppColors.textSecondary : AppColors.starRating;
+    final ratingLabel =
+        isNew ? AppStrings.newOutlet : outlet.ratingAverage.toStringAsFixed(1);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       child: Column(
@@ -246,45 +277,72 @@ class _OutletInfoSection extends StatelessWidget {
           // Info row
           Row(
             children: [
-              const Icon(
-                Icons.star_rounded,
-                size: 15,
-                color: AppColors.starRating,
-              ),
+              Icon(Icons.star_rounded, size: 15, color: ratingColor),
               const SizedBox(width: 4),
               Text(
-                outlet.rating.toStringAsFixed(1),
-                style: const TextStyle(
+                ratingLabel,
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: ratingColor,
                 ),
               ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.access_time_rounded,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${outlet.deliveryTimeMins}–${outlet.deliveryTimeMins + 10} min',
-                style: const TextStyle(
-                  fontSize: 13,
+              // Hidden entirely when no menu item on this outlet has a
+              // delivery-time estimate.
+              if (outlet.deliveryTimeRange != null) ...[
+                const SizedBox(width: 16),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
                   color: AppColors.textSecondary,
                 ),
-              ),
+                const SizedBox(width: 4),
+                Text(
+                  outlet.deliveryTimeRange!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(width: 16),
               const Text('🛵', style: TextStyle(fontSize: 13)),
               const SizedBox(width: 4),
               const Text(
                 '₦500 delivery',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Offline banner ────────────────────────────────────────────────────────────
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.neutralGray,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('⚠️', style: TextStyle(fontSize: 13)),
+          SizedBox(width: 6),
+          Text(
+            AppStrings.kitchenUnavailable,
+            style: TextStyle(
+              color: AppColors.surface,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -437,11 +495,7 @@ class _ShimmerSheet extends StatelessWidget {
                 radius: 10,
                 margin: EdgeInsets.fromLTRB(0, 0, 8, 0),
               ),
-              const ShimmerBox(
-                height: 20,
-                width: 50,
-                radius: 10,
-              ),
+              const ShimmerBox(height: 20, width: 50, radius: 10),
             ],
           ),
           const SizedBox(height: 16),
@@ -502,13 +556,17 @@ class _ErrorSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Icon(Icons.error_outline_rounded,
-                size: 48, color: AppColors.textHint),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.textHint,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
-              style:
-                  AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
           ],

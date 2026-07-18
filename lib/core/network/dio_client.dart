@@ -5,12 +5,13 @@ import 'package:flutter/foundation.dart';
 
 import '../constants/api_constants.dart';
 import '../errors/exceptions.dart';
+import 'session_interceptor.dart';
 
 class DioClient {
   late final Dio _dio;
   final PersistCookieJar cookieJar;
 
-  DioClient(this.cookieJar) {
+  DioClient(this.cookieJar, SessionInterceptor sessionInterceptor) {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
@@ -26,6 +27,9 @@ class DioClient {
 
     _dio.interceptors.addAll([
       CookieManager(cookieJar),
+      // Must see the raw 401 before _ErrorInterceptor translates it into a
+      // typed exception — it only inspects/reacts, never consumes the error.
+      sessionInterceptor,
       _ErrorInterceptor(),
       if (kDebugMode) LogInterceptor(requestBody: true, responseBody: true),
     ]);

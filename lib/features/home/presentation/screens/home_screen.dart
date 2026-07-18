@@ -11,6 +11,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
+import '../../../notifications/presentation/cubit/notifications_cubit.dart';
+import '../../../notifications/presentation/cubit/notifications_state.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
 import '../../../profile/presentation/cubit/address_state.dart';
 import '../../../profile/presentation/cubit/profile_cubit.dart';
@@ -21,6 +23,7 @@ import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
 import '../widgets/outlet_card.dart';
+import '../widgets/promo_banner_carousel.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,6 +44,8 @@ class HomeScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     const Expanded(child: _DeliveringToSection()),
+                    const _NotificationBellButton(),
+                    const SizedBox(width: 8),
                     const _AvatarButton(),
                   ],
                 ),
@@ -54,24 +59,36 @@ class HomeScreen extends StatelessWidget {
                   color: AppColors.surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                child: BlocBuilder<HomeBloc, HomeState>(
-                  builder: (context, state) {
-                    if (state is HomeLoading || state is HomeInitial) {
-                      return _ShimmerBody();
-                    }
-                    if (state is HomeError) {
-                      return _ErrorBody(
-                        message: state.message,
-                        onRetry: () => context.read<HomeBloc>().add(
-                          const HomeFetchRequested(),
-                        ),
-                      );
-                    }
-                    if (state is HomeLoaded) {
-                      return _LoadedBody(outlets: state.outlets);
-                    }
-                    return const SizedBox.shrink();
+                child: RefreshIndicator(
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.surface,
+                  onRefresh: () async {
+                    final bloc = context.read<HomeBloc>();
+                    final future = bloc.stream.firstWhere(
+                      (state) => state is HomeLoaded || state is HomeError,
+                    );
+                    bloc.add(const HomeFetchRequested());
+                    await future;
                   },
+                  child: BlocBuilder<HomeBloc, HomeState>(
+                    builder: (context, state) {
+                      if (state is HomeLoading || state is HomeInitial) {
+                        return _ShimmerBody();
+                      }
+                      if (state is HomeError) {
+                        return _ErrorBody(
+                          message: state.message,
+                          onRetry: () => context.read<HomeBloc>().add(
+                            const HomeFetchRequested(),
+                          ),
+                        );
+                      }
+                      if (state is HomeLoaded) {
+                        return _LoadedBody(outlets: state.outlets);
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
               ),
             ),
@@ -219,6 +236,70 @@ class _DeliveringToShimmer extends StatelessWidget {
   }
 }
 
+// ── Notification bell ────────────────────────────────────────────────────────
+
+class _NotificationBellButton extends StatelessWidget {
+  const _NotificationBellButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ShellBloc, ShellState>(
+      builder: (context, shellState) {
+        // Guests have no notifications endpoint access — remove the bell
+        // from the layout entirely so no badge or API call can happen.
+        if (!shellState.isAuthenticated) return const SizedBox.shrink();
+
+        return GestureDetector(
+          onTap: () => context.push(RouteNames.notifications),
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                BlocBuilder<NotificationsCubit, NotificationsState>(
+                  builder: (context, state) {
+                    final unreadCount = state.unreadCount;
+                    if (unreadCount == 0) return const SizedBox.shrink();
+                    return Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ── Avatar button ────────────────────────────────────────────────────────────
 
 class _AvatarButton extends StatelessWidget {
@@ -263,7 +344,11 @@ class _LoadedBody extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         // ── Promo banner ────────────────────────────────────────────────
-        _PromoBanner(),
+        BlocBuilder<NotificationsCubit, NotificationsState>(
+          builder: (context, notifState) {
+            return PromoBannerCarousel(notifications: notifState.notifications);
+          },
+        ),
         const SizedBox(height: 20),
 
         // ── Section heading ──────────────────────────────────────────────
@@ -295,64 +380,6 @@ class _LoadedBody extends StatelessWidget {
           );
         }),
       ],
-    );
-  }
-}
-
-// ── Promo banner ─────────────────────────────────────────────────────────────
-
-class _PromoBanner extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      height: 80,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
-        children: [
-          // Confetti image on right
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: Image.asset(AppAssets.imgConfetti, fit: BoxFit.contain),
-          ),
-          // Text on left
-          Positioned(
-            left: 16,
-            top: 0,
-            bottom: 0,
-            right: 100,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '🎉 ${AppStrings.freeDeliveryToday}',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  AppStrings.freeDeliverySubtitle,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

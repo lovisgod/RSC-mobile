@@ -56,6 +56,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<OtpResendRequested>(_onOtpResendRequested);
     on<LoginSubmitted>(_onLoginSubmitted);
     on<LogoutRequested>(_onLogoutRequested);
+    on<SessionExpired>(_onSessionExpired);
     on<ForgotPasswordSubmitted>(_onForgotPasswordSubmitted);
     on<ResetPasswordOtpSubmitted>(_onResetPasswordOtpSubmitted);
     on<ResetPasswordSubmitted>(_onResetPasswordSubmitted);
@@ -178,6 +179,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (_) {
       // Server call may fail — always clear locally
     }
+    try {
+      await _cookieJar.deleteAll();
+    } catch (_) {}
+    await _localStorage.clearAll();
+    emit(const LogoutSuccess());
+  }
+
+  /// Same end state as a normal logout (ShellBloc/CartCubit/ProfileCubit all
+  /// already react to [LogoutSuccess]) but skips the network call entirely.
+  Future<void> _onSessionExpired(
+    SessionExpired event,
+    Emitter<AuthState> emit,
+  ) async {
     try {
       await _cookieJar.deleteAll();
     } catch (_) {}

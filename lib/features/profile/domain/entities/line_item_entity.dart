@@ -9,6 +9,7 @@ class LineItemEntity {
   final double unitPrice;
   final int quantity;
   final double lineTotal;
+  final String? customerNote;
   final List<ModifierSnapshotEntity> modifiers;
 
   const LineItemEntity({
@@ -20,6 +21,7 @@ class LineItemEntity {
     required this.unitPrice,
     required this.quantity,
     required this.lineTotal,
+    this.customerNote,
     required this.modifiers,
   });
 }

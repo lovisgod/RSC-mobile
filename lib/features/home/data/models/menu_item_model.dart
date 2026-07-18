@@ -15,6 +15,11 @@ class MenuItemModel {
   final double price;
   final bool isAvailable;
   final int sortOrder;
+  final double ratingAverage;
+  final int ratingCount;
+
+  /// Null when the backend has no delivery-time estimate for this item.
+  final String? deliveryTimeRange;
 
   const MenuItemModel({
     required this.id,
@@ -26,6 +31,9 @@ class MenuItemModel {
     required this.price,
     required this.isAvailable,
     required this.sortOrder,
+    required this.ratingAverage,
+    required this.ratingCount,
+    this.deliveryTimeRange,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +47,10 @@ class MenuItemModel {
       price: ((json['priceMinor'] as num?)?.toDouble() ?? 0) / 100,
       isAvailable: json['isAvailable'] as bool? ?? true,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      ratingAverage:
+          double.tryParse(json['ratingAverage'] as String? ?? '0') ?? 0.0,
+      ratingCount: json['ratingCount'] as int? ?? 0,
+      deliveryTimeRange: json['deliveryTimeRange'] as String?,
     );
   }
 
@@ -53,5 +65,8 @@ class MenuItemModel {
         isAvailable: isAvailable,
         sortOrder: sortOrder,
         modifierGroups: modifierGroups,
+        ratingAverage: ratingAverage,
+        ratingCount: ratingCount,
+        deliveryTimeRange: deliveryTimeRange,
       );
 }

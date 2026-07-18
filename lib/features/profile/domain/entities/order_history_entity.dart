@@ -1,4 +1,6 @@
 import '../../../track/domain/entities/order_event_entity.dart';
+import '../../../track/domain/entities/rider_info_entity.dart';
+import '../../../track/domain/entities/rider_location_entity.dart';
 import 'line_item_entity.dart';
 import 'sub_order_entity.dart';
 
@@ -13,10 +15,19 @@ class OrderHistoryEntity {
   final double deliveryFee;
   final double vat;
   final double total;
+
+  /// Raw order total in minor units (kobo), exactly as the API sent it —
+  /// refund requests must pass this through untouched.
+  final int totalMinor;
+
+  /// Preparation time in minutes, when the backend has estimated one.
+  final int? preparationTime;
   final DateTime createdAt;
   final List<SubOrderEntity> subOrders;
   final List<LineItemEntity> lineItems;
   final List<OrderEventEntity> events;
+  final RiderInfoEntity? rider;
+  final RiderLocationEntity? latestRiderLocation;
 
   const OrderHistoryEntity({
     required this.id,
@@ -29,14 +40,20 @@ class OrderHistoryEntity {
     required this.deliveryFee,
     required this.vat,
     required this.total,
+    this.totalMinor = 0,
+    this.preparationTime,
     required this.createdAt,
     required this.subOrders,
     required this.lineItems,
     this.events = const [],
+    this.rider,
+    this.latestRiderLocation,
   });
 
   /// Real master-order statuses from the API for an order still in progress.
+  /// PENDING_PAYMENT counts as active — it needs immediate user action.
   static const Set<String> activeStatuses = {
+    'PENDING_PAYMENT',
     'PENDING',
     'CONFIRMED',
     'PARTIALLY_READY',
@@ -44,9 +61,17 @@ class OrderHistoryEntity {
     'OUT_FOR_DELIVERY',
   };
 
-  bool get isActive => activeStatuses.contains(status);
+  bool get isActive => activeStatuses.contains(status.toUpperCase());
 
-  bool get isCompleted => status == 'DELIVERED' || status == 'CANCELLED';
+  bool get isPendingPayment => status.toUpperCase() == 'PENDING_PAYMENT';
+
+  bool get isCompleted =>
+      status.toUpperCase() == 'DELIVERED' ||
+      status.toUpperCase() == 'CANCELLED';
+
+  bool get isDelivered => status.toUpperCase() == 'DELIVERED';
+
+  bool get isCancelled => status.toUpperCase() == 'CANCELLED';
 
   OrderHistoryEntity copyWith({
     String? status,
@@ -64,10 +89,14 @@ class OrderHistoryEntity {
       deliveryFee: deliveryFee,
       vat: vat,
       total: total,
+      totalMinor: totalMinor,
+      preparationTime: preparationTime,
       createdAt: createdAt,
       subOrders: subOrders ?? this.subOrders,
       lineItems: lineItems,
       events: events ?? this.events,
+      rider: rider,
+      latestRiderLocation: latestRiderLocation,
     );
   }
 

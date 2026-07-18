@@ -48,6 +48,14 @@ class LogoutRequested extends AuthEvent {
   const LogoutRequested();
 }
 
+/// Fired by SessionInterceptor when a 401 on a non-auth endpoint indicates
+/// the session is dead. Unlike [LogoutRequested] this never calls the
+/// logout endpoint — the session is already known to be invalid, and that
+/// call would just fail with another 401.
+class SessionExpired extends AuthEvent {
+  const SessionExpired();
+}
+
 class ForgotPasswordSubmitted extends AuthEvent {
   final String identifier;
   const ForgotPasswordSubmitted({required this.identifier});

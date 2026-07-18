@@ -19,6 +19,12 @@ class MenuItem {
 
   final String? allergenNote;
 
+  final double ratingAverage;
+  final int ratingCount;
+
+  /// Null when the backend has no delivery-time estimate for this item.
+  final String? deliveryTimeRange;
+
   const MenuItem({
     required this.id,
     required this.categoryId,
@@ -31,5 +37,8 @@ class MenuItem {
     this.sortOrder = 0,
     this.modifierGroups = const [],
     this.allergenNote,
+    this.ratingAverage = 0.0,
+    this.ratingCount = 0,
+    this.deliveryTimeRange,
   });
 }
