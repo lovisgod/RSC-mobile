@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../cubit/payment_cubit.dart';
 
@@ -21,9 +23,9 @@ class PaymentWebViewScreen extends StatefulWidget {
 }
 
 class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
-  /// Moment redirects here once the hosted checkout completes. Never
-  /// hardcoded inline — always read from this constant.
-  static const String _momentRedirectBase = 'https://dev.rscdev.tech/tracking';
+  /// Moment redirects here once the hosted checkout completes. Environment
+  /// specific — never hardcoded inline.
+  final String _momentRedirectBase = getIt<AppConfig>().paymentRedirectBase;
 
   late final WebViewController _controller;
   bool _isLoading = true;

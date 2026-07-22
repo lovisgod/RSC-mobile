@@ -12,6 +12,11 @@ class ProfileState {
   /// The deactivate call succeeded — the screen reacts by running the full
   /// logout flow.
   final bool deactivated;
+  final bool isDeleting;
+
+  /// The permanent delete call succeeded and all local session data has been
+  /// cleared — the screen reacts by resetting auth and navigating home.
+  final bool deleted;
   final String? error;
 
   const ProfileState({
@@ -23,6 +28,8 @@ class ProfileState {
     this.otpExpiresInSeconds = 0,
     this.isDeactivating = false,
     this.deactivated = false,
+    this.isDeleting = false,
+    this.deleted = false,
     this.error,
   });
 
@@ -37,6 +44,8 @@ class ProfileState {
     int? otpExpiresInSeconds,
     bool? isDeactivating,
     bool? deactivated,
+    bool? isDeleting,
+    bool? deleted,
     String? error,
   }) {
     return ProfileState(
@@ -49,6 +58,8 @@ class ProfileState {
       otpExpiresInSeconds: otpExpiresInSeconds ?? this.otpExpiresInSeconds,
       isDeactivating: isDeactivating ?? this.isDeactivating,
       deactivated: deactivated ?? this.deactivated,
+      isDeleting: isDeleting ?? this.isDeleting,
+      deleted: deleted ?? this.deleted,
       error: error,
     );
   }

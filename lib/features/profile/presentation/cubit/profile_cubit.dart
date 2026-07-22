@@ -1,11 +1,17 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/storage/local_storage.dart';
+import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../domain/usecases/deactivate_account_usecase.dart';
+import '../../domain/usecases/delete_account_usecase.dart';
 import '../../domain/usecases/get_profile_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
@@ -19,6 +25,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   final UpdateProfileUseCase _updateProfileUseCase;
   final VerifyProfileChangeUseCase _verifyProfileChangeUseCase;
   final DeactivateAccountUsecase _deactivateAccountUsecase;
+  final DeleteAccountUsecase _deleteAccountUsecase;
+  final PersistCookieJar _cookieJar;
 
   ProfileCubit(
     this._localStorage,
@@ -27,6 +35,8 @@ class ProfileCubit extends Cubit<ProfileState> {
     this._updateProfileUseCase,
     this._verifyProfileChangeUseCase,
     this._deactivateAccountUsecase,
+    this._deleteAccountUsecase,
+    this._cookieJar,
   ) : super(ProfileState.guest());
 
   Future<void> loadProfile() async {
@@ -137,6 +147,40 @@ class ProfileCubit extends Cubit<ProfileState> {
         state.copyWith(
           isDeactivating: false,
           error: 'Failed to deactivate account. Please try again.',
+        ),
+      );
+    }
+  }
+
+  /// Permanently deletes the account, then clears every local trace of the
+  /// session (cookies, storage, socket, cart). The screen listens for
+  /// [ProfileState.deleted] and finishes the flow — auth reset + navigation.
+  Future<void> deleteAccount() async {
+    final userId = await _localStorage.getUserId();
+    if (userId == null) {
+      emit(state.copyWith(error: AppStrings.userNotFound));
+      return;
+    }
+
+    emit(state.copyWith(isDeleting: true, error: null));
+    try {
+      await _deleteAccountUsecase(userId);
+
+      try {
+        await _cookieJar.deleteAll();
+      } catch (_) {}
+      await _localStorage.clearAll();
+      getIt<SocketService>().disconnect();
+      getIt<CartCubit>().clearCart();
+
+      emit(state.copyWith(isDeleting: false, deleted: true));
+    } on AuthException catch (e) {
+      emit(state.copyWith(isDeleting: false, error: e.message));
+    } catch (_) {
+      emit(
+        state.copyWith(
+          isDeleting: false,
+          error: AppStrings.deleteAccountFailed,
         ),
       );
     }

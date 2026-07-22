@@ -7,8 +7,11 @@ class InitiatePaymentRequestModel {
   /// "DELIVERY" or "TAKEOUT" (backend enum values).
   final String deliveryMode;
   final String deliveryAddress;
-  final double deliveryLatitude;
-  final double deliveryLongitude;
+
+  /// Null for takeout orders — there is no delivery point, so no coordinates
+  /// are sent. Always present (and real) for delivery orders.
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
 
   /// Optional phone number for the recipient (used when ordering for someone else).
   final String? recipientPhone;
@@ -27,8 +30,8 @@ class InitiatePaymentRequestModel {
     required this.items,
     required this.deliveryMode,
     required this.deliveryAddress,
-    required this.deliveryLatitude,
-    required this.deliveryLongitude,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     this.recipientPhone,
     this.preparationNote,
     required this.subtotalMinor,
@@ -44,8 +47,8 @@ class InitiatePaymentRequestModel {
       'items': items.map((i) => i.toJson()).toList(),
       'deliveryMode': deliveryMode,
       'deliveryAddress': deliveryAddress,
-      'deliveryLatitude': deliveryLatitude,
-      'deliveryLongitude': deliveryLongitude,
+      if (deliveryLatitude != null) 'deliveryLatitude': deliveryLatitude,
+      if (deliveryLongitude != null) 'deliveryLongitude': deliveryLongitude,
       'subtotalMinor': subtotalMinor,
       'deliveryFeeMinor': deliveryFeeMinor,
       'serviceFeeMinor': serviceFeeMinor,

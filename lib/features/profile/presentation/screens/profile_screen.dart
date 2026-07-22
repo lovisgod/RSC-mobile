@@ -53,9 +53,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: BlocConsumer<ProfileCubit, ProfileState>(
         listenWhen: (prev, curr) =>
             (!prev.deactivated && curr.deactivated) ||
-            (prev.isDeactivating && !curr.isDeactivating && curr.error != null),
+            (!prev.deleted && curr.deleted) ||
+            (prev.isDeactivating && !curr.isDeactivating && curr.error != null) ||
+            (prev.isDeleting && !curr.isDeleting && curr.error != null),
         listener: (context, state) {
-          if (state.deactivated) {
+          if (state.deleted) {
+            // Local session data is already cleared by the cubit —
+            // SessionExpired flips AuthBloc/ShellBloc to guest (its own
+            // cleanup is idempotent) so the shell UI resets everywhere.
+            context.read<AuthBloc>().add(const SessionExpired());
+            context.go(RouteNames.home);
+            AppSnackbar.show(
+              context,
+              message: AppStrings.accountDeleted,
+              type: AppSnackbarType.error,
+              duration: const Duration(seconds: 5),
+            );
+          } else if (state.deactivated) {
             // SessionExpired runs the same cleanup as logout: cookies +
             // storage here, cart clear + socket disconnect via the
             // LogoutSuccess listener in app.dart.
@@ -240,6 +254,12 @@ class _LoggedInBody extends StatelessWidget {
           const _LogoutButton(),
           const SizedBox(height: 12),
           const _DeactivateAccountButton(),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
+          const SizedBox(height: 8),
+          const _DeleteAccountButton(),
           const SizedBox(height: 32),
         ],
       ),
@@ -631,6 +651,109 @@ class _DeactivateAccountButton extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: AppColors.error.withValues(
                   alpha: state.isDeactivating ? 0.5 : 1,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Delete account (permanent) ────────────────────────────────────────────────
+
+class _DeleteAccountButton extends StatelessWidget {
+  const _DeleteAccountButton();
+
+  /// Permanent deletion requires TWO explicit confirmations — a single tap
+  /// must never trigger it, and neither dialog can be dismissed by tapping
+  /// outside.
+  Future<void> _confirmDeletion(BuildContext context) async {
+    final profileCubit = context.read<ProfileCubit>();
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.warning_rounded,
+          color: AppColors.error,
+          size: 48,
+        ),
+        title: const Text(AppStrings.deleteAccountTitle),
+        content: const Text(AppStrings.deleteAccountWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              AppStrings.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              AppStrings.yesDelete,
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(AppStrings.deleteAccountFinal),
+        content: const Text(AppStrings.deleteAccountFinalWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text(
+              AppStrings.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              AppStrings.deletePermanently,
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    profileCubit.deleteAccount();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        return Center(
+          child: TextButton(
+            onPressed: state.isDeleting
+                ? null
+                : () => _confirmDeletion(context),
+            child: Text(
+              AppStrings.deleteMyAccount,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.error.withValues(
+                  alpha: state.isDeleting ? 0.5 : 1,
                 ),
               ),
             ),

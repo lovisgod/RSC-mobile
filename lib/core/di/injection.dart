@@ -39,6 +39,7 @@ import '../../features/profile/domain/repositories/rating_repository.dart';
 import '../../features/profile/domain/repositories/refund_repository.dart';
 import '../../features/profile/domain/usecases/create_address_usecase.dart';
 import '../../features/profile/domain/usecases/deactivate_account_usecase.dart';
+import '../../features/profile/domain/usecases/delete_account_usecase.dart';
 import '../../features/profile/domain/usecases/delete_address_usecase.dart';
 import '../../features/profile/domain/usecases/get_addresses_usecase.dart';
 import '../../features/profile/domain/usecases/get_order_by_id_usecase.dart';
@@ -90,6 +91,7 @@ import '../../features/auth/domain/usecases/verify_otp_usecase.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../../main.dart';
+import '../config/app_config.dart';
 import '../network/dio_client.dart';
 import '../network/session_interceptor.dart';
 import '../router/app_router.dart';
@@ -106,8 +108,11 @@ final GetIt getIt = GetIt.instance;
   preferRelativeImports: true,
   asExtension: true,
 )
-Future<void> configureDependencies() async {
+Future<void> configureDependencies(AppConfig appConfig) async {
   getIt.init(); // registers FlutterSecureStorage, NetworkInfo
+
+  // ── Environment config — registered first so anything below can use it ─────
+  getIt.registerSingleton<AppConfig>(appConfig);
 
   // ── Local storage ──────────────────────────────────────────────────────────
   getIt.registerLazySingleton<LocalStorage>(
@@ -139,7 +144,7 @@ Future<void> configureDependencies() async {
     ),
   );
   getIt.registerLazySingleton<DioClient>(
-    () => DioClient(cookieJar, getIt<SessionInterceptor>()),
+    () => DioClient(getIt<AppConfig>(), cookieJar, getIt<SessionInterceptor>()),
   );
 
   // ── Push notifications ──────────────────────────────────────────────────────
@@ -148,7 +153,7 @@ Future<void> configureDependencies() async {
   );
 
   // ── Realtime socket ──────────────────────────────────────────────────────────
-  getIt.registerSingleton<SocketService>(SocketService());
+  getIt.registerSingleton<SocketService>(SocketService(getIt<AppConfig>()));
 
   // ── Auth data layer ────────────────────────────────────────────────────────
   getIt
@@ -208,6 +213,9 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<DeactivateAccountUsecase>(
       () => DeactivateAccountUsecase(getIt<ProfileRepository>()),
+    )
+    ..registerLazySingleton<DeleteAccountUsecase>(
+      () => DeleteAccountUsecase(getIt<ProfileRepository>()),
     );
 
   // ── Menu item ratings ──────────────────────────────────────────────────────
@@ -304,6 +312,8 @@ Future<void> configureDependencies() async {
         getIt<UpdateProfileUseCase>(),
         getIt<VerifyProfileChangeUseCase>(),
         getIt<DeactivateAccountUsecase>(),
+        getIt<DeleteAccountUsecase>(),
+        getIt<PersistCookieJar>(),
       ),
     );
 

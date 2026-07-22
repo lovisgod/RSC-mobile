@@ -365,21 +365,73 @@ class _LoadedBody extends StatelessWidget {
         ),
         const SizedBox(height: 14),
 
-        // ── Outlet cards ─────────────────────────────────────────────────
-        ...outlets.asMap().entries.map((entry) {
-          final index = entry.key;
-          final outlet = entry.value;
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: OutletCard(
-              outlet: outlet,
-              emoji: _emojis[index % _emojis.length],
-              cardColor: _colors[index % _colors.length],
-              onTap: () => context.push('/outlet/${outlet.id}', extra: outlet),
-            ),
-          );
-        }),
+        if (outlets.isEmpty)
+          const _EmptyOutletsState()
+        else
+          // ── Outlet cards ─────────────────────────────────────────────────
+          ...outlets.asMap().entries.map((entry) {
+            final index = entry.key;
+            final outlet = entry.value;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: OutletCard(
+                outlet: outlet,
+                emoji: _emojis[index % _emojis.length],
+                cardColor: _colors[index % _colors.length],
+                onTap: () =>
+                    context.push('/outlet/${outlet.id}', extra: outlet),
+              ),
+            );
+          }),
       ],
+    );
+  }
+}
+
+class _EmptyOutletsState extends StatelessWidget {
+  const _EmptyOutletsState();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.42,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.navActiveBackground,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: const Icon(
+                  Icons.storefront_outlined,
+                  size: 34,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                AppStrings.noOutletsAvailable,
+                style: AppTextStyles.h3.copyWith(fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                AppStrings.noOutletsAvailableDescription,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

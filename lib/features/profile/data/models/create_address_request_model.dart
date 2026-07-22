@@ -1,9 +1,7 @@
+/// [latitude]/[longitude] must always be real geocoded coordinates from the
+/// resolve-address pipeline (or an existing saved address) — never
+/// placeholders.
 class CreateAddressRequestModel {
-  // TODO: Replace with actual geocoded coordinates
-  // when Google Places/Maps integration is added
-  static const double placeholderLatitude = 6.4474;
-  static const double placeholderLongitude = 3.4542;
-
   final String label;
   final String addressLine;
   final String city;

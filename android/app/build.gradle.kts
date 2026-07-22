@@ -28,6 +28,32 @@ android {
         multiDexEnabled = true
     }
 
+    buildFeatures {
+        // Required for the per-flavor app_name resValue below.
+        resValues = true
+    }
+
+    flavorDimensions += "environment"
+
+    productFlavors {
+        create("development") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "RSC Dev")
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            resValue("string", "app_name", "RSC Staging")
+        }
+        create("production") {
+            dimension = "environment"
+            resValue("string", "app_name", "RSC")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

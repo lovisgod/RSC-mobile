@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../domain/entities/order_event_entity.dart';
 
-/// Vertical timeline of [OrderEventEntity]s, newest first (caller is expected
+/// Vertical timeline of [OrderEventEntity]s, oldest first (caller is expected
 /// to have already sorted them — see TrackCubit._sortedEvents).
 class OrderTimelineWidget extends StatelessWidget {
   const OrderTimelineWidget({super.key, required this.events});
@@ -36,7 +36,7 @@ class OrderTimelineWidget extends StatelessWidget {
         for (var i = 0; i < events.length; i++)
           _TimelineRow(
             event: events[i],
-            isMostRecent: i == 0,
+            isMostRecent: i == events.length - 1,
             isLast: i == events.length - 1,
             badgeColor: _badgeColor(events[i].masterStatus),
           ),

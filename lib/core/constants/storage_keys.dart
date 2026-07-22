@@ -8,4 +8,8 @@ abstract final class StorageKeys {
 
   // ─── Pending rating prompts (one key per delivered order) ─────────────────
   static const String pendingRatingPrefix = 'pending_rating_';
+
+  // ─── Notification-driven refresh fallback ─────────────────────────────────
+  static const String pendingOrderNotificationRefresh =
+      'pending_order_notification_refresh';
 }

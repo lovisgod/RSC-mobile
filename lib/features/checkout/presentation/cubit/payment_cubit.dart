@@ -103,7 +103,12 @@ class PaymentCubit extends Cubit<PaymentState> {
       emit(
         state.copyWith(
           status: PaymentStatus.failed,
+          // StateError carries the coordinate-safety-net message from
+          // BuildPaymentPayloadUseCase — show it so the user knows to
+          // re-enter their address rather than just "payment failed".
           errorMessage: e is AuthException
+              ? e.message
+              : e is StateError
               ? e.message
               : AppStrings.paymentFailed,
         ),
@@ -219,12 +224,5 @@ class PaymentCubit extends Cubit<PaymentState> {
     await getIt<OrderHistoryCubit>().loadOrders();
     debugPrint('[RSC Payment] Loading active order...');
     await getIt<TrackCubit>().loadActiveOrder();
-  }
-
-  Future<void> processPayment(double amount) async {
-    emit(state.copyWith(status: PaymentStatus.processing));
-    await Future.delayed(const Duration(seconds: 3));
-    if (isClosed) return;
-    emit(state.copyWith(status: PaymentStatus.success));
   }
 }

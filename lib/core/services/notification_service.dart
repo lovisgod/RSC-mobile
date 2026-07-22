@@ -1,16 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../firebase_options.dart';
 import '../constants/api_constants.dart';
+import '../constants/storage_keys.dart';
 import '../di/injection.dart';
 import '../network/dio_client.dart';
 import '../router/app_router.dart';
 import '../storage/local_storage.dart';
 import '../../features/shell/presentation/bloc/shell_bloc.dart';
 import '../../features/shell/presentation/bloc/shell_event.dart';
+import '../../features/track/presentation/cubit/track_cubit.dart';
 
 const String _ordersChannelId = 'rsc_orders';
 
@@ -18,6 +21,14 @@ const String _ordersChannelId = 'rsc_orders';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint('[RSC] Background message: ${message.messageId}');
+  final orderId = _orderIdFromData(message.data);
+  if (_isOrderNotification(message.data)) {
+    const storage = FlutterSecureStorage();
+    await storage.write(
+      key: StorageKeys.pendingOrderNotificationRefresh,
+      value: orderId ?? '',
+    );
+  }
 }
 
 class NotificationService {
@@ -58,6 +69,8 @@ class NotificationService {
     }
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    await refreshTrackedOrderIfPendingNotification();
   }
 
   /// Re-registers the current FCM token with the backend. Called after a
@@ -93,8 +106,11 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    await _refreshTrackedOrderForNotification(message);
+
     final notification = message.notification;
     if (notification == null) return;
+    final orderId = _orderIdFromData(message.data);
 
     await _localNotifications.show(
       message.hashCode,
@@ -111,23 +127,59 @@ class NotificationService {
           enableVibration: true,
         ),
       ),
+      payload: _isOrderNotification(message.data)
+          ? 'order:${orderId ?? ''}'
+          : null,
     );
   }
 
-  void _handleNotificationTap(RemoteMessage message) {
+  Future<void> _handleNotificationTap(RemoteMessage message) async {
     final data = message.data;
-    if (data.containsKey('orderId') || data['type'] == 'order_update') {
+    if (_isOrderNotification(data)) {
       getIt<ShellBloc>().add(const ShellTabChanged(3));
       appRouter.go('/');
+      await _refreshTrackedOrderForNotification(message);
     } else {
       appRouter.go('/');
+    }
+  }
+
+  Future<void> refreshTrackedOrderIfPendingNotification() async {
+    final orderId = await _localStorage.takePendingOrderNotificationRefresh();
+    if (orderId == null) return;
+    await _refreshTrackedOrder(orderId.isEmpty ? null : orderId);
+  }
+
+  Future<void> _refreshTrackedOrderForNotification(
+    RemoteMessage message,
+  ) async {
+    final data = message.data;
+    if (!_isOrderNotification(data)) return;
+    await _refreshTrackedOrder(_orderIdFromData(data));
+  }
+
+  Future<void> _refreshTrackedOrder(String? orderId) async {
+    try {
+      await getIt<TrackCubit>().refreshFromOrderNotification(orderId: orderId);
+    } catch (e) {
+      debugPrint('[RSC] Order notification refresh failed: $e');
     }
   }
 
   Future<void> _setupLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
-    await _localNotifications.initialize(initSettings);
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload == null || !payload.startsWith('order:')) return;
+        final orderId = payload.substring('order:'.length);
+        getIt<ShellBloc>().add(const ShellTabChanged(3));
+        appRouter.go('/');
+        _refreshTrackedOrder(orderId.isEmpty ? null : orderId);
+      },
+    );
 
     const channel = AndroidNotificationChannel(
       _ordersChannelId,
@@ -144,4 +196,16 @@ class NotificationService {
         >()
         ?.createNotificationChannel(channel);
   }
+}
+
+bool _isOrderNotification(Map<String, dynamic> data) {
+  final type = data['type']?.toString().toLowerCase();
+  return _orderIdFromData(data) != null || (type?.contains('order') ?? false);
+}
+
+String? _orderIdFromData(Map<String, dynamic> data) {
+  final orderId = data['orderId'] ?? data['masterOrderId'];
+  if (orderId == null) return null;
+  final value = orderId.toString();
+  return value.isEmpty ? null : value;
 }

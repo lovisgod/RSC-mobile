@@ -38,9 +38,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Cold start counts as a foreground too — a delivery may have completed
     // while the app was killed.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _checkPendingRatings(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingRatings());
   }
 
   @override
@@ -54,6 +52,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _checkPendingRatings();
+        getIt<NotificationService>().refreshTrackedOrderIfPendingNotification();
         _reconnectSocketIfNeeded();
       case AppLifecycleState.paused:
         // No action — socket.io handles the background disconnect gracefully.

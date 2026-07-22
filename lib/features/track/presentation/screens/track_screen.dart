@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_assets.dart';
@@ -10,10 +11,15 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/line_item_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
+import '../../../shell/presentation/bloc/shell_bloc.dart';
+import '../../../shell/presentation/bloc/shell_event.dart';
+import '../../../shell/presentation/bloc/shell_state.dart';
 import '../../domain/entities/order_event_entity.dart';
 import '../../domain/entities/rider_info_entity.dart';
 import '../../domain/entities/rider_location_entity.dart';
@@ -76,6 +82,20 @@ class _TrackScreenState extends State<TrackScreen>
 
   @override
   Widget build(BuildContext context) {
+    return BlocConsumer<ShellBloc, ShellState>(
+      // A guest who logs in while this tab is alive missed the initState
+      // load (the cubit guard skipped it) — kick it off now.
+      listenWhen: (prev, curr) => !prev.isAuthenticated && curr.isAuthenticated,
+      listener: (context, _) => context.read<TrackCubit>().loadActiveOrder(),
+      buildWhen: (prev, curr) => prev.isAuthenticated != curr.isAuthenticated,
+      builder: (context, shellState) {
+        if (!shellState.isAuthenticated) return const _GuestBody();
+        return _buildAuthenticated(context);
+      },
+    );
+  }
+
+  Widget _buildAuthenticated(BuildContext context) {
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     return BlocConsumer<TrackCubit, TrackState>(
@@ -176,6 +196,91 @@ class _TrackScreenState extends State<TrackScreen>
           ),
         );
       },
+    );
+  }
+}
+
+// ── Guest state ──────────────────────────────────────────────────────────────
+
+class _GuestBody extends StatelessWidget {
+  const _GuestBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
+
+    return Scaffold(
+      backgroundColor: AppColors.navyDark,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: statusBarHeight),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Text(
+              AppStrings.orderProgress,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('📦', style: TextStyle(fontSize: 48)),
+                      const SizedBox(height: 24),
+                      const Text(
+                        AppStrings.trackYourOrders,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: const Text(
+                          AppStrings.signInToTrackSubtitle,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      AppButton(
+                        label: AppStrings.signInToTrack,
+                        backgroundColor: AppColors.navy,
+                        onPressed: () => context.read<ShellBloc>().add(
+                          const ShellTabChanged(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -762,6 +867,16 @@ class _DeliveryHandoffCard extends StatelessWidget {
 
   final String code;
 
+  Future<void> _copyCode(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!context.mounted) return;
+    AppSnackbar.show(
+      context,
+      message: AppStrings.deliveryCodeCopied,
+      type: AppSnackbarType.success,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
@@ -784,14 +899,29 @@ class _DeliveryHandoffCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              code,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-                letterSpacing: 1,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _copyCode(context),
+                  icon: const Icon(Icons.copy_rounded),
+                  color: AppColors.primary,
+                  iconSize: 20,
+                  tooltip: AppStrings.deliveryCodeCopied,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             const Text(

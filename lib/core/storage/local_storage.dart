@@ -83,4 +83,20 @@ class LocalStorage {
 
   Future<void> clearPendingRating(String orderId) =>
       _storage.delete(key: '${StorageKeys.pendingRatingPrefix}$orderId');
+
+  // ─── Notification-driven order refresh fallback ────────────────────────────
+
+  Future<void> savePendingOrderNotificationRefresh(String? orderId) =>
+      _storage.write(
+        key: StorageKeys.pendingOrderNotificationRefresh,
+        value: orderId ?? '',
+      );
+
+  Future<String?> takePendingOrderNotificationRefresh() async {
+    final orderId = await _storage.read(
+      key: StorageKeys.pendingOrderNotificationRefresh,
+    );
+    await _storage.delete(key: StorageKeys.pendingOrderNotificationRefresh);
+    return orderId;
+  }
 }

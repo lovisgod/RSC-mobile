@@ -13,7 +13,8 @@ class TrackState {
   /// Cached outlets (name/emoji lookups for the kitchen-breakdowns section).
   final List<Outlet> outlets;
 
-  /// activeOrder.events, sorted newest first.
+  /// activeOrder.events, sorted oldest first so the current status sits at
+  /// the bottom of the timeline.
   final List<OrderEventEntity> orderEvents;
 
   /// Drives the motorcycle position (0.0 → 1.0) while OUT_FOR_DELIVERY. The

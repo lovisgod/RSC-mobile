@@ -4,7 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
-import '../constants/api_constants.dart';
+import '../config/app_config.dart';
 
 /// Thin wrapper around a single socket.io connection to the realtime
 /// namespace. Registered as a SINGLETON — the whole app shares one socket.
@@ -12,6 +12,9 @@ import '../constants/api_constants.dart';
 /// Auth is via the HttpOnly session cookie already attached by DioClient's
 /// cookie jar (`withCredentials: true`), so no token handling here.
 class SocketService {
+  SocketService(AppConfig appConfig) : _baseUrl = appConfig.baseUrl;
+
+  final String _baseUrl;
   sio.Socket? _socket;
   bool _isConnected = false;
   final Set<String> _activeRooms = {};
@@ -71,7 +74,7 @@ class SocketService {
     // HttpOnly cookie auth — no token needed in headers.
     options['withCredentials'] = true;
 
-    _socket = sio.io('${ApiConstants.baseUrl}/realtime', options);
+    _socket = sio.io('$_baseUrl/realtime', options);
 
     _socket!.onConnect((_) {
       _isConnected = true;

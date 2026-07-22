@@ -47,6 +47,13 @@ class TrackCubit extends Cubit<TrackState> {
   static const _riderLocationPollInterval = Duration(seconds: 10);
 
   Future<void> loadActiveOrder() async {
+    // Orders are an authenticated endpoint — never call it for guests.
+    final userId = await _localStorage.getUserId();
+    if (userId == null) {
+      debugPrint('[RSC Track] Skipping loadActiveOrder — guest user');
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearError: true));
 
     var orders = _orderHistoryCubit.state.orders;
@@ -81,6 +88,12 @@ class TrackCubit extends Cubit<TrackState> {
   /// recent active one. Tracking continues for that order via the socket
   /// until it reaches a completed status.
   Future<void> loadSpecificOrder(String orderId) async {
+    final userId = await _localStorage.getUserId();
+    if (userId == null) {
+      debugPrint('[RSC Track] Skipping loadSpecificOrder — guest user');
+      return;
+    }
+
     emit(state.copyWith(isLoading: true, clearError: true));
     await startTrackingOrder(orderId);
   }
@@ -88,6 +101,12 @@ class TrackCubit extends Cubit<TrackState> {
   /// Subscribes to the order's socket room (if not already tracking it) and
   /// loads its current state via REST.
   Future<void> startTrackingOrder(String orderId) async {
+    final userId = await _localStorage.getUserId();
+    if (userId == null) {
+      debugPrint('[RSC Track] Skipping startTrackingOrder — guest user');
+      return;
+    }
+
     if (_trackedOrderId != orderId) {
       stopTrackingOrder();
       _trackedOrderId = orderId;
@@ -243,6 +262,26 @@ class TrackCubit extends Cubit<TrackState> {
     }
   }
 
+  /// Refreshes the tracked order after an order-related push notification.
+  /// If the notification names a different order, switch tracking to that
+  /// order; otherwise refresh the currently viewed order without UI flicker.
+  Future<void> refreshFromOrderNotification({String? orderId}) async {
+    final targetOrderId = (orderId != null && orderId.isNotEmpty)
+        ? orderId
+        : _trackedOrderId;
+
+    if (targetOrderId == null) {
+      await loadActiveOrder();
+      return;
+    }
+
+    if (_trackedOrderId == targetOrderId) {
+      await _refreshOrderData(targetOrderId);
+    } else {
+      await startTrackingOrder(targetOrderId);
+    }
+  }
+
   /// Silent background refresh — no loading state, no UI flicker.
   Future<void> _refreshOrderData(String orderId) async {
     try {
@@ -277,7 +316,7 @@ class TrackCubit extends Cubit<TrackState> {
   // ── Private helpers ────────────────────────────────────────────────────────
 
   List<OrderEventEntity> _sortedEvents(OrderHistoryEntity order) =>
-      [...order.events]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      [...order.events]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
   /// DELIVERED/CANCELLED schedule the state reset; any other status is a
   /// no-op — the socket subscription keeps pushing updates.

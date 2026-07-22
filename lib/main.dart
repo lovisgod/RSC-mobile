@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app.dart';
+import 'core/config/app_config.dart';
 import 'core/di/injection.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/socket_service.dart';
@@ -21,6 +22,10 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final AppConfig appConfig = AppConfig.fromEnvironment();
+  debugPrint('[RSC] Environment: ${appConfig.environment}');
+  debugPrint('[RSC] Base URL: ${appConfig.baseUrl}');
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -35,7 +40,7 @@ void main() async {
   Hive.registerAdapter(SelectedModifierHiveModelAdapter());
   await Hive.openBox<CartItemHiveModel>(cartBoxName);
 
-  await configureDependencies();
+  await configureDependencies(appConfig);
 
   try {
     await getIt<NotificationService>().initialize();
