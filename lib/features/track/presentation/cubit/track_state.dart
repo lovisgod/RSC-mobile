@@ -10,11 +10,15 @@ class TrackState {
   final bool isLoading;
   final String? error;
 
+  /// Active/recent orders shown in the Track hub. Only [activeOrder] is
+  /// expanded and socket-tracked; the rest are compact cached cards.
+  final List<OrderHistoryEntity> trackedOrders;
+
   /// Cached outlets (name/emoji lookups for the kitchen-breakdowns section).
   final List<Outlet> outlets;
 
-  /// activeOrder.events, sorted oldest first so the current status sits at
-  /// the bottom of the timeline.
+  /// activeOrder.events, sorted newest first so the current status sits at
+  /// the top of the timeline.
   final List<OrderEventEntity> orderEvents;
 
   /// Drives the motorcycle position (0.0 → 1.0) while OUT_FOR_DELIVERY. The
@@ -34,6 +38,7 @@ class TrackState {
     this.activeOrder,
     this.isLoading = false,
     this.error,
+    this.trackedOrders = const [],
     this.outlets = const [],
     this.orderEvents = const [],
     this.riderProgress = 0,
@@ -50,6 +55,7 @@ class TrackState {
     bool? isLoading,
     String? error,
     bool clearError = false,
+    List<OrderHistoryEntity>? trackedOrders,
     List<Outlet>? outlets,
     List<OrderEventEntity>? orderEvents,
     double? riderProgress,
@@ -63,6 +69,7 @@ class TrackState {
       activeOrder: clearActiveOrder ? null : (activeOrder ?? this.activeOrder),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      trackedOrders: trackedOrders ?? this.trackedOrders,
       outlets: outlets ?? this.outlets,
       orderEvents: orderEvents ?? this.orderEvents,
       riderProgress: riderProgress ?? this.riderProgress,

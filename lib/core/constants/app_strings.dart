@@ -130,7 +130,7 @@ abstract final class AppStrings {
   static const String etaOnTheWay = 'On the way! 🛵';
   static const String etaDelivered = 'Delivered! 🎉';
   static const String waitingForKitchen = 'Waiting for kitchen confirmation';
-  static const String orderConfirmedByKitchen = 'Order confirmed by kitchen';
+  static const String orderConfirmedByKitchen = 'Order processing please wait';
   static const String someItemsBeingFinished =
       'Some items are being finished up';
   static const String kitchenIsPreparingMeals =
@@ -157,6 +157,7 @@ abstract final class AppStrings {
   static const String riderStatusAssigned = 'ASSIGNED';
   static const String riderStatusPickedUp = 'PICKED UP';
   static const String riderStatusDelivered = 'DELIVERED';
+  static const String otherTrackedOrders = 'OTHER TRACKED ORDERS';
 
   // ─── Search ───────────────────────────────────────────────────────────────
   static const String searchAcrossAllOutlets = 'Search across all outlets...';

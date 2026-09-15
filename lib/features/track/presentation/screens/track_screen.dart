@@ -11,6 +11,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
@@ -111,11 +112,13 @@ class _TrackScreenState extends State<TrackScreen>
           body = _ActiveOrderBody(
             order: order,
             outlets: state.outlets,
+            trackedOrders: state.trackedOrders,
             orderEvents: state.orderEvents,
             riderController: _riderController,
             pulseAnimation: _pulseAnimation,
             riderInfo: state.riderInfo,
             riderLocation: state.riderLocation,
+            onOrderSelected: context.read<TrackCubit>().selectTrackedOrder,
           );
         } else if (state.isLoading) {
           body = const _LoadingBody();
@@ -442,20 +445,24 @@ class _ActiveOrderBody extends StatelessWidget {
   const _ActiveOrderBody({
     required this.order,
     required this.outlets,
+    required this.trackedOrders,
     required this.orderEvents,
     required this.riderController,
     required this.pulseAnimation,
     required this.riderInfo,
     required this.riderLocation,
+    required this.onOrderSelected,
   });
 
   final OrderHistoryEntity order;
   final List<Outlet> outlets;
+  final List<OrderHistoryEntity> trackedOrders;
   final List<OrderEventEntity> orderEvents;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
   final RiderInfoEntity? riderInfo;
   final RiderLocationEntity? riderLocation;
+  final ValueChanged<String> onOrderSelected;
 
   static const _riderStatuses = {'OUT_FOR_DELIVERY', 'DELIVERED'};
 
@@ -472,6 +479,9 @@ class _ActiveOrderBody extends StatelessWidget {
     }
 
     final hasRider = _riderStatuses.contains(order.status);
+    final collapsedOrders = trackedOrders
+        .where((trackedOrder) => trackedOrder.id != order.id)
+        .toList();
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -551,7 +561,151 @@ class _ActiveOrderBody extends StatelessWidget {
                   )
                 : const SizedBox(key: ValueKey('no-rider')),
           ),
+
+          if (collapsedOrders.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text(
+              AppStrings.otherTrackedOrders,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...collapsedOrders.map(
+              (trackedOrder) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _TrackedOrderCard(
+                  order: trackedOrder,
+                  outlets: outlets,
+                  onTap: () => onOrderSelected(trackedOrder.id),
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _TrackedOrderCard extends StatelessWidget {
+  const _TrackedOrderCard({
+    required this.order,
+    required this.outlets,
+    required this.onTap,
+  });
+
+  final OrderHistoryEntity order;
+  final List<Outlet> outlets;
+  final VoidCallback onTap;
+
+  String get _kitchenLabel {
+    final firstOutletId = order.lineItems.firstOrNull?.outletId;
+    if (firstOutletId == null) return AppStrings.kitchenFallbackName;
+    return outlets
+            .firstWhereOrNull((outlet) => outlet.id == firstOutletId)
+            ?.name ??
+        AppStrings.kitchenFallbackName;
+  }
+
+  Color get _statusColor {
+    switch (order.status.toUpperCase()) {
+      case 'PENDING_PAYMENT':
+      case 'PARTIALLY_READY':
+        return AppColors.warning;
+      case 'CONFIRMED':
+      case 'PENDING':
+        return AppColors.info;
+      case 'READY':
+      case 'DELIVERED':
+        return AppColors.success;
+      case 'OUT_FOR_DELIVERY':
+        return AppColors.navy;
+      case 'CANCELLED':
+        return AppColors.error;
+      default:
+        return AppColors.neutralGray;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.displayOrderId,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _kitchenLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formatDateTime(order.createdAt),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                order.status,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: statusColor,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

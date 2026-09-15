@@ -56,16 +56,16 @@ class TrackCubit extends Cubit<TrackState> {
 
     emit(state.copyWith(isLoading: true, clearError: true));
 
-    var orders = _orderHistoryCubit.state.orders;
-    if (orders.isEmpty) {
-      await _orderHistoryCubit.loadOrders();
-      orders = _orderHistoryCubit.state.orders;
-    }
+    await _orderHistoryCubit.loadOrders();
+    final orders = _orderHistoryCubit.state.orders;
+    final trackableOrders = await _hydrateTrackableOrders(
+      _trackableOrders(orders),
+    );
 
     debugPrint(
       '[RSC Track] Looking for active order in ${orders.length} orders',
     );
-    final summary = orders.firstWhereOrNull((o) => o.isActive);
+    final summary = trackableOrders.firstOrNull;
     debugPrint('[RSC Track] Active order found: ${summary?.id ?? 'none'}');
 
     if (summary == null) {
@@ -75,11 +75,13 @@ class TrackCubit extends Cubit<TrackState> {
           hasActiveOrder: false,
           isLoading: false,
           clearActiveOrder: true,
+          trackedOrders: const [],
         ),
       );
       return;
     }
 
+    emit(state.copyWith(trackedOrders: trackableOrders));
     await startTrackingOrder(summary.id);
   }
 
@@ -94,6 +96,13 @@ class TrackCubit extends Cubit<TrackState> {
       return;
     }
 
+    emit(state.copyWith(isLoading: true, clearError: true));
+    await startTrackingOrder(orderId);
+  }
+
+  Future<void> selectTrackedOrder(String orderId) async {
+    if (_trackedOrderId == orderId) return;
+    _resetTimer?.cancel();
     emit(state.copyWith(isLoading: true, clearError: true));
     await startTrackingOrder(orderId);
   }
@@ -172,6 +181,7 @@ class TrackCubit extends Cubit<TrackState> {
         state.copyWith(
           hasActiveOrder: true,
           activeOrder: detail,
+          trackedOrders: _upsertTrackedOrder(detail),
           orderEvents: _sortedEvents(detail),
           isLoading: false,
           outlets: outlets,
@@ -222,7 +232,13 @@ class TrackCubit extends Cubit<TrackState> {
     }
 
     if (current != null) {
-      emit(state.copyWith(activeOrder: current.copyWith(status: newStatus)));
+      final updated = current.copyWith(status: newStatus);
+      emit(
+        state.copyWith(
+          activeOrder: updated,
+          trackedOrders: _upsertTrackedOrder(updated),
+        ),
+      );
       _applyStatusTransition(newStatus);
     }
 
@@ -262,9 +278,9 @@ class TrackCubit extends Cubit<TrackState> {
     }
   }
 
-  /// Refreshes the tracked order after an order-related push notification.
-  /// If the notification names a different order, switch tracking to that
-  /// order; otherwise refresh the currently viewed order without UI flicker.
+  /// Refreshes a Track hub order after an order-related push notification.
+  /// Expanded orders refresh the visible UI; collapsed cached orders update
+  /// silently. A new order not already in the hub becomes the expanded order.
   Future<void> refreshFromOrderNotification({String? orderId}) async {
     final targetOrderId = (orderId != null && orderId.isNotEmpty)
         ? orderId
@@ -275,7 +291,11 @@ class TrackCubit extends Cubit<TrackState> {
       return;
     }
 
-    if (_trackedOrderId == targetOrderId) {
+    final isKnownCollapsed = state.trackedOrders.any(
+      (order) => order.id == targetOrderId,
+    );
+
+    if (_trackedOrderId == targetOrderId || isKnownCollapsed) {
       await _refreshOrderData(targetOrderId);
     } else {
       await startTrackingOrder(targetOrderId);
@@ -286,16 +306,21 @@ class TrackCubit extends Cubit<TrackState> {
   Future<void> _refreshOrderData(String orderId) async {
     try {
       final detail = await _getOrderByIdUseCase(orderId);
-      if (isClosed || _trackedOrderId != orderId) return;
+      if (isClosed) return;
+
+      final isExpanded = _trackedOrderId == orderId;
       emit(
-        state.copyWith(
-          activeOrder: detail,
-          orderEvents: _sortedEvents(detail),
-          riderInfo: detail.rider,
-          clearRiderInfo: detail.rider == null,
-          riderLocation: detail.latestRiderLocation,
-          clearRiderLocation: detail.latestRiderLocation == null,
-        ),
+        isExpanded
+            ? state.copyWith(
+                activeOrder: detail,
+                trackedOrders: _upsertTrackedOrder(detail),
+                orderEvents: _sortedEvents(detail),
+                riderInfo: detail.rider,
+                clearRiderInfo: detail.rider == null,
+                riderLocation: detail.latestRiderLocation,
+                clearRiderLocation: detail.latestRiderLocation == null,
+              )
+            : state.copyWith(trackedOrders: _upsertTrackedOrder(detail)),
       );
     } catch (_) {
       // Silent failure — never disrupt the active tracking UI over one bad
@@ -305,7 +330,14 @@ class TrackCubit extends Cubit<TrackState> {
 
   Future<void> manualRefresh() async {
     _resetTimer?.cancel();
-    await loadActiveOrder();
+    final orderId = _trackedOrderId;
+    if (orderId == null) {
+      await loadActiveOrder();
+      return;
+    }
+
+    emit(state.copyWith(isLoading: true, clearError: true));
+    await _loadOrderDetail(orderId);
   }
 
   void cancelTracking() {
@@ -316,7 +348,34 @@ class TrackCubit extends Cubit<TrackState> {
   // ── Private helpers ────────────────────────────────────────────────────────
 
   List<OrderEventEntity> _sortedEvents(OrderHistoryEntity order) =>
-      [...order.events]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      [...order.events]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  List<OrderHistoryEntity> _trackableOrders(List<OrderHistoryEntity> orders) =>
+      orders.where((order) => order.isActive).toList();
+
+  Future<List<OrderHistoryEntity>> _hydrateTrackableOrders(
+    List<OrderHistoryEntity> orders,
+  ) async {
+    return Future.wait(
+      orders.map((order) async {
+        try {
+          return await _getOrderByIdUseCase(order.id);
+        } catch (_) {
+          return order;
+        }
+      }),
+    );
+  }
+
+  List<OrderHistoryEntity> _upsertTrackedOrder(OrderHistoryEntity order) {
+    final existing = state.trackedOrders;
+    final index = existing.indexWhere((tracked) => tracked.id == order.id);
+    if (index == -1) return [order, ...existing];
+
+    final updated = [...existing];
+    updated[index] = order;
+    return updated;
+  }
 
   /// DELIVERED/CANCELLED schedule the state reset; any other status is a
   /// no-op — the socket subscription keeps pushing updates.
@@ -331,10 +390,20 @@ class TrackCubit extends Cubit<TrackState> {
 
   void _scheduleReset(Duration delay) {
     _resetTimer?.cancel();
+    final orderId = _trackedOrderId;
     _resetTimer = Timer(delay, () {
       if (isClosed) return;
       stopTrackingOrder();
-      emit(TrackState.empty());
+      final remaining = state.trackedOrders
+          .where((order) => order.id != orderId && order.isActive)
+          .toList();
+      if (remaining.isEmpty) {
+        emit(TrackState.empty());
+        return;
+      }
+
+      emit(state.copyWith(trackedOrders: remaining));
+      unawaited(startTrackingOrder(remaining.first.id));
     });
   }
 
