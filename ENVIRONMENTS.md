@@ -64,4 +64,11 @@ on dev/staging builds.
 
 ## iOS
 
-iOS schemes are not yet configured — see `ios/FLAVOR_SETUP.md`.
+iOS schemes (`development`, `staging`, `production`) are configured to match
+the flags above — the same `flutter run/build --flavor <name>` commands work
+on iOS now. Bundle IDs: `com.rsc.rsc_mobile.dev` / `.staging` / (none) for
+production, matching the Android application IDs and the Firebase project
+registration.
+
+Running without `--flavor` on iOS falls back to the original `Runner` scheme
+(bundle id `com.rsc.rscMobile`) for backwards compatibility.

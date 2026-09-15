@@ -1,0 +1,4 @@
+#include "Release.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.rsc.rsc_mobile
+DISPLAY_NAME = RSC
