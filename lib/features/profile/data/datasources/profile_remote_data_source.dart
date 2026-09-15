@@ -22,6 +22,7 @@ abstract class ProfileRemoteDataSource {
     VerifyProfileChangeRequestModel request,
   );
   Future<void> deactivateAccount();
+  Future<void> deleteAccount(String userId);
 }
 
 class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
@@ -108,6 +109,17 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<void> deactivateAccount() async {
     try {
       await _client.dio.post(ApiConstants.deactivateAccount);
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteAccount(String userId) async {
+    try {
+      await _client.dio.delete(
+        ApiConstants.deleteAccount.replaceAll('{id}', userId),
+      );
     } on DioException catch (e) {
       throw _mapError(e);
     }

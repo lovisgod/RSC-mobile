@@ -45,6 +45,19 @@ class _OrderHistoryCardState extends State<OrderHistoryCard> {
   }
 
   @override
+  void didUpdateWidget(covariant OrderHistoryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // List items have no keys, so on refresh this element can be reused for a
+    // different order — keep the cubit in sync with the new order's status.
+    if (widget.order.isPendingPayment) {
+      _paymentCubit ??= getIt<PaymentCubit>();
+    } else if (_paymentCubit != null) {
+      _paymentCubit!.close();
+      _paymentCubit = null;
+    }
+  }
+
+  @override
   void dispose() {
     _paymentCubit?.close();
     super.dispose();

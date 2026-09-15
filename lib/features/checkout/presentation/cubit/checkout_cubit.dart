@@ -252,7 +252,10 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         deliveryAddress: address.displayAddress,
         isUsingDefaultAddress: true,
         selectedAddress: address,
-        clearCoordinates: true,
+        // Saved addresses carry the coordinates resolved when they were
+        // created — they ARE the address pipeline's output for this pick.
+        currentLatitude: address.latitude,
+        currentLongitude: address.longitude,
         showSuggestions: false,
         addressSuggestions: const [],
         addressVerified: false,
@@ -286,14 +289,9 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     emit(
       state.copyWith(
         isOrderingForSomeoneElse: value,
-        recipientAddress: value ? state.recipientAddress : '',
         recipientPhone: value ? state.recipientPhone : '',
       ),
     );
-  }
-
-  void updateRecipientAddress(String address) {
-    emit(state.copyWith(recipientAddress: address));
   }
 
   void updateRecipientPhone(String phone) {

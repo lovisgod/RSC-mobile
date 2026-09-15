@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/app_config.dart';
 import '../constants/api_constants.dart';
 import '../errors/exceptions.dart';
 import 'session_interceptor.dart';
@@ -11,10 +12,14 @@ class DioClient {
   late final Dio _dio;
   final PersistCookieJar cookieJar;
 
-  DioClient(this.cookieJar, SessionInterceptor sessionInterceptor) {
+  DioClient(
+    AppConfig appConfig,
+    this.cookieJar,
+    SessionInterceptor sessionInterceptor,
+  ) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: ApiConstants.baseUrl,
+        baseUrl: appConfig.baseUrl,
         connectTimeout: ApiConstants.connectTimeout,
         receiveTimeout: ApiConstants.receiveTimeout,
         sendTimeout: ApiConstants.sendTimeout,

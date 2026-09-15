@@ -17,4 +17,6 @@ abstract class ProfileRepository {
   Future<Profile> verifyProfileChange(String code);
 
   Future<void> deactivateAccount();
+
+  Future<void> deleteAccount(String userId);
 }

@@ -38,9 +38,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Cold start counts as a foreground too — a delivery may have completed
     // while the app was killed.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _checkPendingRatings(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingRatings());
   }
 
   @override
@@ -51,7 +49,34 @@ class _AppState extends State<App> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _checkPendingRatings();
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _checkPendingRatings();
+        getIt<NotificationService>().refreshTrackedOrderIfPendingNotification();
+        _reconnectSocketIfNeeded();
+      case AppLifecycleState.paused:
+        // No action — socket.io handles the background disconnect gracefully.
+        debugPrint('[RSC App] App paused');
+      case AppLifecycleState.detached:
+        debugPrint('[RSC App] App detached');
+      default:
+        break;
+    }
+  }
+
+  /// iOS suspends sockets in the background, and neither the connectivity
+  /// listener nor the backoff timer fires while suspended — resume is the
+  /// reliable moment to bring the connection back for a logged-in user.
+  Future<void> _reconnectSocketIfNeeded() async {
+    debugPrint('[RSC App] Resumed — checking socket connection');
+    final userId = await getIt<LocalStorage>().getUserId();
+    if (userId == null) return;
+
+    final socketService = getIt<SocketService>();
+    if (!socketService.isConnected) {
+      debugPrint('[RSC App] Socket disconnected on resume — reconnecting');
+      socketService.connect();
+    }
   }
 
   /// Shows at most ONE rating prompt per foreground, for the first pending

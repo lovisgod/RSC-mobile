@@ -62,13 +62,15 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
     _stateCtrl = TextEditingController(text: existing?.state ?? '');
     _isDefault = existing?.isDefault ?? false;
 
-    // Validate the coordinates that will actually be submitted if the user
-    // saves without picking a new suggestion — the existing address's own
-    // lat/lng in edit mode, or the placeholder used for new addresses.
-    context.read<AddressCubit>().validateAddress(
-      existing?.latitude ?? CreateAddressRequestModel.placeholderLatitude,
-      existing?.longitude ?? CreateAddressRequestModel.placeholderLongitude,
-    );
+    // In edit mode, validate the coordinates that will be submitted if the
+    // user saves without picking a new suggestion. A new address has no
+    // coordinates yet — saving is blocked until a suggestion is resolved.
+    if (existing != null) {
+      context.read<AddressCubit>().validateAddress(
+        existing.latitude,
+        existing.longitude,
+      );
+    }
   }
 
   @override
@@ -82,19 +84,21 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
   void _submit() {
     final cubit = context.read<AddressCubit>();
     final existing = widget.existingAddress;
+
+    // Coordinates come from the freshly resolved suggestion, or the address
+    // being edited. The save button is disabled until one of them exists —
+    // an address is never saved with placeholder coordinates.
+    final latitude = cubit.state.selectedLatitude ?? existing?.latitude;
+    final longitude = cubit.state.selectedLongitude ?? existing?.longitude;
+    if (latitude == null || longitude == null) return;
+
     final request = CreateAddressRequestModel(
       label: _selectedLabel.displayName,
       addressLine: _addressLineCtrl.text.trim(),
       city: _cityCtrl.text.trim().isEmpty ? 'Lagos' : _cityCtrl.text.trim(),
       state: _stateCtrl.text.trim().isEmpty ? 'Lagos' : _stateCtrl.text.trim(),
-      latitude:
-          cubit.state.selectedLatitude ??
-          existing?.latitude ??
-          CreateAddressRequestModel.placeholderLatitude,
-      longitude:
-          cubit.state.selectedLongitude ??
-          existing?.longitude ??
-          CreateAddressRequestModel.placeholderLongitude,
+      latitude: latitude,
+      longitude: longitude,
       isDefault: _isDefault,
     );
 
@@ -322,14 +326,35 @@ class _AddressBottomSheetState extends State<AddressBottomSheet> {
 
                   BlocBuilder<AddressCubit, AddressState>(
                     builder: (context, state) {
-                      final canSave = _addressLineCtrl.text.trim().isNotEmpty;
-                      return AppButton(
-                        label: AppStrings.saveAddress,
-                        isLoading: state.isSubmitting,
-                        backgroundColor: AppColors.navy,
-                        onPressed: canSave && !state.isSubmitting
-                            ? _submit
-                            : null,
+                      final hasText = _addressLineCtrl.text.trim().isNotEmpty;
+                      final hasCoordinates =
+                          (state.selectedLatitude != null &&
+                              state.selectedLongitude != null) ||
+                          _isEditMode;
+                      final canSave = hasText && hasCoordinates;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppButton(
+                            label: AppStrings.saveAddress,
+                            isLoading: state.isSubmitting,
+                            backgroundColor: AppColors.navy,
+                            onPressed: canSave && !state.isSubmitting
+                                ? _submit
+                                : null,
+                          ),
+                          if (hasText && !hasCoordinates) ...[
+                            const SizedBox(height: 8),
+                            const Text(
+                              AppStrings.pleaseSelectFromSuggestions,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ],
                       );
                     },
                   ),

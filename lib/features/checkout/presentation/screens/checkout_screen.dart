@@ -738,6 +738,17 @@ class _DeliveryAddressCard extends StatelessWidget {
                         ],
                         onChanged: onRecipientPhoneChanged,
                       ),
+                      if (state.recipientPhone.isNotEmpty &&
+                          !state.isRecipientPhoneValid) ...[
+                        const SizedBox(height: 4),
+                        const Text(
+                          AppStrings.enterValidRecipientPhone,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
                     ],
                   )
                 : const SizedBox(width: double.infinity, height: 0),
@@ -971,15 +982,16 @@ class _ProceedButton extends StatelessWidget {
     String? hintText;
     Color hintColor = AppColors.textSecondary;
     if (formInvalid && state.selectedMode == DeliveryMode.delivery) {
-      if (state.isOrderingForSomeoneElse) {
-        hintText = AppStrings.pleaseEnterDeliveryAddress;
-      } else if (state.addressOutOfZone) {
+      if (state.addressOutOfZone) {
         hintText = AppStrings.selectAddressInArea;
         hintColor = AppColors.error;
       } else if (state.deliveryAddress.trim().isEmpty) {
         hintText = AppStrings.enterDeliveryAddress;
-      } else {
+      } else if (!state.addressVerified || state.isValidatingAddress) {
         hintText = AppStrings.selectValidAddress;
+      } else if (state.isOrderingForSomeoneElse &&
+          !state.isRecipientPhoneValid) {
+        hintText = AppStrings.enterValidRecipientPhone;
       }
     }
 

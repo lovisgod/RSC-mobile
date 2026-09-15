@@ -1,0 +1,4 @@
+#include "Debug.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.rsc.rsc_mobile.staging
+DISPLAY_NAME = RSC Staging

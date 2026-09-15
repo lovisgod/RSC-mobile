@@ -37,7 +37,6 @@ class CheckoutState {
   /// the screen as a snackbar then cleared — not a persistent form error.
   final String? addressResolveError;
   final bool isOrderingForSomeoneElse;
-  final String recipientAddress;
   final String recipientPhone;
   final String preparationInstructions;
   final List<PreparationSuggestionEntity> suggestions;
@@ -70,7 +69,6 @@ class CheckoutState {
     this.isValidatingAddress = false,
     this.addressResolveError,
     this.isOrderingForSomeoneElse = false,
-    this.recipientAddress = '',
     this.recipientPhone = '',
     this.preparationInstructions = '',
     this.suggestions = const [],
@@ -84,15 +82,25 @@ class CheckoutState {
     this.isPrePopulated = false,
   });
 
+  /// Minimum digits for a plausible recipient phone number.
+  static const int minRecipientPhoneLength = 10;
+
+  /// The delivery always goes to the address the ordering user entered —
+  /// "someone else" only adds a recipient phone number on top of it.
+  bool get isRecipientPhoneValid =>
+      recipientPhone.length >= minRecipientPhoneLength;
+
   bool get isFormValid {
     if (selectedMode == DeliveryMode.takeout) return true;
-    if (isOrderingForSomeoneElse) {
-      return recipientAddress.isNotEmpty && recipientPhone.isNotEmpty;
-    }
-    return deliveryAddress.trim().isNotEmpty &&
+    final addressValid =
+        deliveryAddress.trim().isNotEmpty &&
         addressVerified &&
         !addressOutOfZone &&
         !isValidatingAddress;
+    if (isOrderingForSomeoneElse) {
+      return addressValid && isRecipientPhoneValid;
+    }
+    return addressValid;
   }
 
   CheckoutState copyWith({
@@ -115,7 +123,6 @@ class CheckoutState {
     String? addressResolveError,
     bool clearAddressResolveError = false,
     bool? isOrderingForSomeoneElse,
-    String? recipientAddress,
     String? recipientPhone,
     String? preparationInstructions,
     List<PreparationSuggestionEntity>? suggestions,
@@ -156,7 +163,6 @@ class CheckoutState {
           : (addressResolveError ?? this.addressResolveError),
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
-      recipientAddress: recipientAddress ?? this.recipientAddress,
       recipientPhone: recipientPhone ?? this.recipientPhone,
       preparationInstructions:
           preparationInstructions ?? this.preparationInstructions,

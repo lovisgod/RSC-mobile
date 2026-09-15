@@ -64,6 +64,9 @@ abstract final class AppStrings {
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
   static const String newOutlet = 'New';
+  static const String noOutletsAvailable = 'No outlets available';
+  static const String noOutletsAvailableDescription =
+      'There are currently no food kitchens available in your area. Please check again later.';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';
@@ -127,7 +130,7 @@ abstract final class AppStrings {
   static const String etaOnTheWay = 'On the way! 🛵';
   static const String etaDelivered = 'Delivered! 🎉';
   static const String waitingForKitchen = 'Waiting for kitchen confirmation';
-  static const String orderConfirmedByKitchen = 'Order confirmed by kitchen';
+  static const String orderConfirmedByKitchen = 'Order processing please wait';
   static const String someItemsBeingFinished =
       'Some items are being finished up';
   static const String kitchenIsPreparingMeals =
@@ -141,14 +144,20 @@ abstract final class AppStrings {
   static const String viewDetails = 'View Details';
   static const String live = 'Live';
   static const String reconnecting = 'Reconnecting...';
+  static const String trackYourOrders = 'Track Your Orders';
+  static const String signInToTrackSubtitle =
+      'Sign in to track your active deliveries in real time';
+  static const String signInToTrack = 'Sign In to Track';
   static const String kitchenBreakdowns = 'KITCHEN BREAKDOWNS';
   static const String deliveryHandoffCode = 'DELIVERY HANDOFF CODE';
+  static const String deliveryCodeCopied = 'Delivery code copied';
   static const String shareDeliveryCode =
       'Share this code with the rider upon receiving the delivery.';
   static const String riderActiveStatusPrefix = 'Active Status: ';
   static const String riderStatusAssigned = 'ASSIGNED';
   static const String riderStatusPickedUp = 'PICKED UP';
   static const String riderStatusDelivered = 'DELIVERED';
+  static const String otherTrackedOrders = 'OTHER TRACKED ORDERS';
 
   // ─── Search ───────────────────────────────────────────────────────────────
   static const String searchAcrossAllOutlets = 'Search across all outlets...';
@@ -258,6 +267,11 @@ abstract final class AppStrings {
       'Order on behalf of someone inside geofence';
   static const String recipientPhoneNumber = 'RECIPIENT PHONE NUMBER';
   static const String recipientPhoneHint = 'e.g. 08031234567';
+  static const String enterValidRecipientPhone =
+      'Please enter a valid phone number';
+  static const String deliveryCoordinatesMissing =
+      'Delivery address coordinates not available. '
+      'Please re-enter your delivery address.';
   static const String sectionPreparationInstructions =
       'PREPARATION INSTRUCTIONS';
   static const String preparationInstructionsHint =
@@ -448,4 +462,23 @@ abstract final class AppStrings {
   static const String accountDeactivated =
       'Your account has been deactivated. We\'re sorry to see you go.';
   static const String deactivate = 'Deactivate';
+
+  // ─── Delete account (permanent) ─────────────────────────────────────────────
+  static const String deleteMyAccount = '🗑️ Delete My Account';
+  static const String deleteAccountTitle = 'Delete Account';
+  static const String deleteAccountWarning =
+      'This will permanently delete your account and all associated data. '
+      'This action cannot be undone.';
+  static const String deleteAccountFinal = 'Are you absolutely sure?';
+  static const String deleteAccountFinalWarning =
+      'Your account, order history, saved addresses, and all personal data '
+      'will be permanently removed. You will not be able to recover this '
+      'account.';
+  static const String yesDelete = 'Yes, Delete';
+  static const String deletePermanently = 'Delete Permanently';
+  static const String accountDeleted =
+      'Your account has been permanently deleted.';
+  static const String userNotFound = 'User not found';
+  static const String deleteAccountFailed =
+      'Failed to delete account. Please try again.';
 }

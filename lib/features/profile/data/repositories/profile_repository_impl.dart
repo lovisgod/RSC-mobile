@@ -34,4 +34,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<void> deactivateAccount() => _remote.deactivateAccount();
+
+  @override
+  Future<void> deleteAccount(String userId) => _remote.deleteAccount(userId);
 }

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_assets.dart';
@@ -8,10 +11,16 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/services/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/domain/entities/line_item_entity.dart';
 import '../../../profile/domain/entities/order_history_entity.dart';
+import '../../../shell/presentation/bloc/shell_bloc.dart';
+import '../../../shell/presentation/bloc/shell_event.dart';
+import '../../../shell/presentation/bloc/shell_state.dart';
 import '../../domain/entities/order_event_entity.dart';
 import '../../domain/entities/rider_info_entity.dart';
 import '../../domain/entities/rider_location_entity.dart';
@@ -74,6 +83,20 @@ class _TrackScreenState extends State<TrackScreen>
 
   @override
   Widget build(BuildContext context) {
+    return BlocConsumer<ShellBloc, ShellState>(
+      // A guest who logs in while this tab is alive missed the initState
+      // load (the cubit guard skipped it) — kick it off now.
+      listenWhen: (prev, curr) => !prev.isAuthenticated && curr.isAuthenticated,
+      listener: (context, _) => context.read<TrackCubit>().loadActiveOrder(),
+      buildWhen: (prev, curr) => prev.isAuthenticated != curr.isAuthenticated,
+      builder: (context, shellState) {
+        if (!shellState.isAuthenticated) return const _GuestBody();
+        return _buildAuthenticated(context);
+      },
+    );
+  }
+
+  Widget _buildAuthenticated(BuildContext context) {
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     return BlocConsumer<TrackCubit, TrackState>(
@@ -89,11 +112,13 @@ class _TrackScreenState extends State<TrackScreen>
           body = _ActiveOrderBody(
             order: order,
             outlets: state.outlets,
+            trackedOrders: state.trackedOrders,
             orderEvents: state.orderEvents,
             riderController: _riderController,
             pulseAnimation: _pulseAnimation,
             riderInfo: state.riderInfo,
             riderLocation: state.riderLocation,
+            onOrderSelected: context.read<TrackCubit>().selectTrackedOrder,
           );
         } else if (state.isLoading) {
           body = const _LoadingBody();
@@ -130,9 +155,11 @@ class _TrackScreenState extends State<TrackScreen>
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerRight,
-                      child: _SocketStatusIndicator(),
+                      child: _SocketStatusIndicator(
+                        riderLocation: state.riderLocation,
+                      ),
                     ),
                   ],
                 ),
@@ -176,17 +203,141 @@ class _TrackScreenState extends State<TrackScreen>
   }
 }
 
+// ── Guest state ──────────────────────────────────────────────────────────────
+
+class _GuestBody extends StatelessWidget {
+  const _GuestBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
+
+    return Scaffold(
+      backgroundColor: AppColors.navyDark,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: statusBarHeight),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: Text(
+              AppStrings.orderProgress,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('📦', style: TextStyle(fontSize: 48)),
+                      const SizedBox(height: 24),
+                      const Text(
+                        AppStrings.trackYourOrders,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: const Text(
+                          AppStrings.signInToTrackSubtitle,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      AppButton(
+                        label: AppStrings.signInToTrack,
+                        backgroundColor: AppColors.navy,
+                        onPressed: () => context.read<ShellBloc>().add(
+                          const ShellTabChanged(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Socket status indicator ──────────────────────────────────────────────────
 
-class _SocketStatusIndicator extends StatelessWidget {
-  const _SocketStatusIndicator();
+class _SocketStatusIndicator extends StatefulWidget {
+  const _SocketStatusIndicator({this.riderLocation});
+
+  /// Latest rider GPS ping, if any — the badge only shows green while the
+  /// socket is connected AND this ping (when one exists) is fresh.
+  final RiderLocationEntity? riderLocation;
+
+  @override
+  State<_SocketStatusIndicator> createState() => _SocketStatusIndicatorState();
+}
+
+class _SocketStatusIndicatorState extends State<_SocketStatusIndicator> {
+  static const _staleAfter = Duration(seconds: 30);
+  static const _staleCheckInterval = Duration(seconds: 10);
+
+  /// Freshness decays with wall-clock time, not with state changes, so the
+  /// badge re-evaluates itself periodically while a ping is being tracked.
+  Timer? _staleCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _staleCheckTimer = Timer.periodic(_staleCheckInterval, (_) {
+      if (mounted && widget.riderLocation != null) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _staleCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  /// No ping yet counts as live (pre-dispatch there is nothing to be stale).
+  bool get _hasLiveSignal {
+    final location = widget.riderLocation;
+    if (location == null) return true;
+    return DateTime.now().difference(location.recordedAt) < _staleAfter;
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: getIt<SocketService>().isConnectedNotifier,
       builder: (context, isConnected, _) {
-        final color = isConnected ? AppColors.success : AppColors.textHint;
+        final color = isConnected && _hasLiveSignal
+            ? AppColors.success
+            : AppColors.textHint;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -294,20 +445,24 @@ class _ActiveOrderBody extends StatelessWidget {
   const _ActiveOrderBody({
     required this.order,
     required this.outlets,
+    required this.trackedOrders,
     required this.orderEvents,
     required this.riderController,
     required this.pulseAnimation,
     required this.riderInfo,
     required this.riderLocation,
+    required this.onOrderSelected,
   });
 
   final OrderHistoryEntity order;
   final List<Outlet> outlets;
+  final List<OrderHistoryEntity> trackedOrders;
   final List<OrderEventEntity> orderEvents;
   final AnimationController riderController;
   final Animation<double> pulseAnimation;
   final RiderInfoEntity? riderInfo;
   final RiderLocationEntity? riderLocation;
+  final ValueChanged<String> onOrderSelected;
 
   static const _riderStatuses = {'OUT_FOR_DELIVERY', 'DELIVERED'};
 
@@ -324,6 +479,9 @@ class _ActiveOrderBody extends StatelessWidget {
     }
 
     final hasRider = _riderStatuses.contains(order.status);
+    final collapsedOrders = trackedOrders
+        .where((trackedOrder) => trackedOrder.id != order.id)
+        .toList();
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -403,7 +561,151 @@ class _ActiveOrderBody extends StatelessWidget {
                   )
                 : const SizedBox(key: ValueKey('no-rider')),
           ),
+
+          if (collapsedOrders.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text(
+              AppStrings.otherTrackedOrders,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...collapsedOrders.map(
+              (trackedOrder) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _TrackedOrderCard(
+                  order: trackedOrder,
+                  outlets: outlets,
+                  onTap: () => onOrderSelected(trackedOrder.id),
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _TrackedOrderCard extends StatelessWidget {
+  const _TrackedOrderCard({
+    required this.order,
+    required this.outlets,
+    required this.onTap,
+  });
+
+  final OrderHistoryEntity order;
+  final List<Outlet> outlets;
+  final VoidCallback onTap;
+
+  String get _kitchenLabel {
+    final firstOutletId = order.lineItems.firstOrNull?.outletId;
+    if (firstOutletId == null) return AppStrings.kitchenFallbackName;
+    return outlets
+            .firstWhereOrNull((outlet) => outlet.id == firstOutletId)
+            ?.name ??
+        AppStrings.kitchenFallbackName;
+  }
+
+  Color get _statusColor {
+    switch (order.status.toUpperCase()) {
+      case 'PENDING_PAYMENT':
+      case 'PARTIALLY_READY':
+        return AppColors.warning;
+      case 'CONFIRMED':
+      case 'PENDING':
+        return AppColors.info;
+      case 'READY':
+      case 'DELIVERED':
+        return AppColors.success;
+      case 'OUT_FOR_DELIVERY':
+        return AppColors.navy;
+      case 'CANCELLED':
+        return AppColors.error;
+      default:
+        return AppColors.neutralGray;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    order.displayOrderId,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _kitchenLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formatDateTime(order.createdAt),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                order.status,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: statusColor,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -719,6 +1021,16 @@ class _DeliveryHandoffCard extends StatelessWidget {
 
   final String code;
 
+  Future<void> _copyCode(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!context.mounted) return;
+    AppSnackbar.show(
+      context,
+      message: AppStrings.deliveryCodeCopied,
+      type: AppSnackbarType.success,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
@@ -741,14 +1053,29 @@ class _DeliveryHandoffCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              code,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-                letterSpacing: 1,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _copyCode(context),
+                  icon: const Icon(Icons.copy_rounded),
+                  color: AppColors.primary,
+                  iconSize: 20,
+                  tooltip: AppStrings.deliveryCodeCopied,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             const Text(

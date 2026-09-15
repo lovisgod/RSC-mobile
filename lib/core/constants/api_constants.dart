@@ -1,6 +1,6 @@
+/// Relative endpoint paths only — the base URL lives in [AppConfig] and is
+/// injected via DI (`getIt<AppConfig>().baseUrl`).
 abstract final class ApiConstants {
-  static const String baseUrl = 'https://api-dev.rscdev.tech';
-
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
   static const Duration sendTimeout = Duration(seconds: 30);
@@ -54,6 +54,9 @@ abstract final class ApiConstants {
   static const String userMe = '/api/v1/users/me';
   static const String uploadAvatar = '/api/v1/users/me/avatar';
   static const String deactivateAccount = '/api/v1/users/me/deactivate';
+
+  /// `{id}` is substituted at call time (permanent account deletion).
+  static const String deleteAccount = '/api/v1/users/{id}';
   static const String verifyProfileChange = '/api/v1/users/me/verify-change';
 
   // Delivery addresses
