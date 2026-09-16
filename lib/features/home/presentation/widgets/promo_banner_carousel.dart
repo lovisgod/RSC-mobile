@@ -3,54 +3,45 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../notifications/domain/entities/notification_entity.dart';
+import '../../domain/entities/promo_offer.dart';
+import '../../domain/repositories/promos_repository.dart';
 import 'promo_banner_card.dart';
 
 class PromoBannerCarousel extends StatefulWidget {
-  const PromoBannerCarousel({super.key, required this.notifications});
-
-  final List<NotificationEntity> notifications;
-
-  // Cast wide net for all promo types — add more here as backend adds them.
-  static const _promoTypes = {'SPECIAL_PERIOD', 'PROMOTION', 'DISCOUNT'};
-
-  List<NotificationEntity> get _promos =>
-      notifications.where((n) => _promoTypes.contains(n.type)).toList();
+  const PromoBannerCarousel({super.key});
 
   @override
   State<PromoBannerCarousel> createState() => _PromoBannerCarouselState();
 }
 
 class _PromoBannerCarouselState extends State<PromoBannerCarousel> {
+  final _repository = getIt<PromosRepository>();
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _autoScrollTimer;
+  List<PromoOffer> _promos = const [];
 
   static const _autoScrollInterval = Duration(seconds: 4);
 
   @override
   void initState() {
     super.initState();
-    _maybeStartAutoScroll();
+    _load();
   }
 
-  @override
-  void didUpdateWidget(covariant PromoBannerCarousel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Notifications load asynchronously, so the promo count usually goes
-    // from 0 → N after this widget has already mounted — restart the loop
-    // against the fresh count whenever it changes.
-    final promoCount = widget._promos.length;
-    if (promoCount == oldWidget._promos.length) return;
-    if (_currentPage >= promoCount) _currentPage = 0;
-    _autoScrollTimer?.cancel();
+  Future<void> _load() async {
+    final promos = await _repository.getActivePromos();
+    if (!mounted) return;
+    setState(() => _promos = promos);
     _maybeStartAutoScroll();
   }
 
   void _maybeStartAutoScroll() {
-    final promoCount = widget._promos.length;
+    final promoCount = _promos.length;
     if (promoCount <= 1) return;
+    _autoScrollTimer?.cancel();
     _autoScrollTimer = Timer.periodic(_autoScrollInterval, (_) {
       if (!_pageController.hasClients) return;
       _currentPage = _currentPage < promoCount - 1 ? _currentPage + 1 : 0;
@@ -71,8 +62,7 @@ class _PromoBannerCarouselState extends State<PromoBannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final promos = widget._promos;
-    if (promos.isEmpty) return const SizedBox.shrink();
+    if (_promos.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 20),
@@ -82,18 +72,18 @@ class _PromoBannerCarouselState extends State<PromoBannerCarousel> {
             height: 100,
             child: PageView.builder(
               controller: _pageController,
-              itemCount: promos.length,
+              itemCount: _promos.length,
               onPageChanged: (i) => setState(() => _currentPage = i),
               itemBuilder: (context, index) =>
-                  PromoBannerCard(promo: promos[index]),
+                  PromoBannerCard(promo: _promos[index]),
             ),
           ),
-          if (promos.length > 1)
+          if (_promos.length > 1)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SmoothPageIndicator(
                 controller: _pageController,
-                count: promos.length,
+                count: _promos.length,
                 effect: WormEffect(
                   dotHeight: 6,
                   dotWidth: 6,

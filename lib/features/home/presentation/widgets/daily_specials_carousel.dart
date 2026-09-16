@@ -7,10 +7,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/rsc_image.dart';
+import '../../../../core/di/injection.dart';
 import '../../../cart/domain/entities/cart_item_entity.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
-import '../../data/repositories/mock_daily_specials_repository.dart';
 import '../../domain/entities/daily_special.dart';
+import '../../domain/repositories/daily_specials_repository.dart';
 import 'menu_item_card.dart' show MenuItemCard;
 
 class DailySpecialsCarousel extends StatefulWidget {
@@ -21,7 +22,7 @@ class DailySpecialsCarousel extends StatefulWidget {
 }
 
 class _DailySpecialsCarouselState extends State<DailySpecialsCarousel> {
-  final _repository = MockDailySpecialsRepository();
+  final _repository = getIt<DailySpecialsRepository>();
   final _pageController = PageController(viewportFraction: 0.44);
   List<DailySpecial> _specials = const [];
 
@@ -175,9 +176,7 @@ class _DailySpecialCard extends StatelessWidget {
                     color: const Color(0xFFFFF3E0),
                     child: Center(
                       child: Text(
-                        MenuItemCard.emojiForItemName(
-                          special.menuItemRef.name,
-                        ),
+                        MenuItemCard.emojiForItemName(special.menuItemRef.name),
                         style: const TextStyle(fontSize: 36),
                       ),
                     ),

@@ -26,6 +26,14 @@ abstract final class AppColors {
   static const Color rscSuccess = Color(0xFF50C982);
   static const Color rscFieldBg = Color(0xFFFFFFFF);
   static const Color rscFieldInk = Color(0xFF111712);
+
+  /// App-specific override, not part of the source design-system token
+  /// table — `rsc-field-bg` is specified as white in *both* light and dark
+  /// columns there, but a white pill on an all-dark screen reads as a light-
+  /// theme leftover. Used as the dark theme's actual `InputDecorationTheme`
+  /// fill instead of [rscFieldBg]; [rscFieldBg]/[rscFieldInk] themselves are
+  /// left untouched so they still faithfully represent the source spec.
+  static const Color rscFieldSurfaceDark = Color(0xFF1E2620);
   static const Color rscSurfaceAccent = Color(0xFFAAE4E8);
 
   // ─── RSC navigation tokens ──────────────────────────────

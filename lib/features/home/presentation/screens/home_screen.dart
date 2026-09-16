@@ -441,11 +441,7 @@ class _LoadedBody extends StatelessWidget {
             ],
           ),
         ),
-        BlocBuilder<NotificationsCubit, NotificationsState>(
-          builder: (context, notifState) {
-            return PromoBannerCarousel(notifications: notifState.notifications);
-          },
-        ),
+        const PromoBannerCarousel(),
       ],
     );
   }

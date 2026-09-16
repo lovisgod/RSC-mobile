@@ -16,8 +16,11 @@ class OutletModel {
   final String id;
   final String name;
   final String description;
+  final String? address;
   final String cuisineType;
   final String? imageUrl;
+  final String? logoUrl;
+  final String? bannerUrl;
 
   /// Mutable — patched in place by [HomeRepositoryImpl.updateOutletOnlineStatus]
   /// when an `outlet:status_update` socket event arrives, so every consumer
@@ -29,7 +32,16 @@ class OutletModel {
   final double? deliveryRadiusKm;
   final double? latitude;
   final double? longitude;
-  final String? paystackSubaccountCode;
+  final String? deliveryPricingModel;
+  final int deliveryFeeMinor;
+  final int? deliveryBaseFeeMinor;
+  final int? deliveryPricePerKmMinor;
+  final List<DeliveryLocationFeeModel> deliveryLocationFees;
+  final String? settlementSubaccountCode;
+  final int vatBps;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   final List<MenuCategoryModel> categories;
   final List<MenuItemModel> items;
@@ -37,24 +49,31 @@ class OutletModel {
   final List<ItemModifierModel> modifiers;
   final List<MenuItemModifierGroupModel> itemModifierMappings;
 
-  // ── Placeholder values (not yet provided by the outlets API) ──────────────
-  // TODO: Backend needs to add deliveryFee to the outlets API response —
-  // using a hardcoded placeholder until then.
-  static const double _placeholderDeliveryFee = 500.0;
-
   OutletModel({
     required this.id,
     required this.name,
     required this.description,
+    this.address,
     required this.cuisineType,
     required this.imageUrl,
+    this.logoUrl,
+    this.bannerUrl,
     required this.isOnline,
     required this.ratingAverage,
     required this.ratingCount,
     this.deliveryRadiusKm,
     this.latitude,
     this.longitude,
-    this.paystackSubaccountCode,
+    this.deliveryPricingModel,
+    required this.deliveryFeeMinor,
+    this.deliveryBaseFeeMinor,
+    this.deliveryPricePerKmMinor,
+    required this.deliveryLocationFees,
+    this.settlementSubaccountCode,
+    required this.vatBps,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
     required this.categories,
     required this.items,
     required this.modifierGroups,
@@ -63,7 +82,10 @@ class OutletModel {
   });
 
   factory OutletModel.fromJson(Map<String, dynamic> json) {
-    List<T> parseList<T>(String key, T Function(Map<String, dynamic>) fromJson) {
+    List<T> parseList<T>(
+      String key,
+      T Function(Map<String, dynamic>) fromJson,
+    ) {
       final raw = json[key];
       if (raw is! List) return const [];
       return raw
@@ -76,8 +98,11 @@ class OutletModel {
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
+      address: json['address'] as String?,
       cuisineType: json['cuisineType'] as String? ?? '',
       imageUrl: json['imageUrl'] as String?,
+      logoUrl: json['logoUrl'] as String?,
+      bannerUrl: json['bannerUrl'] as String?,
       isOnline: json['isOnline'] as bool? ?? false,
       ratingAverage:
           double.tryParse(json['ratingAverage'] as String? ?? '0') ?? 0.0,
@@ -85,33 +110,68 @@ class OutletModel {
       deliveryRadiusKm: (json['deliveryRadiusKm'] as num?)?.toDouble(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
-      paystackSubaccountCode: json['paystackSubaccountCode'] as String?,
+      deliveryPricingModel: json['deliveryPricingModel'] as String?,
+      deliveryFeeMinor: (json['deliveryFeeMinor'] as num?)?.toInt() ?? 0,
+      deliveryBaseFeeMinor: (json['deliveryBaseFeeMinor'] as num?)?.toInt(),
+      deliveryPricePerKmMinor: (json['deliveryPricePerKmMinor'] as num?)
+          ?.toInt(),
+      deliveryLocationFees: parseList(
+        'deliveryLocationFees',
+        DeliveryLocationFeeModel.fromJson,
+      ),
+      settlementSubaccountCode:
+          json['settlementSubaccountCode'] as String? ??
+          json['paystackSubaccountCode'] as String?,
+      vatBps: (json['vatBps'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
       categories: parseList('menuCategories', MenuCategoryModel.fromJson),
       items: parseList('menuItems', MenuItemModel.fromJson),
-      modifierGroups: parseList('itemModifierGroups', ModifierGroupModel.fromJson),
+      modifierGroups: parseList(
+        'itemModifierGroups',
+        ModifierGroupModel.fromJson,
+      ),
       modifiers: parseList('itemModifiers', ItemModifierModel.fromJson),
-      itemModifierMappings:
-          parseList('menuItemModifierGroups', MenuItemModifierGroupModel.fromJson),
+      itemModifierMappings: parseList(
+        'menuItemModifierGroups',
+        MenuItemModifierGroupModel.fromJson,
+      ),
     );
   }
 
   /// [isFeatured] is decided by the caller (true for the first outlet only).
   Outlet toEntity({bool isFeatured = false}) => Outlet(
-        id: id,
-        name: name,
-        description: description,
-        cuisineType: cuisineType,
-        imageUrl: imageUrl ?? '',
-        isOnline: isOnline,
-        ratingAverage: ratingAverage,
-        ratingCount: ratingCount,
-        deliveryRadiusKm: deliveryRadiusKm,
-        latitude: latitude,
-        longitude: longitude,
-        deliveryTimeRange: _computeDeliveryTimeRange(),
-        minOrder: _placeholderDeliveryFee,
-        isFeatured: isFeatured,
-      );
+    id: id,
+    name: name,
+    description: description,
+    address: address,
+    cuisineType: cuisineType,
+    imageUrl: imageUrl ?? '',
+    logoUrl: logoUrl,
+    bannerUrl: bannerUrl,
+    isOnline: isOnline,
+    settlementSubaccountCode: settlementSubaccountCode,
+    vatBps: vatBps,
+    ratingAverage: ratingAverage,
+    ratingCount: ratingCount,
+    deliveryRadiusKm: deliveryRadiusKm,
+    latitude: latitude,
+    longitude: longitude,
+    deliveryPricingModel: deliveryPricingModel,
+    deliveryFeeMinor: deliveryFeeMinor,
+    deliveryBaseFeeMinor: deliveryBaseFeeMinor,
+    deliveryPricePerKmMinor: deliveryPricePerKmMinor,
+    deliveryLocationFees: deliveryLocationFees
+        .map((fee) => fee.toEntity())
+        .toList(),
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    deletedAt: deletedAt,
+    deliveryTimeRange: _computeDeliveryTimeRange(),
+    minOrder: deliveryFeeMinor / 100,
+    isFeatured: isFeatured,
+  );
 
   /// Aggregates each menu item's `deliveryTimeRange` ("15", "35-40", ...)
   /// into a single outlet-level range: the minimum lower bound and maximum
@@ -119,8 +179,7 @@ class OutletModel {
   String? _computeDeliveryTimeRange() {
     final ranges = items
         .where(
-          (i) =>
-              i.deliveryTimeRange != null && i.deliveryTimeRange!.isNotEmpty,
+          (i) => i.deliveryTimeRange != null && i.deliveryTimeRange!.isNotEmpty,
         )
         .map((i) => i.deliveryTimeRange!)
         .toList();
@@ -205,14 +264,42 @@ class OutletModel {
       for (final map in maps) {
         final groupModel = groupModelById[map.groupId];
         if (groupModel == null) continue;
-        groups.add(groupModel.toEntity(
-          menuItemId: menuItemId,
-          modifiers: modsByGroup[groupModel.id] ?? const [],
-        ));
+        groups.add(
+          groupModel.toEntity(
+            menuItemId: menuItemId,
+            modifiers: modsByGroup[groupModel.id] ?? const [],
+          ),
+        );
       }
       result[menuItemId] = groups;
     });
 
     return _groupsByItemCache = result;
   }
+}
+
+class DeliveryLocationFeeModel {
+  final String zoneId;
+  final int feeMinor;
+  final String locationName;
+
+  const DeliveryLocationFeeModel({
+    required this.zoneId,
+    required this.feeMinor,
+    required this.locationName,
+  });
+
+  factory DeliveryLocationFeeModel.fromJson(Map<String, dynamic> json) {
+    return DeliveryLocationFeeModel(
+      zoneId: json['zoneId'] as String? ?? '',
+      feeMinor: (json['feeMinor'] as num?)?.toInt() ?? 0,
+      locationName: json['locationName'] as String? ?? '',
+    );
+  }
+
+  DeliveryLocationFee toEntity() => DeliveryLocationFee(
+    zoneId: zoneId,
+    feeMinor: feeMinor,
+    locationName: locationName,
+  );
 }

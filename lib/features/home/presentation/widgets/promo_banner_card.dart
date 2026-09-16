@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../notifications/domain/entities/notification_entity.dart';
-import '../../../notifications/presentation/cubit/notifications_cubit.dart';
+import '../../domain/entities/promo_offer.dart';
 
 class PromoBannerCard extends StatelessWidget {
   const PromoBannerCard({super.key, required this.promo});
 
-  final NotificationEntity promo;
+  final PromoOffer promo;
+
+  void _onTap(BuildContext context) {
+    // promo.deepLink isn't defined on the backend yet (always null today) —
+    // PromoDetailScreen is the destination until a real format exists to
+    // parse and route from here instead.
+    context.push(RouteNames.promoDetailPath(promo.id), extra: promo);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final promoCode = promo.data['promoCode'] as String?;
-
     return GestureDetector(
-      onTap: () => context.read<NotificationsCubit>().markAsRead(promo.id),
+      onTap: () => _onTap(context),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -54,15 +59,42 @@ class PromoBannerCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    promo.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          promo.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (promo.discountPercent > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${promo.discountPercent}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -75,7 +107,7 @@ class PromoBannerCard extends StatelessWidget {
                       height: 1.3,
                     ),
                   ),
-                  if (promoCode != null && promoCode.isNotEmpty) ...[
+                  if (promo.code.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -99,7 +131,7 @@ class PromoBannerCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            promoCode,
+                            promo.code,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,

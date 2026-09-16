@@ -585,7 +585,7 @@ class _ReorderBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF3FB),
+        color: AppColors.rscPanel,
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Text(
@@ -628,7 +628,7 @@ class _DeliveryAddressCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
+        color: AppColors.rscPanel,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -843,7 +843,9 @@ class _OutOfZoneWarningCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
+        // AppColors.primary (#FF8200) at ~15% alpha — can't call
+        // .withValues() in a const decoration, so it's inlined here.
+        color: const Color(0x26FF8200),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Column(

@@ -7,6 +7,9 @@ class MenuCategoryModel {
   final String name;
   final int sortOrder;
   final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   const MenuCategoryModel({
     required this.id,
@@ -14,6 +17,9 @@ class MenuCategoryModel {
     required this.name,
     required this.sortOrder,
     required this.isActive,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   factory MenuCategoryModel.fromJson(Map<String, dynamic> json) {
@@ -23,14 +29,17 @@ class MenuCategoryModel {
       name: json['name'] as String? ?? '',
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
       isActive: json['isActive'] as bool? ?? true,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
     );
   }
 
   MenuCategory toEntity() => MenuCategory(
-        id: id,
-        outletId: outletId,
-        name: name,
-        sortOrder: sortOrder,
-        isActive: isActive,
-      );
+    id: id,
+    outletId: outletId,
+    name: name,
+    sortOrder: sortOrder,
+    isActive: isActive,
+  );
 }

@@ -68,6 +68,14 @@ abstract final class AppStrings {
   static const String dailySpecials = 'DAILY SPECIALS';
   static const String todaysPick = "TODAY'S PICK";
   static const String exclusiveDiscounts = 'EXCLUSIVE DISCOUNTS';
+  static const String promoDetailsTitle = 'Promo Details';
+  static const String promoCode = 'PROMO CODE';
+  static const String promoCodeCopied = 'Promo code copied';
+  static const String validUntilPrefix = 'Valid until ';
+  static const String validFromPrefix = 'Valid from ';
+  static const String validAtAllOutlets = 'Valid at all outlets';
+  static const String validAtOutletPrefix = 'Valid at ';
+  static const String promoExpired = 'This promo has ended';
   static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';

@@ -9,6 +9,12 @@ class MenuItem {
 
   /// Major-unit price (already converted from `priceMinor / 100` in the model).
   final double price;
+  final double? discountPrice;
+  final DateTime? discountStartsAt;
+  final DateTime? discountEndsAt;
+  final double currentPrice;
+  final bool isDiscountActive;
+  final String currency;
 
   /// Null when the backend has no image for this item — the UI falls back to a
   /// deterministic placeholder emoji (see PlaceholderImageUtil / emojiForItemName).
@@ -32,6 +38,12 @@ class MenuItem {
     required this.name,
     required this.description,
     required this.price,
+    this.discountPrice,
+    this.discountStartsAt,
+    this.discountEndsAt,
+    double? currentPrice,
+    this.isDiscountActive = false,
+    this.currency = 'NGN',
     required this.imageUrl,
     required this.isAvailable,
     this.sortOrder = 0,
@@ -40,5 +52,5 @@ class MenuItem {
     this.ratingAverage = 0.0,
     this.ratingCount = 0,
     this.deliveryTimeRange,
-  });
+  }) : currentPrice = currentPrice ?? price;
 }
