@@ -12,6 +12,7 @@ import '../../../../core/widgets/rsc_image.dart';
 import '../../../cart/domain/entities/cart_item_entity.dart';
 import '../../../cart/domain/entities/selected_modifier_entity.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
+import '../../../favorites/presentation/widgets/favorite_toggle_button.dart';
 import '../../../menu/domain/entities/menu_item.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../widgets/menu_item_card.dart';
@@ -208,7 +209,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       body: Column(
         children: [
           // ── Header ────────────────────────────────────────────────────
-          _ItemHeader(item: item, onBack: () => context.pop()),
+          _ItemHeader(
+            item: item,
+            outlet: widget.outlet,
+            onBack: () => context.pop(),
+          ),
 
           // ── Scrollable content ────────────────────────────────────────
           Expanded(
@@ -325,9 +330,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 class _ItemHeader extends StatelessWidget {
-  const _ItemHeader({required this.item, required this.onBack});
+  const _ItemHeader({
+    required this.item,
+    required this.outlet,
+    required this.onBack,
+  });
 
   final MenuItem item;
+  final Outlet outlet;
   final VoidCallback onBack;
 
   @override
@@ -355,12 +365,34 @@ class _ItemHeader extends StatelessWidget {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.only(top: 8, left: 16),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: GestureDetector(
-                  onTap: onBack,
-                  child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: onBack,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.10),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 16,
+                        color: AppColors.navyDark,
+                      ),
+                    ),
+                  ),
+                  Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
@@ -374,13 +406,16 @@ class _ItemHeader extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 16,
-                      color: AppColors.navyDark,
+                    child: Center(
+                      child: FavoriteToggleButton(
+                        item: item,
+                        outletId: outlet.id,
+                        outletName: outlet.name,
+                        size: 20,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),

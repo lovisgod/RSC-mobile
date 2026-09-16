@@ -167,7 +167,7 @@ class _TrackScreenState extends State<TrackScreen>
               Expanded(
                 child: Container(
                   decoration: const BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(24),
                       topRight: Radius.circular(24),
@@ -232,7 +232,7 @@ class _GuestBody extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(24),
                   topRight: Radius.circular(24),
@@ -641,7 +641,7 @@ class _TrackedOrderCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.divider),
           boxShadow: [
@@ -719,7 +719,7 @@ class _StatusDisplay {
     required this.subtitle,
     required this.titleColor,
     this.pulsing = false,
-    this.cardColor = const Color(0xFFEEF3FB),
+    this.cardColor = AppColors.rscPanel,
     this.showConfetti = false,
   });
 
@@ -785,7 +785,9 @@ _StatusDisplay _getStatusDisplay(String status) {
         title: AppStrings.orderCancelled,
         subtitle: AppStrings.orderCancelledSubtitle,
         titleColor: AppColors.error,
-        cardColor: Color(0xFFFFEBEE),
+        // AppColors.rscDanger (#F08070) at ~15% alpha — can't call
+        // .withValues() in a const default, so it's inlined here.
+        cardColor: Color(0x26F08070),
       );
     default:
       return const _StatusDisplay(
@@ -952,7 +954,7 @@ class _KitchenCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -1038,7 +1040,7 @@ class _DeliveryHandoffCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF8F0),
+          color: AppColors.rscPanel,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -1166,7 +1168,7 @@ class _RiderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(

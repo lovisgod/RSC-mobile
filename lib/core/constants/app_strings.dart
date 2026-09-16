@@ -1,10 +1,15 @@
 abstract final class AppStrings {
   // ─── Bottom nav tab labels ────────────────────────────────────────────────
   static const String tabHome = 'Home';
-  static const String tabSearch = 'Search';
+  static const String tabFavorites = 'Favorites';
   static const String tabCart = 'Cart';
   static const String tabTrack = 'Track';
   static const String tabProfile = 'Profile';
+
+  // ─── App drawer ───────────────────────────────────────────────────────────
+  static const String guestGreeting = 'Guest';
+  static const String drawerSignInPrompt = 'Sign in to view your profile';
+  static const String settings = 'Settings';
 
   // ─── Auth — branding ─────────────────────────────────────────────────────
   static const String appName = 'DineOut NG';
@@ -58,7 +63,11 @@ abstract final class AppStrings {
   static const String deliveringTo = 'DELIVERING TO';
   static const String deliveryAddress = 'Lagos, Nigeria';
   static const String addDeliveryAddress = 'Add a delivery address';
-  static const String rscFoodKitchens = 'RSC Food Kitchens';
+  static const String ourOutlets = 'OUR OUTLETS';
+  static const String viewAll = 'View All ›';
+  static const String dailySpecials = 'DAILY SPECIALS';
+  static const String todaysPick = "TODAY'S PICK";
+  static const String exclusiveDiscounts = 'EXCLUSIVE DISCOUNTS';
   static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
@@ -66,6 +75,9 @@ abstract final class AppStrings {
   static const String noOutletsAvailable = 'No outlets available';
   static const String noOutletsAvailableDescription =
       'There are currently no food kitchens available in your area. Please check again later.';
+  static const String noFavoritesYet = 'No favorites yet';
+  static const String noFavoritesYetDescription =
+      'Tap the heart on any menu item to save it here for quick reordering.';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';

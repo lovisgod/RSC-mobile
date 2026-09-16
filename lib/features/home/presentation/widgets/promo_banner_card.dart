@@ -22,7 +22,11 @@ class PromoBannerCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [AppColors.navyDark, AppColors.navy],
+          ),
           borderRadius: BorderRadius.circular(16),
         ),
         clipBehavior: Clip.hardEdge,
@@ -91,13 +95,13 @@ class PromoBannerCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             promoCode,
                             style: const TextStyle(
-                              color: AppColors.primary,
+                              color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),

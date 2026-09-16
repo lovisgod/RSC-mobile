@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../constants/storage_keys.dart';
 import '../../features/auth/domain/entities/user_entity.dart';
+import '../../features/favorites/domain/entities/favorite_menu_item.dart';
 
 /// A delivered order waiting for its "rate your order" prompt.
 class PendingRating {
@@ -98,5 +99,27 @@ class LocalStorage {
     );
     await _storage.delete(key: StorageKeys.pendingOrderNotificationRefresh);
     return orderId;
+  }
+
+  // ─── Favorite menu items ────────────────────────────────────────────────────
+
+  Future<void> saveFavoriteMenuItems(List<FavoriteMenuItem> items) =>
+      _storage.write(
+        key: StorageKeys.favoriteMenuItems,
+        value: jsonEncode(items.map((e) => e.toJson()).toList()),
+      );
+
+  Future<List<FavoriteMenuItem>> getFavoriteMenuItems() async {
+    final raw = await _storage.read(key: StorageKeys.favoriteMenuItems);
+    if (raw == null) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map(FavoriteMenuItem.fromJson)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 }

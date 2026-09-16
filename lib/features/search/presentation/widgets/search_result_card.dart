@@ -9,6 +9,7 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/rsc_image.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/presentation/cubit/cart_state.dart';
+import '../../../favorites/presentation/widgets/favorite_toggle_button.dart';
 import '../../../home/presentation/widgets/menu_item_card.dart';
 import '../../domain/entities/search_result_entity.dart';
 
@@ -168,48 +169,59 @@ class SearchResultCard extends StatelessWidget {
                   ),
                 ),
 
-                // ── View options / Unavailable pill ───────────────────────
+                // ── Favorite + view options / unavailable pill ────────────
                 Padding(
                   padding: const EdgeInsets.only(right: 10),
-                  child: IgnorePointer(
-                    ignoring: unavailable,
-                    child: GestureDetector(
-                      onTap: () => context.push(
-                        RouteNames.itemDetailPath(outlet.id, item.id),
-                        extra: {
-                          'menuItem': item,
-                          'outlet': outlet,
-                          'fromSearch': true,
-                        },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FavoriteToggleButton(
+                        item: item,
+                        outletId: outlet.id,
+                        outletName: outlet.name,
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: unavailable
-                              ? AppColors.neutralGray
-                              : AppColors.background,
-                          borderRadius: BorderRadius.circular(20),
-                          border: unavailable
-                              ? null
-                              : Border.all(color: AppColors.divider),
-                        ),
-                        child: Text(
-                          unavailable
-                              ? AppStrings.unavailable
-                              : AppStrings.viewOptions,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: unavailable
-                                ? Colors.white
-                                : AppColors.textPrimary,
+                      const SizedBox(height: 8),
+                      IgnorePointer(
+                        ignoring: unavailable,
+                        child: GestureDetector(
+                          onTap: () => context.push(
+                            RouteNames.itemDetailPath(outlet.id, item.id),
+                            extra: {
+                              'menuItem': item,
+                              'outlet': outlet,
+                              'fromSearch': true,
+                            },
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: unavailable
+                                  ? AppColors.neutralGray
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(20),
+                              border: unavailable
+                                  ? null
+                                  : Border.all(color: AppColors.divider),
+                            ),
+                            child: Text(
+                              unavailable
+                                  ? AppStrings.unavailable
+                                  : AppStrings.viewOptions,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: unavailable
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],

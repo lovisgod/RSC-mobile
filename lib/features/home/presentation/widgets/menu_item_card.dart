@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/placeholder_image_util.dart';
 import '../../../../core/widgets/rsc_image.dart';
+import '../../../favorites/presentation/widgets/favorite_toggle_button.dart';
 import '../../../menu/domain/entities/menu_item.dart';
 
 const ColorFilter _greyscaleFilter = ColorFilter.matrix([
@@ -19,11 +20,15 @@ class MenuItemCard extends StatelessWidget {
   const MenuItemCard({
     super.key,
     required this.item,
+    required this.outletId,
+    required this.outletName,
     required this.outletIsOnline,
     this.onAddTap,
   });
 
   final MenuItem item;
+  final String outletId;
+  final String outletName;
 
   /// Whether the parent outlet is online — passed in by the caller, never
   /// fetched inside this widget.
@@ -121,22 +126,36 @@ class MenuItemCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Add button
-            GestureDetector(
-              onTap: unavailable ? null : onAddTap,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: unavailable ? AppColors.neutralGray : AppColors.navy,
-                  shape: BoxShape.circle,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FavoriteToggleButton(
+                  item: item,
+                  outletId: outletId,
+                  outletName: outletName,
                 ),
-                child: Icon(
-                  unavailable ? Icons.block : Icons.add,
-                  color: Colors.white,
-                  size: unavailable ? 16 : 18,
+                const SizedBox(height: 8),
+
+                // Add button
+                GestureDetector(
+                  onTap: unavailable ? null : onAddTap,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: unavailable
+                          ? AppColors.neutralGray
+                          : AppColors.navy,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      unavailable ? Icons.block : Icons.add,
+                      color: Colors.white,
+                      size: unavailable ? 16 : 18,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

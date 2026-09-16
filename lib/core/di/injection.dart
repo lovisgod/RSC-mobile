@@ -56,6 +56,7 @@ import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
 import '../../features/profile/domain/usecases/verify_profile_change_usecase.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
+import '../../features/favorites/presentation/cubit/favorites_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/profile/presentation/cubit/rating_cubit.dart';
 import '../../features/track/domain/usecases/get_rider_location_usecase.dart';
@@ -315,6 +316,9 @@ Future<void> configureDependencies(AppConfig appConfig) async {
         getIt<DeleteAccountUsecase>(),
         getIt<PersistCookieJar>(),
       ),
+    )
+    ..registerLazySingleton<FavoritesCubit>(
+      () => FavoritesCubit(getIt<LocalStorage>()),
     );
 
   // ── Home feature ───────────────────────────────────────────────────────────
