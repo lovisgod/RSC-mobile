@@ -167,10 +167,12 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           }
         },
         child: MaterialApp.router(
-          title: 'RSC',
+          title: 'DineOut NG',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: scaffoldMessengerKey,
           theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
           routerConfig: appRouter,
         ),
       ),

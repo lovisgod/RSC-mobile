@@ -40,17 +40,17 @@ android {
             dimension = "environment"
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
-            resValue("string", "app_name", "RSC Dev")
+            resValue("string", "app_name", "DineOut NG Dev")
         }
         create("staging") {
             dimension = "environment"
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-            resValue("string", "app_name", "RSC Staging")
+            resValue("string", "app_name", "DineOut NG Staging")
         }
         create("production") {
             dimension = "environment"
-            resValue("string", "app_name", "RSC")
+            resValue("string", "app_name", "DineOut NG")
         }
     }
 

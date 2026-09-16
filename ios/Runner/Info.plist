@@ -27,13 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>RSC Food needs camera access to update your profile photo.</string>
+	<string>DineOut NG needs camera access to update your profile photo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>RSC Food needs photo library access to update your profile photo.</string>
+	<string>DineOut NG needs photo library access to update your profile photo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>RSC Food needs your location to deliver to the right address.</string>
+	<string>DineOut NG needs your location to deliver to the right address.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>RSC Food needs your location to deliver to the right address.</string>
+	<string>DineOut NG needs your location to deliver to the right address.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

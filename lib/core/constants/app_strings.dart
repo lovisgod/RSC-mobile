@@ -7,8 +7,7 @@ abstract final class AppStrings {
   static const String tabProfile = 'Profile';
 
   // ─── Auth — branding ─────────────────────────────────────────────────────
-  static const String appBrandName = 'RSC';
-  static const String appBrandSuffix = 'Food';
+  static const String appName = 'DineOut NG';
   static const String loginSubtitle =
       'Welcome back! Please log in to order delicious meals.';
   static const String registerSubtitle =

@@ -1,26 +1,63 @@
 import 'package:flutter/material.dart';
 
+/// Active token set. Dark is the default active theme app-wide, so these
+/// constants carry the DARK column of the RSC design-system token table —
+/// most widgets read `AppColors.x` directly (not `Theme.of(context)`), so
+/// repointing these values is what actually reskins them today.
+///
+/// See [AppColorsLight] for the light-column values, used only to build
+/// `AppTheme.light` for a future theme toggle.
 abstract final class AppColors {
-  // ─── Brand ───────────────────────────────────────────
+  // ─── RSC brand tokens ──────────────────────────────────
+  static const Color rscMain = Color(0xFF14883A);
+  static const Color rscNavyDark = Color(0xFF0D5F2E);
+  static const Color rscNavyLight = Color(0xFF245996);
+  static const Color rscBrand = Color(0xFFFF8200);
+  static const Color rscBrandLight = Color(0xFFFF9D2E);
+  static const Color rscBrandStrong = Color(0xFFFF8200);
+
+  // ─── RSC neutral/system tokens ─────────────────────────
+  static const Color rscInk = Color(0xFFF5F7F2);
+  static const Color rscMuted = Color(0xFF9BA79F);
+  static const Color rscSurface = Color(0xFF121713);
+  static const Color rscPanel = Color(0xFF121713);
+  static const Color rscLine = Color(0xFF3F4842);
+  static const Color rscDanger = Color(0xFFF08070);
+  static const Color rscSuccess = Color(0xFF50C982);
+  static const Color rscFieldBg = Color(0xFFFFFFFF);
+  static const Color rscFieldInk = Color(0xFF111712);
+  static const Color rscSurfaceAccent = Color(0xFFAAE4E8);
+
+  // ─── RSC navigation tokens ──────────────────────────────
+  static const Color rscSidebarBg = Color(0xFF0F1712);
+  static const Color rscSidebarInk = Color(0xFFF5F7F2);
+  static const Color rscSidebarMuted = Color(0xFF9BA79F);
+  /// "Mixed primary" in the source token table has no fixed hex — approximated
+  /// as brand color at low opacity over the sidebar background.
+  static const Color rscSidebarActiveBg = Color(0x29FF8200);
+  static const Color rscBottomNavBg = Color(0xFF0F1712);
+  static const Color rscBottomNavMuted = Color(0xFF9BA79F);
+
+  // ─── Brand (legacy names, aliased to RSC tokens) ───────
   /// "Food" text, "Register", "Order Now", star, promo banner, avatar bg
-  static const Color primary = Color(0xFFD4832A);
-  static const Color primaryLight = Color(0xFFE09A4A);
-  static const Color primaryDark = Color(0xFFB86E1A);
+  static const Color primary = rscBrand;
+  static const Color primaryLight = rscBrandLight;
+  static const Color primaryDark = rscBrandStrong;
 
   /// Login button, "Set Default" button, outlet card bg, nav active bg
-  static const Color navy = Color(0xFF1E3160);
-  static const Color navyLight = Color(0xFF253972);
-  static const Color navyDark = Color(0xFF141F3D);
+  static const Color navy = rscMain;
+  static const Color navyLight = rscNavyLight;
+  static const Color navyDark = rscNavyDark;
 
   // ─── Backgrounds ─────────────────────────────────────
-  /// Main app scaffold background (light gray seen on profile & home)
-  static const Color background = Color(0xFFF0F2F5);
+  /// Main app scaffold background
+  static const Color background = rscSurface;
 
-  /// Card / surface white (login screen, address card, outlet info section)
-  static const Color surface = Color(0xFFFFFFFF);
+  /// Card / surface (login screen, address card, outlet info section)
+  static const Color surface = rscPanel;
 
-  /// Profile header & home app bar dark navy background
-  static const Color surfaceDark = Color(0xFF1A2B52);
+  /// Profile header & home app bar dark background
+  static const Color surfaceDark = rscSidebarBg;
 
   // ─── Outlet card accent backgrounds ──────────────────
   /// Cactus outlet card background (dark navy-blue gradient base)
@@ -31,33 +68,33 @@ abstract final class AppColors {
 
   // ─── Text ─────────────────────────────────────────────
   /// Primary text — headings, outlet name, user name
-  static const Color textPrimary = Color(0xFF111827);
+  static const Color textPrimary = rscInk;
 
   /// Secondary text — cuisine tags, email, phone, subtitle
-  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textSecondary = rscMuted;
 
   /// Hint text — input placeholders, "You haven't placed any orders yet"
-  static const Color textHint = Color(0xFFADB5BD);
+  static const Color textHint = Color(0xFF71807A);
 
-  /// White text — used on navy/dark surfaces and buttons
+  /// White text — used on dark/colored surfaces and buttons
   static const Color textOnDark = Color(0xFFFFFFFF);
 
   /// Label text — "EMAIL OR PHONE", "PASSWORD", "DEFAULT DELIVERY ADDRESS"
-  static const Color textLabel = Color(0xFF1E3160);
+  static const Color textLabel = rscInk;
 
   // ─── Bottom nav ───────────────────────────────────────
-  /// Active nav tab background (warm cream/beige tint behind Home icon)
-  static const Color navActiveBackground = Color(0xFFF5EFE6);
+  /// Active nav tab background
+  static const Color navActiveBackground = rscSidebarActiveBg;
 
   /// Active nav label & icon color
-  static const Color navActive = Color(0xFFD4832A);
+  static const Color navActive = rscBrand;
 
   /// Inactive nav icon & label
-  static const Color navInactive = Color(0xFF6B7280);
+  static const Color navInactive = rscBottomNavMuted;
 
   // ─── Semantic ─────────────────────────────────────────
-  static const Color error = Color(0xFFE53935);
-  static const Color success = Color(0xFF43A047);
+  static const Color error = rscDanger;
+  static const Color success = rscSuccess;
   static const Color warning = Color(0xFFFB8C00);
 
   /// Pale orange badge background — e.g. the PENDING_PAYMENT status pill.
@@ -69,14 +106,43 @@ abstract final class AppColors {
 
   // ─── UI ───────────────────────────────────────────────
   /// Input field border
-  static const Color inputBorder = Color(0xFFD1D5DB);
+  static const Color inputBorder = rscLine;
 
   /// Input field border focused
-  static const Color inputBorderFocused = Color(0xFF1E3160);
+  static const Color inputBorderFocused = rscBrand;
 
-  static const Color divider = Color(0xFFE5E7EB);
-  static const Color shimmer = Color(0xFFE0E0E0);
+  static const Color divider = rscLine;
+  static const Color shimmer = rscLine;
 
   // ─── Rating ───────────────────────────────────────────
-  static const Color starRating = Color(0xFFD4832A);
+  static const Color starRating = rscBrand;
+}
+
+/// Light column of the RSC design-system token table — used only to build
+/// [AppTheme.light]. Not consumed by widgets directly (widgets read the
+/// dark-active [AppColors] today).
+abstract final class AppColorsLight {
+  static const Color rscMain = Color(0xFF0B4F2D);
+  static const Color rscNavyDark = Color(0xFF06391F);
+  static const Color rscNavyLight = Color(0xFF245996);
+  static const Color rscBrand = Color(0xFF14883A);
+  static const Color rscBrandLight = Color(0xFF2AA856);
+  static const Color rscBrandStrong = Color(0xFF0F6D30);
+
+  static const Color rscInk = Color(0xFF171B17);
+  static const Color rscMuted = Color(0xFF6D7B70);
+  static const Color rscSurface = Color(0xFFF8FAF8);
+  static const Color rscPanel = Color(0xFFFFFFFF);
+  static const Color rscLine = Color(0xFFDCE6DF);
+  static const Color rscDanger = Color(0xFFA33A2B);
+  static const Color rscSuccess = Color(0xFF168A4A);
+  static const Color rscFieldBg = Color(0xFFFFFFFF);
+  static const Color rscFieldInk = Color(0xFF111712);
+
+  static const Color rscSidebarBg = rscMain;
+  static const Color rscSidebarInk = Color(0xFFFFFFFF);
+  static const Color rscSidebarMuted = Color(0x94FFFFFF);
+  static const Color rscSidebarActiveBg = Color(0x29FFFFFF);
+  static const Color rscBottomNavBg = Color(0xFFF8FAF8);
+  static const Color rscBottomNavMuted = Color(0xFF6D7B70);
 }
