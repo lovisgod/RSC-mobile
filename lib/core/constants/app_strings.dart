@@ -83,6 +83,9 @@ abstract final class AppStrings {
   static const String noOutletsAvailable = 'No outlets available';
   static const String noOutletsAvailableDescription =
       'There are currently no food kitchens available in your area. Please check again later.';
+  static const String noDailySpecialsAvailable = 'No daily specials right now';
+  static const String noDailySpecialsAvailableDescription =
+      "Check back later for today's discounted picks.";
   static const String noFavoritesYet = 'No favorites yet';
   static const String noFavoritesYetDescription =
       'Tap the heart on any menu item to save it here for quick reordering.';
@@ -286,6 +289,8 @@ abstract final class AppStrings {
       'Order on behalf of someone inside geofence';
   static const String recipientPhoneNumber = 'RECIPIENT PHONE NUMBER';
   static const String recipientPhoneHint = 'e.g. 08031234567';
+  static const String landmarkLabel = 'LANDMARK (OPTIONAL)';
+  static const String landmarkHint = 'e.g. Opposite Mega Chicken, black gate';
   static const String enterValidRecipientPhone =
       'Please enter a valid phone number';
   static const String deliveryCoordinatesMissing =
@@ -320,6 +325,15 @@ abstract final class AppStrings {
       'Checking delivery availability...';
   static const String couldNotResolveAddress =
       'Could not resolve address. Please try again.';
+  static const String useCurrentLocation = 'Use current location';
+  static const String locationServiceDisabled =
+      'Location services are disabled. Please enable them to use your '
+      'current location.';
+  static const String locationPermissionDenied =
+      'Location permission denied. Please allow location access to use '
+      'your current location.';
+  static const String couldNotGetCurrentLocation =
+      'Could not get your current location. Please try again.';
   static const String deliveringToZone = '✅ Delivering to';
   static const String addressVerifiedSimple = '✅ Address verified';
   static const String deliversToZone = '✅ Delivers to';

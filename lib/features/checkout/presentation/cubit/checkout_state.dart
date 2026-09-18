@@ -28,6 +28,12 @@ class CheckoutState {
   /// while addressOutOfZone is true.
   final String? deliveryZoneName;
 
+  /// Id of the delivery zone, from the backend validate-address response.
+  /// Preferred over [deliveryZoneName] when matching an outlet's
+  /// `PER_LOCATION` delivery-fee overrides. Null until validated, and while
+  /// addressOutOfZone is true.
+  final String? deliveryZoneId;
+
   /// True while the validate-address call for the current selection is in
   /// flight — blocks the proceed button so the user can't check out with a
   /// not-yet-confirmed address.
@@ -36,6 +42,13 @@ class CheckoutState {
   /// One-shot failure message from a failed resolve-address call, surfaced by
   /// the screen as a snackbar then cleared — not a persistent form error.
   final String? addressResolveError;
+
+  /// True while fetching the device's GPS position and resolving it to an
+  /// address — drives the "Use current location" button's spinner.
+  final bool isResolvingCurrentLocation;
+
+  /// Optional landmark to help the rider find the address (delivery only).
+  final String landmark;
   final bool isOrderingForSomeoneElse;
   final String recipientPhone;
   final String preparationInstructions;
@@ -43,7 +56,19 @@ class CheckoutState {
   final bool isLoadingSuggestions;
   final double subtotal;
   final double deliveryFee;
+
+  /// Exact delivery fee in minor units, computed per-outlet via
+  /// CalculateDeliveryFeeUseCase. This is the single source of truth for the
+  /// payment payload — [deliveryFee] is just this divided by 100 for display,
+  /// so the two never drift and the backend's strict deliveryFeeMinor
+  /// validation always matches what's shown to the user.
+  final int deliveryFeeMinor;
   final double vat;
+
+  /// The platform's cut of the outlet's payout — sent to the backend for its
+  /// own bookkeeping. The backend's totalMinor validation includes it in
+  /// what the customer pays, so it's included in [grandTotal] too (confirmed
+  /// against /payments/initiate's "Total mismatch" response).
   final double platformCommission;
   final double grandTotal;
   final bool isLoggedIn;
@@ -66,8 +91,11 @@ class CheckoutState {
     this.addressVerified = false,
     this.addressOutOfZone = false,
     this.deliveryZoneName,
+    this.deliveryZoneId,
     this.isValidatingAddress = false,
     this.addressResolveError,
+    this.isResolvingCurrentLocation = false,
+    this.landmark = '',
     this.isOrderingForSomeoneElse = false,
     this.recipientPhone = '',
     this.preparationInstructions = '',
@@ -75,6 +103,7 @@ class CheckoutState {
     this.isLoadingSuggestions = false,
     this.subtotal = 0,
     this.deliveryFee = 0,
+    this.deliveryFeeMinor = 0,
     this.vat = 0,
     this.platformCommission = 0,
     this.grandTotal = 0,
@@ -119,9 +148,13 @@ class CheckoutState {
     bool? addressOutOfZone,
     String? deliveryZoneName,
     bool clearDeliveryZoneName = false,
+    String? deliveryZoneId,
+    bool clearDeliveryZoneId = false,
     bool? isValidatingAddress,
     String? addressResolveError,
     bool clearAddressResolveError = false,
+    bool? isResolvingCurrentLocation,
+    String? landmark,
     bool? isOrderingForSomeoneElse,
     String? recipientPhone,
     String? preparationInstructions,
@@ -129,6 +162,7 @@ class CheckoutState {
     bool? isLoadingSuggestions,
     double? subtotal,
     double? deliveryFee,
+    int? deliveryFeeMinor,
     double? vat,
     double? platformCommission,
     double? grandTotal,
@@ -157,10 +191,16 @@ class CheckoutState {
       deliveryZoneName: clearDeliveryZoneName
           ? null
           : (deliveryZoneName ?? this.deliveryZoneName),
+      deliveryZoneId: clearDeliveryZoneId
+          ? null
+          : (deliveryZoneId ?? this.deliveryZoneId),
       isValidatingAddress: isValidatingAddress ?? this.isValidatingAddress,
       addressResolveError: clearAddressResolveError
           ? null
           : (addressResolveError ?? this.addressResolveError),
+      isResolvingCurrentLocation:
+          isResolvingCurrentLocation ?? this.isResolvingCurrentLocation,
+      landmark: landmark ?? this.landmark,
       isOrderingForSomeoneElse:
           isOrderingForSomeoneElse ?? this.isOrderingForSomeoneElse,
       recipientPhone: recipientPhone ?? this.recipientPhone,
@@ -170,6 +210,7 @@ class CheckoutState {
       isLoadingSuggestions: isLoadingSuggestions ?? this.isLoadingSuggestions,
       subtotal: subtotal ?? this.subtotal,
       deliveryFee: deliveryFee ?? this.deliveryFee,
+      deliveryFeeMinor: deliveryFeeMinor ?? this.deliveryFeeMinor,
       vat: vat ?? this.vat,
       platformCommission: platformCommission ?? this.platformCommission,
       grandTotal: grandTotal ?? this.grandTotal,

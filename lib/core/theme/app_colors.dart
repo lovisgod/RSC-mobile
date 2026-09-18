@@ -112,6 +112,11 @@ abstract final class AppColors {
   /// Neutral badge background — e.g. a PENDING sub-order status chip.
   static const Color neutralGray = Color(0xFF9CA3AF);
 
+  /// Pale-blue highlight tint — unread notification tile, info banner card.
+  /// A low-opacity wash of [navyLight] rather than a flat light-theme hex so
+  /// it still reads as a subtle highlight over the dark [surface]/[background].
+  static const Color infoBackground = Color(0x33245996);
+
   // ─── UI ───────────────────────────────────────────────
   /// Input field border
   static const Color inputBorder = rscLine;

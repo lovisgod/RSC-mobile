@@ -54,4 +54,36 @@ class AddressService {
       return null;
     }
   }
+
+  /// Resolves a raw input directly — device GPS coordinates ("Use current
+  /// location") or a free-text query — without going through the
+  /// autocomplete-suggestion pipeline first.
+  Future<ResolvedAddressModel?> resolveInput(
+    String input, {
+    String provider = 'google',
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        ApiConstants.resolveAddress,
+        data: ResolveAddressRequestModel(
+          input: input,
+          provider: provider,
+        ).toJson(),
+      );
+
+      final data = response.data['data'];
+      if (data is! Map<String, dynamic>) return null;
+      return ResolvedAddressModel.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Resolves the device's current GPS position to a delivery address.
+  Future<ResolvedAddressModel?> resolveCurrentLocation(
+    double latitude,
+    double longitude,
+  ) {
+    return resolveInput('$latitude,$longitude');
+  }
 }

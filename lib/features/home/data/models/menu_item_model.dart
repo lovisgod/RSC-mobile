@@ -1,4 +1,5 @@
 import '../../../menu/domain/entities/menu_item.dart';
+import '../../../menu/domain/entities/menu_item_pricing.dart';
 import '../../../menu/domain/entities/modifier_group.dart';
 
 /// Maps a single object from the outlet response's `menuItems` array.
@@ -55,6 +56,17 @@ class MenuItemModel {
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
+    final price = ((json['priceMinor'] as num?)?.toDouble() ?? 0) / 100;
+    final discountPrice = (json['discountPriceMinor'] as num?) == null
+        ? null
+        : (json['discountPriceMinor'] as num).toDouble() / 100;
+    final discountStartsAt = DateTime.tryParse(
+      json['discountStartsAt'] as String? ?? '',
+    );
+    final discountEndsAt = DateTime.tryParse(
+      json['discountEndsAt'] as String? ?? '',
+    );
+
     return MenuItemModel(
       id: json['id'] as String? ?? '',
       outletId: json['outletId'] as String? ?? '',
@@ -62,22 +74,25 @@ class MenuItemModel {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       imageUrl: json['imageUrl'] as String?,
-      price: ((json['priceMinor'] as num?)?.toDouble() ?? 0) / 100,
-      discountPrice: (json['discountPriceMinor'] as num?) == null
-          ? null
-          : (json['discountPriceMinor'] as num).toDouble() / 100,
-      discountStartsAt: DateTime.tryParse(
-        json['discountStartsAt'] as String? ?? '',
+      price: price,
+      discountPrice: discountPrice,
+      discountStartsAt: discountStartsAt,
+      discountEndsAt: discountEndsAt,
+      // Recomputed from the discount window rather than trusted off the
+      // payload — a cached/stale response can otherwise disagree with the
+      // device clock about whether the discount is currently active.
+      currentPrice: getMenuItemCurrentPrice(
+        price: price,
+        discountPrice: discountPrice,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
       ),
-      discountEndsAt: DateTime.tryParse(
-        json['discountEndsAt'] as String? ?? '',
+      isDiscountActive: isMenuItemDiscountActive(
+        price: price,
+        discountPrice: discountPrice,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
       ),
-      currentPrice:
-          ((json['currentPriceMinor'] as num?)?.toDouble() ??
-              (json['priceMinor'] as num?)?.toDouble() ??
-              0) /
-          100,
-      isDiscountActive: json['isDiscountActive'] as bool? ?? false,
       currency: json['currency'] as String? ?? 'NGN',
       isAvailable: json['isAvailable'] as bool? ?? true,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,

@@ -1,16 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/services/address_service.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
+import '../../../home/domain/repositories/home_repository.dart';
+import '../../../menu/domain/entities/outlet.dart';
 import '../../../profile/data/models/reorder_response_model.dart';
 import '../../../profile/domain/entities/delivery_address_entity.dart';
 import '../../data/models/address_suggestion_model.dart';
 import '../../domain/enums/delivery_mode.dart';
 import '../../domain/services/pending_reorder_holder.dart';
+import '../../domain/usecases/calculate_delivery_fee_usecase.dart';
 import '../../domain/usecases/get_platform_charges_usecase.dart';
 import '../../domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../domain/usecases/validate_address_usecase.dart';
@@ -23,6 +27,8 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     this._validateAddressUseCase,
     this._getPreparationSuggestionsUsecase,
     this._getPlatformChargesUseCase,
+    this._homeRepository,
+    this._calculateDeliveryFeeUseCase,
     this._pendingReorderHolder,
   ) : super(const CheckoutState());
 
@@ -31,13 +37,22 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   final ValidateAddressUseCase _validateAddressUseCase;
   final GetPreparationSuggestionsUsecase _getPreparationSuggestionsUsecase;
   final GetPlatformChargesUseCase _getPlatformChargesUseCase;
+  final HomeRepository _homeRepository;
+  final CalculateDeliveryFeeUseCase _calculateDeliveryFeeUseCase;
   final PendingReorderHolder _pendingReorderHolder;
   Timer? _debounceTimer;
   Timer? _suggestionsDebounceTimer;
   String? _outletId;
 
-  // These will be overridden by the platform-charges API response.
-  double _deliveryFeeAmount = 0.0;
+  // Outlets in the cart, used to compute the per-outlet delivery fee. Comes
+  // from HomeRepository's in-memory cache, so this costs no extra network
+  // call in the normal Home → Cart → Checkout flow.
+  List<Outlet> _outlets = const [];
+  Set<String> _cartOutletIds = const {};
+
+  // These will be overridden by the platform-charges API response. Delivery
+  // fee itself is NOT one of these anymore — it's computed per-outlet by
+  // _calculateDeliveryFeeUseCase (see _updateTotals).
   int _platformCommissionBps = 0;
   int _defaultVatBps = 0;
   int _serviceFeeMinor = 0;
@@ -51,15 +66,20 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     final user = await _localStorage.getUser();
     emit(state.copyWith(isLoggedIn: user != null));
 
+    _cartOutletIds = cart.itemsGroupedByOutlet.keys.toSet();
+    try {
+      _outlets = await _homeRepository.getOutlets();
+    } catch (_) {
+      _outlets = const [];
+    }
+
     try {
       final charges = await _getPlatformChargesUseCase();
-      _deliveryFeeAmount = charges.deliveryFeeMinor / 100.0;
       _platformCommissionBps = charges.platformCommissionBps;
       _defaultVatBps = charges.defaultVatBps;
       _serviceFeeMinor = charges.serviceFeeMinor;
     } catch (_) {
       // Fallback values if API fails
-      _deliveryFeeAmount = 1500.0;
       _platformCommissionBps = 1000;
     }
 
@@ -71,12 +91,31 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     await loadSuggestions(cart);
   }
 
+  /// Sums the backend's per-outlet delivery-fee formula (FLAT/PER_KM/
+  /// PER_LOCATION) across every outlet in the cart. Before an address is
+  /// resolved this is only an estimate for outlets on distance/zone-based
+  /// pricing (falls back to their flat fee); it's recomputed with real
+  /// coordinates/zone as soon as the address is validated, so the value sent
+  /// to /payments/initiate always matches what the backend itself computes.
+  int _computeDeliveryFeeMinor(DeliveryMode mode) {
+    if (mode == DeliveryMode.takeout || _cartOutletIds.isEmpty) return 0;
+    return _calculateDeliveryFeeUseCase(
+      outletIds: _cartOutletIds,
+      outlets: _outlets,
+      deliveryLatitude: state.currentLatitude,
+      deliveryLongitude: state.currentLongitude,
+      zoneId: state.deliveryZoneId,
+      zoneName: state.deliveryZoneName,
+    );
+  }
+
   void _updateTotals(double subtotal, DeliveryMode mode) {
-    final isDelivery = mode == DeliveryMode.delivery;
-    final deliveryFee = isDelivery ? _deliveryFeeAmount : 0.0;
+    final deliveryFeeMinor = _computeDeliveryFeeMinor(mode);
+    final deliveryFee = deliveryFeeMinor / 100.0;
     final serviceFee = _serviceFeeMinor / 100.0;
 
     // platformCommission = (platformCommissionBps / 10000) * subtotal
+    // Included in grandTotal — see CheckoutState.platformCommission doc.
     final platformCommission = (subtotal * _platformCommissionBps / 10000);
 
     // vat = (defaultVatBps / 10000) * subtotal
@@ -89,6 +128,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
       state.copyWith(
         subtotal: subtotal,
         deliveryFee: deliveryFee,
+        deliveryFeeMinor: deliveryFeeMinor,
         vat: vat,
         platformCommission: platformCommission,
         grandTotal: grandTotal,
@@ -105,11 +145,13 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         ? DeliveryMode.takeout
         : DeliveryMode.delivery;
 
-    emit(state.copyWith(selectedMode: mode, isPrePopulated: true));
-    _updateTotals(state.subtotal, mode);
-
+    // Coordinates must land before _updateTotals runs — the delivery fee is
+    // now computed from them (PER_KM/PER_LOCATION outlets), so recomputing
+    // before they're set would use stale/absent coordinates.
     emit(
       state.copyWith(
+        selectedMode: mode,
+        isPrePopulated: true,
         deliveryAddress: reorder.deliveryAddress,
         currentLatitude: reorder.deliveryLatitude,
         currentLongitude: reorder.deliveryLongitude,
@@ -117,6 +159,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         addressOutOfZone: false,
       ),
     );
+    _updateTotals(state.subtotal, mode);
   }
 
   Future<void> loadSuggestions(CartEntity cart) async {
@@ -154,12 +197,7 @@ class CheckoutCubit extends Cubit<CheckoutState> {
   }
 
   void switchMode(DeliveryMode mode) {
-    emit(
-      state.copyWith(
-        selectedMode: mode,
-        isPrePopulated: false,
-      ),
-    );
+    emit(state.copyWith(selectedMode: mode, isPrePopulated: false));
     _updateTotals(state.subtotal, mode);
   }
 
@@ -237,6 +275,89 @@ class CheckoutCubit extends Cubit<CheckoutState> {
     await _validateSelectedAddress(resolved.latitude, resolved.longitude);
   }
 
+  /// Resolves the device's current GPS position to a delivery address via
+  /// the backend's raw-input resolve-address path (no autocomplete
+  /// suggestion needed), then runs it through the same validate-address
+  /// check as any other address selection.
+  Future<void> useCurrentLocation() async {
+    emit(
+      state.copyWith(
+        isResolvingCurrentLocation: true,
+        showSuggestions: false,
+        addressSuggestions: const [],
+        isPrePopulated: false,
+      ),
+    );
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        emit(
+          state.copyWith(
+            isResolvingCurrentLocation: false,
+            addressResolveError: AppStrings.locationServiceDisabled,
+          ),
+        );
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        emit(
+          state.copyWith(
+            isResolvingCurrentLocation: false,
+            addressResolveError: AppStrings.locationPermissionDenied,
+          ),
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final resolved = await _addressService.resolveCurrentLocation(
+        position.latitude,
+        position.longitude,
+      );
+      if (resolved == null) {
+        emit(
+          state.copyWith(
+            isResolvingCurrentLocation: false,
+            addressResolveError: AppStrings.couldNotResolveAddress,
+          ),
+        );
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          deliveryAddress: resolved.displayName,
+          currentLatitude: resolved.latitude,
+          currentLongitude: resolved.longitude,
+          isResolvingCurrentLocation: false,
+          addressVerified: false,
+          addressOutOfZone: false,
+          clearDeliveryZoneName: true,
+          isValidatingAddress: true,
+        ),
+      );
+
+      await _validateSelectedAddress(resolved.latitude, resolved.longitude);
+    } catch (_) {
+      emit(
+        state.copyWith(
+          isResolvingCurrentLocation: false,
+          addressResolveError: AppStrings.couldNotGetCurrentLocation,
+        ),
+      );
+    }
+  }
+
   void consumeAddressResolveError() {
     emit(state.copyWith(clearAddressResolveError: true));
   }
@@ -280,9 +401,15 @@ class CheckoutCubit extends Cubit<CheckoutState> {
         addressOutOfZone: !response.deliverable,
         deliveryZoneName: response.zoneName,
         clearDeliveryZoneName: response.zoneName == null,
+        deliveryZoneId: response.zoneId,
+        clearDeliveryZoneId: response.zoneId == null,
         isValidatingAddress: false,
       ),
     );
+    // Coordinates/zone are only known for certain once validated — recompute
+    // the delivery fee now so PER_KM/PER_LOCATION outlets get their real
+    // fee instead of the pre-address estimate.
+    _updateTotals(state.subtotal, state.selectedMode);
   }
 
   void toggleOrderForSomeoneElse(bool value) {
@@ -296,6 +423,10 @@ class CheckoutCubit extends Cubit<CheckoutState> {
 
   void updateRecipientPhone(String phone) {
     emit(state.copyWith(recipientPhone: phone));
+  }
+
+  void updateLandmark(String landmark) {
+    emit(state.copyWith(landmark: landmark));
   }
 
   void updatePreparationInstructions(String instructions) {

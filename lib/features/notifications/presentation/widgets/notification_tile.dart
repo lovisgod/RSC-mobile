@@ -5,8 +5,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../cubit/notifications_cubit.dart';
 
-const Color _unreadBackground = Color(0xFFEEF3FB);
-
 class NotificationTile extends StatelessWidget {
   const NotificationTile({super.key, required this.notification});
 
@@ -19,7 +17,7 @@ class NotificationTile extends StatelessWidget {
           context.read<NotificationsCubit>().markAsRead(notification.id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        color: notification.isRead ? AppColors.surface : _unreadBackground,
+        color: notification.isRead ? AppColors.surface : AppColors.infoBackground,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

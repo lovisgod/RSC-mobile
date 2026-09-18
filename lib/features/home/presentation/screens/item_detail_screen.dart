@@ -86,7 +86,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         }
       }
     }
-    return (widget.menuItem.price + modTotal) * _quantity;
+    return (widget.menuItem.currentPrice + modTotal) * _quantity;
   }
 
   bool get _canAdd {
@@ -136,7 +136,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   void _onAddToCart() {
     final flat = _buildFlatModifiers();
     final unitPrice =
-        widget.menuItem.price + flat.fold(0.0, (s, m) => s + m.priceDelta);
+        widget.menuItem.currentPrice +
+        flat.fold(0.0, (s, m) => s + m.priceDelta);
 
     context.read<CartCubit>().addItem(
       CartItemEntity(
@@ -171,7 +172,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   void _onUpdateCart() {
     final flat = _buildFlatModifiers();
     final unitPrice =
-        widget.menuItem.price + flat.fold(0.0, (s, m) => s + m.priceDelta);
+        widget.menuItem.currentPrice +
+        flat.fold(0.0, (s, m) => s + m.priceDelta);
 
     context.read<CartCubit>().updateItem(
       _editingCartItemId!,

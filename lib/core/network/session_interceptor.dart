@@ -62,12 +62,39 @@ class SessionInterceptor extends Interceptor {
     final path = err.requestOptions.path;
     final isExcluded = _excludedPaths.any((p) => path.contains(p));
 
-    if (statusCode == 401 && !isExcluded && !_isHandlingExpiry) {
+    final isExpiredToken403 =
+        statusCode == 403 && _looksLikeExpiredToken(err.response);
+
+    if ((statusCode == 401 || isExpiredToken403) &&
+        !isExcluded &&
+        !_isHandlingExpiry) {
       _isHandlingExpiry = true;
       unawaited(_handleExpiry());
     }
 
     handler.next(err);
+  }
+
+  /// Some endpoints return 403 (rather than 401) for an expired/invalid
+  /// token, e.g. `{"message":"Authentication token is expired or invalid"}`.
+  /// A blanket `statusCode == 403` would also catch legitimate
+  /// permission-denied responses, so this only matches when the body's
+  /// message/errors mention both "token" and "expired"/"invalid".
+  bool _looksLikeExpiredToken(Response? response) {
+    final data = response?.data;
+    if (data is! Map) return false;
+
+    final candidates = <String>[
+      if (data['message'] is String) data['message'] as String,
+      if (data['data'] is Map && (data['data'] as Map)['errors'] is List)
+        ...((data['data'] as Map)['errors'] as List).whereType<String>(),
+    ];
+
+    return candidates.any((message) {
+      final lower = message.toLowerCase();
+      return lower.contains('token') &&
+          (lower.contains('expired') || lower.contains('invalid'));
+    });
   }
 
   Future<void> _handleExpiry() async {

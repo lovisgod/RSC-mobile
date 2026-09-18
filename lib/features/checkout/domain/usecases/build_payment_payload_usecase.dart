@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/utils/id_generator.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../data/models/initiate_payment_item_model.dart';
 import '../../data/models/initiate_payment_request_model.dart';
@@ -52,9 +54,7 @@ class BuildPaymentPayloadUseCase {
       '[RSC Checkout] Delivery coordinates: '
       '${checkout.currentLatitude}, ${checkout.currentLongitude}',
     );
-    debugPrint(
-      '[RSC Checkout] Address verified: ${checkout.addressVerified}',
-    );
+    debugPrint('[RSC Checkout] Address verified: ${checkout.addressVerified}');
     debugPrint('[RSC Checkout] Delivery address: ${checkout.deliveryAddress}');
 
     // Coordinates are set exclusively by the address pipeline
@@ -85,22 +85,34 @@ class BuildPaymentPayloadUseCase {
     // Calculate Minor values (in kobo/cents)
     // subtotal from cart is in major units (Naira)
     final subtotalMinor = (cart.subtotal * 100).round();
-    final deliveryFeeMinor = isDelivery ? platformCharges.deliveryFeeMinor : 0;
+    // Sourced from CheckoutCubit's per-outlet calculation (CheckoutState is
+    // the single source of truth) rather than recomputed here, so the value
+    // sent to the backend always matches what was shown to the user and the
+    // backend's own strict deliveryFeeMinor validation never mismatches.
+    final deliveryFeeMinor = isDelivery ? checkout.deliveryFeeMinor : 0;
     final serviceFeeMinor = platformCharges.serviceFeeMinor;
 
     // platformCommissionMinor = (platformCommissionBps / 10000) * subtotalMinor
+    // Sent to the backend for its own bookkeeping (the platform's cut of the
+    // outlet's payout) — the backend's totalMinor validation includes it in
+    // what the customer pays (confirmed against /payments/initiate's "Total
+    // mismatch" response), so it's included in totalMinor below too.
     final platformCommissionMinor =
         (subtotalMinor * platformCharges.platformCommissionBps / 10000).round();
 
     // vatMinor = (defaultVatBps / 10000) * subtotalMinor
-    final vatMinor =
-        (subtotalMinor * platformCharges.defaultVatBps / 10000).round();
+    final vatMinor = (subtotalMinor * platformCharges.defaultVatBps / 10000)
+        .round();
 
-    final totalMinor = subtotalMinor +
+    const discountMinor = 0; // No promo-code-at-checkout flow yet.
+
+    final totalMinor =
+        subtotalMinor +
         deliveryFeeMinor +
         serviceFeeMinor +
         vatMinor +
-        platformCommissionMinor;
+        platformCommissionMinor -
+        discountMinor;
 
     return InitiatePaymentRequestModel(
       items: items,
@@ -108,15 +120,22 @@ class BuildPaymentPayloadUseCase {
       deliveryAddress: deliveryAddress,
       deliveryLatitude: latitude,
       deliveryLongitude: longitude,
+      landmark: isDelivery && checkout.landmark.isNotEmpty
+          ? checkout.landmark
+          : null,
       subtotalMinor: subtotalMinor,
       deliveryFeeMinor: deliveryFeeMinor,
       serviceFeeMinor: serviceFeeMinor,
       vatMinor: vatMinor,
+      discountMinor: discountMinor,
       platformCommissionMinor: platformCommissionMinor,
       totalMinor: totalMinor,
+      returnUrl: AppConstants.paymentReturnUrl,
+      idempotencyKey: IdGenerator.uuidV4(),
       // Only send recipientPhone when ordering for someone else and the
       // field is non-empty; null suppresses the key from the JSON body.
-      recipientPhone: checkout.isOrderingForSomeoneElse &&
+      recipientPhone:
+          checkout.isOrderingForSomeoneElse &&
               checkout.recipientPhone.isNotEmpty
           ? checkout.recipientPhone
           : null,

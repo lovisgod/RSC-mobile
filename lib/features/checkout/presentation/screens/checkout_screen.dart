@@ -40,6 +40,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _deliveryAddressCtrl = TextEditingController();
+  final _landmarkCtrl = TextEditingController();
   final _recipientPhoneCtrl = TextEditingController();
   final _prepInstructionsCtrl = TextEditingController();
 
@@ -53,6 +54,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _deliveryAddressCtrl.dispose();
+    _landmarkCtrl.dispose();
     _recipientPhoneCtrl.dispose();
     _prepInstructionsCtrl.dispose();
     super.dispose();
@@ -261,11 +263,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     state: state,
                                     defaultAddress: defaultAddress,
                                     addressCtrl: _deliveryAddressCtrl,
+                                    landmarkCtrl: _landmarkCtrl,
                                     recipientPhoneCtrl: _recipientPhoneCtrl,
                                     onAddressChanged: cubit.onAddressChanged,
                                     onSuggestionTapped: _selectAddress,
                                     onClearAddress: _clearAddress,
                                     onUseDefault: _useDefaultAddress,
+                                    onUseCurrentLocation:
+                                        cubit.useCurrentLocation,
+                                    onLandmarkChanged: cubit.updateLandmark,
                                     onToggleSomeoneElse: _toggleSomeoneElse,
                                     onRecipientPhoneChanged:
                                         cubit.updateRecipientPhone,
@@ -603,11 +609,14 @@ class _DeliveryAddressCard extends StatelessWidget {
     required this.state,
     required this.defaultAddress,
     required this.addressCtrl,
+    required this.landmarkCtrl,
     required this.recipientPhoneCtrl,
     required this.onAddressChanged,
     required this.onSuggestionTapped,
     required this.onClearAddress,
     required this.onUseDefault,
+    required this.onUseCurrentLocation,
+    required this.onLandmarkChanged,
     required this.onToggleSomeoneElse,
     required this.onRecipientPhoneChanged,
   });
@@ -615,11 +624,14 @@ class _DeliveryAddressCard extends StatelessWidget {
   final CheckoutState state;
   final DeliveryAddressEntity? defaultAddress;
   final TextEditingController addressCtrl;
+  final TextEditingController landmarkCtrl;
   final TextEditingController recipientPhoneCtrl;
   final ValueChanged<String> onAddressChanged;
   final ValueChanged<AddressSuggestionModel> onSuggestionTapped;
   final VoidCallback onClearAddress;
   final VoidCallback onUseDefault;
+  final VoidCallback onUseCurrentLocation;
+  final ValueChanged<String> onLandmarkChanged;
   final ValueChanged<bool?> onToggleSomeoneElse;
   final ValueChanged<String> onRecipientPhoneChanged;
 
@@ -648,30 +660,69 @@ class _DeliveryAddressCard extends StatelessWidget {
           _AddressVerificationHint(state: state),
           const SizedBox(height: 12),
 
-          // Use Default Address button
-          GestureDetector(
-            onTap: defaultAddress != null ? onUseDefault : null,
-            child: Opacity(
-              opacity: defaultAddress != null ? 1 : 0.5,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.navyDark,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  AppStrings.useDefaultAddress,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+          // Use Default Address / Use Current Location buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              GestureDetector(
+                onTap: defaultAddress != null ? onUseDefault : null,
+                child: Opacity(
+                  opacity: defaultAddress != null ? 1 : 0.5,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.navyDark,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      AppStrings.useDefaultAddress,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+              GestureDetector(
+                onTap: state.isResolvingCurrentLocation
+                    ? null
+                    : onUseCurrentLocation,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.inputBorder),
+                  ),
+                  child: state.isResolvingCurrentLocation
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : Text(
+                          '📍 ${AppStrings.useCurrentLocation}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
           if (defaultAddress == null) ...[
             const SizedBox(height: 6),
@@ -680,6 +731,23 @@ class _DeliveryAddressCard extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: AppColors.textHint),
             ),
           ],
+          const SizedBox(height: 16),
+
+          const Text(
+            AppStrings.landmarkLabel,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          AppTextField(
+            controller: landmarkCtrl,
+            hint: AppStrings.landmarkHint,
+            onChanged: onLandmarkChanged,
+          ),
           const SizedBox(height: 12),
 
           const Divider(height: 1, color: AppColors.divider),
@@ -899,11 +967,6 @@ class _PriceBreakdown extends StatelessWidget {
         _PriceRow(
           label: AppStrings.deliveryFeeLabel,
           value: formatNaira(state.deliveryFee),
-        ),
-        const SizedBox(height: 6),
-        _PriceRow(
-          label: 'Platform Commission',
-          value: formatNaira(state.platformCommission),
         ),
         const SizedBox(height: 6),
         _PriceRow(label: AppStrings.vatLabel, value: formatNaira(state.vat)),

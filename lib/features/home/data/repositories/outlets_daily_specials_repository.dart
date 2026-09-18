@@ -10,23 +10,18 @@ class OutletsDailySpecialsRepository implements DailySpecialsRepository {
 
   @override
   Future<List<DailySpecial>> getDailySpecials() async {
-    final now = DateTime.now();
     final outlets = await _homeRepository.getOutlets();
     final specials = <DailySpecial>[];
 
     for (final outlet in outlets) {
       final items = await _homeRepository.getItemsForOutlet(outlet.id);
       for (final item in items) {
+        // isDiscountActive is already derived from the discount window in
+        // MenuItemModel.fromJson, so no need to re-check dates here.
         final discountedPrice = item.discountPrice;
         if (!item.isAvailable ||
             !item.isDiscountActive ||
-            discountedPrice == null ||
-            discountedPrice >= item.price ||
-            !_isWithinDiscountWindow(
-              now,
-              startsAt: item.discountStartsAt,
-              endsAt: item.discountEndsAt,
-            )) {
+            discountedPrice == null) {
           continue;
         }
 
@@ -57,16 +52,6 @@ class OutletsDailySpecialsRepository implements DailySpecialsRepository {
           discountedPrice: special.discountedPrice,
         ),
     ];
-  }
-
-  bool _isWithinDiscountWindow(
-    DateTime now, {
-    required DateTime? startsAt,
-    required DateTime? endsAt,
-  }) {
-    final startsOk = startsAt == null || !now.isBefore(startsAt);
-    final endsOk = endsAt == null || !now.isAfter(endsAt);
-    return startsOk && endsOk;
   }
 
   int _discountPercent(double originalPrice, double discountedPrice) {

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
@@ -19,9 +20,6 @@ class PaymentRepositoryImpl implements PaymentRepository {
 
   final DioClient _client;
 
-  /// Deep link Moment redirects to after a retried checkout completes.
-  static const String _returnUrl = 'rsc://payment/return';
-
   @override
   Future<InitiatePaymentResponseModel> initiatePayment(
     InitiatePaymentRequestModel request,
@@ -37,6 +35,11 @@ class PaymentRepositoryImpl implements PaymentRepository {
       final response = await _client.dio.post(
         ApiConstants.initiatePayment,
         data: body,
+        // Also sent as `idempotencyKey` in the body — the header is the
+        // primary mechanism the backend documents for retry-safe dedup.
+        options: Options(
+          headers: {'Idempotency-Key': request.idempotencyKey},
+        ),
       );
 
       developer.log(
@@ -98,7 +101,7 @@ class PaymentRepositoryImpl implements PaymentRepository {
     try {
       final response = await _client.dio.post(
         path,
-        data: {'returnUrl': _returnUrl},
+        data: {'returnUrl': AppConstants.paymentReturnUrl},
       );
 
       developer.log(

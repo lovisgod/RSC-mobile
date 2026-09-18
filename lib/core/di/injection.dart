@@ -18,6 +18,7 @@ import '../../features/checkout/domain/repositories/payment_repository.dart';
 import '../../features/checkout/domain/repositories/preparation_suggestions_repository.dart';
 import '../../features/checkout/domain/services/pending_reorder_holder.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
+import '../../features/checkout/domain/usecases/calculate_delivery_fee_usecase.dart';
 import '../../features/checkout/domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../features/checkout/domain/usecases/get_platform_charges_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
@@ -432,6 +433,9 @@ Future<void> configureDependencies(AppConfig appConfig) async {
     ..registerLazySingleton<BuildPaymentPayloadUseCase>(
       () => const BuildPaymentPayloadUseCase(),
     )
+    ..registerLazySingleton<CalculateDeliveryFeeUseCase>(
+      () => const CalculateDeliveryFeeUseCase(),
+    )
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
     )
@@ -459,6 +463,8 @@ Future<void> configureDependencies(AppConfig appConfig) async {
         getIt<ValidateAddressUseCase>(),
         getIt<GetPreparationSuggestionsUsecase>(),
         getIt<GetPlatformChargesUseCase>(),
+        getIt<HomeRepository>(),
+        getIt<CalculateDeliveryFeeUseCase>(),
         getIt<PendingReorderHolder>(),
       ),
     )

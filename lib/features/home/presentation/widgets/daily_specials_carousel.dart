@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -65,12 +67,18 @@ class _DailySpecialsCarouselState extends State<DailySpecialsCarousel> {
                   ),
                 ),
               ),
-              const Text(
-                AppStrings.viewAll,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
+              GestureDetector(
+                onTap: () => context.push(
+                  RouteNames.dailySpecialsList,
+                  extra: _specials,
+                ),
+                child: const Text(
+                  AppStrings.viewAll,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
             ],
@@ -85,7 +93,7 @@ class _DailySpecialsCarouselState extends State<DailySpecialsCarousel> {
             itemCount: _specials.length,
             itemBuilder: (context, index) => Padding(
               padding: EdgeInsets.only(left: index == 0 ? 20 : 0, right: 12),
-              child: _DailySpecialCard(special: _specials[index]),
+              child: DailySpecialCard(special: _specials[index]),
             ),
           ),
         ),
@@ -113,8 +121,8 @@ class _DailySpecialsCarouselState extends State<DailySpecialsCarousel> {
 
 // ── Card ─────────────────────────────────────────────────────────────────────
 
-class _DailySpecialCard extends StatelessWidget {
-  const _DailySpecialCard({required this.special});
+class DailySpecialCard extends StatelessWidget {
+  const DailySpecialCard({super.key, required this.special});
 
   final DailySpecial special;
 

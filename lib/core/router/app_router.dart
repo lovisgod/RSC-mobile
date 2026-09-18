@@ -17,6 +17,8 @@ import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/home/presentation/bloc/outlet_detail_bloc.dart';
 import '../../features/home/presentation/bloc/outlet_detail_event.dart';
 import '../../features/home/domain/entities/promo_offer.dart';
+import '../../features/home/domain/entities/daily_special.dart';
+import '../../features/home/presentation/screens/daily_specials_list_screen.dart';
 import '../../features/home/presentation/screens/item_detail_screen.dart';
 import '../../features/home/presentation/screens/outlet_detail_screen.dart';
 import '../../features/home/presentation/screens/outlet_list_screen.dart';
@@ -78,6 +80,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final outlets = state.extra as List<Outlet>;
         return OutletListScreen(outlets: outlets);
+      },
+    ),
+
+    // ── Daily specials list — full screen, no bottom nav ─────────────────────
+    GoRoute(
+      path: '/daily-specials',
+      name: 'dailySpecialsList',
+      builder: (context, state) {
+        final specials = state.extra as List<DailySpecial>;
+        return DailySpecialsListScreen(specials: specials);
       },
     ),
 
