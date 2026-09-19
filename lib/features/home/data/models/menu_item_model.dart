@@ -1,4 +1,5 @@
 import '../../../menu/domain/entities/menu_item.dart';
+import '../../../menu/domain/entities/menu_item_pricing.dart';
 import '../../../menu/domain/entities/modifier_group.dart';
 
 /// Maps a single object from the outlet response's `menuItems` array.
@@ -13,10 +14,19 @@ class MenuItemModel {
   final String description;
   final String? imageUrl;
   final double price;
+  final double? discountPrice;
+  final DateTime? discountStartsAt;
+  final DateTime? discountEndsAt;
+  final double currentPrice;
+  final bool isDiscountActive;
+  final String currency;
   final bool isAvailable;
   final int sortOrder;
   final double ratingAverage;
   final int ratingCount;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   /// Null when the backend has no delivery-time estimate for this item.
   final String? deliveryTimeRange;
@@ -29,14 +39,34 @@ class MenuItemModel {
     required this.description,
     required this.imageUrl,
     required this.price,
+    this.discountPrice,
+    this.discountStartsAt,
+    this.discountEndsAt,
+    required this.currentPrice,
+    required this.isDiscountActive,
+    required this.currency,
     required this.isAvailable,
     required this.sortOrder,
     required this.ratingAverage,
     required this.ratingCount,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
     this.deliveryTimeRange,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
+    final price = ((json['priceMinor'] as num?)?.toDouble() ?? 0) / 100;
+    final discountPrice = (json['discountPriceMinor'] as num?) == null
+        ? null
+        : (json['discountPriceMinor'] as num).toDouble() / 100;
+    final discountStartsAt = DateTime.tryParse(
+      json['discountStartsAt'] as String? ?? '',
+    );
+    final discountEndsAt = DateTime.tryParse(
+      json['discountEndsAt'] as String? ?? '',
+    );
+
     return MenuItemModel(
       id: json['id'] as String? ?? '',
       outletId: json['outletId'] as String? ?? '',
@@ -44,23 +74,52 @@ class MenuItemModel {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       imageUrl: json['imageUrl'] as String?,
-      price: ((json['priceMinor'] as num?)?.toDouble() ?? 0) / 100,
+      price: price,
+      discountPrice: discountPrice,
+      discountStartsAt: discountStartsAt,
+      discountEndsAt: discountEndsAt,
+      // Recomputed from the discount window rather than trusted off the
+      // payload — a cached/stale response can otherwise disagree with the
+      // device clock about whether the discount is currently active.
+      currentPrice: getMenuItemCurrentPrice(
+        price: price,
+        discountPrice: discountPrice,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
+      ),
+      isDiscountActive: isMenuItemDiscountActive(
+        price: price,
+        discountPrice: discountPrice,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
+      ),
+      currency: json['currency'] as String? ?? 'NGN',
       isAvailable: json['isAvailable'] as bool? ?? true,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
       ratingAverage:
           double.tryParse(json['ratingAverage'] as String? ?? '0') ?? 0.0,
       ratingCount: json['ratingCount'] as int? ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
       deliveryTimeRange: json['deliveryTimeRange'] as String?,
     );
   }
 
-  MenuItem toEntity({List<ModifierGroup> modifierGroups = const []}) => MenuItem(
+  MenuItem toEntity({List<ModifierGroup> modifierGroups = const []}) =>
+      MenuItem(
         id: id,
         categoryId: categoryId,
         outletId: outletId,
         name: name,
         description: description,
         price: price,
+        discountPrice: discountPrice,
+        discountStartsAt: discountStartsAt,
+        discountEndsAt: discountEndsAt,
+        currentPrice: currentPrice,
+        isDiscountActive: isDiscountActive,
+        currency: currency,
         imageUrl: imageUrl,
         isAvailable: isAvailable,
         sortOrder: sortOrder,

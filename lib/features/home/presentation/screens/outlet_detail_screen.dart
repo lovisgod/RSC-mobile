@@ -144,6 +144,8 @@ class OutletDetailScreen extends StatelessWidget {
                                   children: [
                                     MenuItemCard(
                                       item: item,
+                                      outletId: outlet.id,
+                                      outletName: outlet.name,
                                       outletIsOnline: outlet.isOnline,
                                       onAddTap: () => context.push(
                                         RouteNames.itemDetailPath(

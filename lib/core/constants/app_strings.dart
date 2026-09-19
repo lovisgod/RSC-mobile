@@ -1,14 +1,18 @@
 abstract final class AppStrings {
   // ─── Bottom nav tab labels ────────────────────────────────────────────────
   static const String tabHome = 'Home';
-  static const String tabSearch = 'Search';
+  static const String tabFavorites = 'Favorites';
   static const String tabCart = 'Cart';
   static const String tabTrack = 'Track';
   static const String tabProfile = 'Profile';
 
+  // ─── App drawer ───────────────────────────────────────────────────────────
+  static const String guestGreeting = 'Guest';
+  static const String drawerSignInPrompt = 'Sign in to view your profile';
+  static const String settings = 'Settings';
+
   // ─── Auth — branding ─────────────────────────────────────────────────────
-  static const String appBrandName = 'RSC';
-  static const String appBrandSuffix = 'Food';
+  static const String appName = 'DineOut NG';
   static const String loginSubtitle =
       'Welcome back! Please log in to order delicious meals.';
   static const String registerSubtitle =
@@ -59,7 +63,19 @@ abstract final class AppStrings {
   static const String deliveringTo = 'DELIVERING TO';
   static const String deliveryAddress = 'Lagos, Nigeria';
   static const String addDeliveryAddress = 'Add a delivery address';
-  static const String rscFoodKitchens = 'RSC Food Kitchens';
+  static const String ourOutlets = 'OUR OUTLETS';
+  static const String viewAll = 'View All ›';
+  static const String dailySpecials = 'DAILY SPECIALS';
+  static const String todaysPick = "TODAY'S PICK";
+  static const String exclusiveDiscounts = 'EXCLUSIVE DISCOUNTS';
+  static const String promoDetailsTitle = 'Promo Details';
+  static const String promoCode = 'PROMO CODE';
+  static const String promoCodeCopied = 'Promo code copied';
+  static const String validUntilPrefix = 'Valid until ';
+  static const String validFromPrefix = 'Valid from ';
+  static const String validAtAllOutlets = 'Valid at all outlets';
+  static const String validAtOutletPrefix = 'Valid at ';
+  static const String promoExpired = 'This promo has ended';
   static const String useCode = 'Use code: ';
   static const String orderNow = 'Order Now';
   static const String popular = 'Popular';
@@ -67,6 +83,12 @@ abstract final class AppStrings {
   static const String noOutletsAvailable = 'No outlets available';
   static const String noOutletsAvailableDescription =
       'There are currently no food kitchens available in your area. Please check again later.';
+  static const String noDailySpecialsAvailable = 'No daily specials right now';
+  static const String noDailySpecialsAvailableDescription =
+      "Check back later for today's discounted picks.";
+  static const String noFavoritesYet = 'No favorites yet';
+  static const String noFavoritesYetDescription =
+      'Tap the heart on any menu item to save it here for quick reordering.';
   static const String noMenuItems = 'No items in this category';
   static const String errorLoadingOutlets = 'Failed to load restaurants';
   static const String retry = 'Retry';
@@ -267,6 +289,8 @@ abstract final class AppStrings {
       'Order on behalf of someone inside geofence';
   static const String recipientPhoneNumber = 'RECIPIENT PHONE NUMBER';
   static const String recipientPhoneHint = 'e.g. 08031234567';
+  static const String landmarkLabel = 'LANDMARK (OPTIONAL)';
+  static const String landmarkHint = 'e.g. Opposite Mega Chicken, black gate';
   static const String enterValidRecipientPhone =
       'Please enter a valid phone number';
   static const String deliveryCoordinatesMissing =
@@ -301,6 +325,15 @@ abstract final class AppStrings {
       'Checking delivery availability...';
   static const String couldNotResolveAddress =
       'Could not resolve address. Please try again.';
+  static const String useCurrentLocation = 'Use current location';
+  static const String locationServiceDisabled =
+      'Location services are disabled. Please enable them to use your '
+      'current location.';
+  static const String locationPermissionDenied =
+      'Location permission denied. Please allow location access to use '
+      'your current location.';
+  static const String couldNotGetCurrentLocation =
+      'Could not get your current location. Please try again.';
   static const String deliveringToZone = '✅ Delivering to';
   static const String addressVerifiedSimple = '✅ Address verified';
   static const String deliversToZone = '✅ Delivers to';

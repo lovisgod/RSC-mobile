@@ -6,14 +6,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_bottom_nav.dart';
 import '../../auth/presentation/screens/auth_flow_screen.dart';
 import '../../cart/presentation/screens/cart_screen.dart';
+import '../../favorites/presentation/screens/favorites_screen.dart';
 import '../../home/presentation/bloc/home_bloc.dart';
 import '../../home/presentation/bloc/home_event.dart';
 import '../../home/presentation/screens/home_screen.dart';
 import '../../profile/presentation/cubit/profile_cubit.dart';
 import '../../profile/presentation/cubit/profile_state.dart';
 import '../../profile/presentation/screens/profile_screen.dart';
-import '../../search/presentation/bloc/search_bloc.dart';
-import '../../search/presentation/screens/search_screen.dart';
 import '../../track/presentation/cubit/track_cubit.dart';
 import '../../track/presentation/screens/track_screen.dart';
 import 'bloc/shell_bloc.dart';
@@ -37,10 +36,7 @@ class ShellScreen extends StatelessWidget {
                     getIt<HomeBloc>()..add(const HomeFetchRequested()),
                 child: const HomeScreen(),
               ),
-              BlocProvider(
-                create: (_) => getIt<SearchBloc>(),
-                child: const SearchScreen(),
-              ),
+              const FavoritesScreen(),
               const CartScreen(),
               BlocProvider.value(
                 value: getIt<TrackCubit>(),

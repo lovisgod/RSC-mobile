@@ -81,4 +81,5 @@ abstract final class ApiConstants {
       '/api/v1/notifications/$id/read';
   static const String notificationPreferences =
       '/api/v1/notifications/preferences';
+  static const String promos = '/api/v1/notifications/promos';
 }

@@ -14,6 +14,9 @@ class ModifierGroupModel {
   final int maxSelections;
   final bool isRequired;
   final int sortOrder;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   const ModifierGroupModel({
     required this.id,
@@ -23,6 +26,9 @@ class ModifierGroupModel {
     required this.maxSelections,
     required this.isRequired,
     required this.sortOrder,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   factory ModifierGroupModel.fromJson(Map<String, dynamic> json) {
@@ -34,22 +40,24 @@ class ModifierGroupModel {
       maxSelections: (json['maxSelections'] as num?)?.toInt() ?? 1,
       isRequired: json['isRequired'] as bool? ?? false,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
     );
   }
 
   ModifierGroup toEntity({
     required String menuItemId,
     List<Modifier> modifiers = const [],
-  }) =>
-      ModifierGroup(
-        id: id,
-        menuItemId: menuItemId,
-        name: name,
-        isRequired: isRequired,
-        minSelections: minSelections,
-        maxSelections: maxSelections,
-        sortOrder: sortOrder,
-        outletId: outletId,
-        modifiers: modifiers,
-      );
+  }) => ModifierGroup(
+    id: id,
+    menuItemId: menuItemId,
+    name: name,
+    isRequired: isRequired,
+    minSelections: minSelections,
+    maxSelections: maxSelections,
+    sortOrder: sortOrder,
+    outletId: outletId,
+    modifiers: modifiers,
+  );
 }

@@ -37,7 +37,7 @@ class AppBottomNav extends StatelessWidget {
           child: Row(
             children: [
               _buildItem(0, AppAssets.iconHome, AppStrings.tabHome),
-              _buildItem(1, AppAssets.iconSearch, AppStrings.tabSearch),
+              _buildFavoritesItem(),
               _buildCartItem(context),
               _buildItem(3, AppAssets.iconTrack, AppStrings.tabTrack),
               _buildProfileItem(),
@@ -64,6 +64,40 @@ class AppBottomNav extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? AppColors.navActive : AppColors.navInactive,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoritesItem() {
+    final bool isActive = activeIndex == 1;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => onTabSelected(1),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildPill(
+              isActive: isActive,
+              child: Icon(
+                isActive
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                size: 26,
+                color: isActive ? AppColors.navActive : AppColors.navInactive,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              AppStrings.tabFavorites,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,

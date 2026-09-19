@@ -13,4 +13,5 @@ abstract final class AppAssets {
 
   // ─── Images ──────────────────────────────────────────────────────────────
   static const String imgConfetti = 'rsc-assets/images/confetti.png';
+  static const String logo = 'rsc-assets/images/logo.png';
 }

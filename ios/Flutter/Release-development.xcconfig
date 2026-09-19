@@ -1,4 +1,4 @@
 #include "Release.xcconfig"
 
 PRODUCT_BUNDLE_IDENTIFIER = com.rsc.rsc_mobile.dev
-DISPLAY_NAME = RSC Dev
+DISPLAY_NAME = DineOut NG Dev

@@ -76,6 +76,21 @@ dev_dependencies:
   json_serializable: ^6.8.0
   envied_generator: ^0.5.4
   hive_generator: ^2.0.1
+  flutter_launcher_icons: ^0.14.2
+
+flutter_launcher_icons:
+  image_path: "rsc-assets/icons/app_icon/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+  web:
+    generate: true
+  windows:
+    generate: false
+  linux:
+    generate: false
 
 flutter:
   uses-material-design: true
@@ -87,3 +102,4 @@ flutter:
     - rsc-assets/icons/png/round-pushpin_1f4cd.png
     - rsc-assets/icons/png/bust-in-silhouette_1f464.png
     - rsc-assets/images/confetti.png
+    - rsc-assets/images/logo.png

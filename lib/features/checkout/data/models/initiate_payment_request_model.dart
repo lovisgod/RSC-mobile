@@ -13,18 +13,29 @@ class InitiatePaymentRequestModel {
   final double? deliveryLatitude;
   final double? deliveryLongitude;
 
+  /// Optional landmark to help the rider find the address (delivery only).
+  final String? landmark;
+
   /// Optional phone number for the recipient (used when ordering for someone else).
   final String? recipientPhone;
 
   /// Optional top-level preparation note that applies to the whole order.
   final String? preparationNote;
 
+  /// Deep link Moment redirects to after checkout completes.
+  final String? returnUrl;
+
   final int subtotalMinor;
   final int deliveryFeeMinor;
   final int serviceFeeMinor;
   final int vatMinor;
+  final int discountMinor;
   final int platformCommissionMinor;
   final int totalMinor;
+
+  /// Unique per checkout attempt — sent as the `Idempotency-Key` header (see
+  /// [PaymentRepositoryImpl.initiatePayment]), not part of the JSON body.
+  final String idempotencyKey;
 
   const InitiatePaymentRequestModel({
     required this.items,
@@ -32,14 +43,18 @@ class InitiatePaymentRequestModel {
     required this.deliveryAddress,
     this.deliveryLatitude,
     this.deliveryLongitude,
+    this.landmark,
     this.recipientPhone,
     this.preparationNote,
+    this.returnUrl,
     required this.subtotalMinor,
     required this.deliveryFeeMinor,
     required this.serviceFeeMinor,
     required this.vatMinor,
+    this.discountMinor = 0,
     required this.platformCommissionMinor,
     required this.totalMinor,
+    required this.idempotencyKey,
   });
 
   Map<String, dynamic> toJson() {
@@ -53,16 +68,24 @@ class InitiatePaymentRequestModel {
       'deliveryFeeMinor': deliveryFeeMinor,
       'serviceFeeMinor': serviceFeeMinor,
       'vatMinor': vatMinor,
+      'discountMinor': discountMinor,
       'platformCommissionMinor': platformCommissionMinor,
       'totalMinor': totalMinor,
+      'idempotencyKey': idempotencyKey,
     };
     // Only include optional fields when they have meaningful values so the
     // backend doesn't receive empty strings or null keys it doesn't expect.
+    if (landmark != null && landmark!.isNotEmpty) {
+      map['landmark'] = landmark;
+    }
     if (recipientPhone != null && recipientPhone!.isNotEmpty) {
       map['recipientPhone'] = recipientPhone;
     }
     if (preparationNote != null && preparationNote!.isNotEmpty) {
       map['preparationNote'] = preparationNote;
+    }
+    if (returnUrl != null && returnUrl!.isNotEmpty) {
+      map['returnUrl'] = returnUrl;
     }
     return map;
   }

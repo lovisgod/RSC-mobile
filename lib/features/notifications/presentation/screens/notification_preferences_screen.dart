@@ -143,7 +143,7 @@ class _InfoCard extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF3FB),
+        color: AppColors.infoBackground,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Column(

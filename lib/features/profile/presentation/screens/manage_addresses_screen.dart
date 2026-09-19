@@ -38,6 +38,13 @@ class _ManageAddressesScreenState extends State<ManageAddressesScreen> {
                   if (state.isLoading && state.addresses.isEmpty) {
                     return const _ShimmerList();
                   }
+                  if (state.error != null && state.addresses.isEmpty) {
+                    return _ErrorState(
+                      message: state.error!,
+                      onRetry: () =>
+                          context.read<AddressCubit>().loadAddresses(),
+                    );
+                  }
                   if (state.addresses.isEmpty) {
                     return const _EmptyState();
                   }
@@ -153,6 +160,49 @@ class _EmptyState extends StatelessWidget {
               label: AppStrings.addAddress,
               backgroundColor: AppColors.navy,
               onPressed: () => AddressBottomSheet.show(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Error state ──────────────────────────────────────────────────────────────
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: AppColors.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            AppButton(
+              label: AppStrings.retry,
+              backgroundColor: AppColors.navy,
+              onPressed: onRetry,
             ),
           ],
         ),

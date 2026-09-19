@@ -8,229 +8,254 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/shimmer_box.dart';
 import '../../../menu/domain/entities/outlet.dart';
 import '../../../notifications/presentation/cubit/notifications_cubit.dart';
 import '../../../notifications/presentation/cubit/notifications_state.dart';
 import '../../../profile/presentation/cubit/address_cubit.dart';
-import '../../../profile/presentation/cubit/address_state.dart';
-import '../../../profile/presentation/cubit/profile_cubit.dart';
-import '../../../profile/presentation/cubit/profile_state.dart';
+import '../../../search/presentation/bloc/search_bloc.dart';
+import '../../../search/presentation/bloc/search_event.dart';
+import '../../../search/presentation/screens/search_screen.dart';
 import '../../../shell/presentation/bloc/shell_bloc.dart';
 import '../../../shell/presentation/bloc/shell_state.dart';
+import '../../../shell/presentation/widgets/app_drawer.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
+import '../widgets/daily_specials_carousel.dart';
 import '../widgets/outlet_card.dart';
 import '../widgets/promo_banner_carousel.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final SearchBloc _searchBloc;
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  bool _searchActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchBloc = getIt<SearchBloc>();
+    _searchFocusNode.addListener(_handleFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.removeListener(_handleFocusChange);
+    _searchFocusNode.dispose();
+    _searchController.dispose();
+    _searchBloc.close();
+    super.dispose();
+  }
+
+  void _handleFocusChange() {
+    if (_searchFocusNode.hasFocus && !_searchActive) {
+      setState(() => _searchActive = true);
+      _searchBloc.add(const SearchQueryChanged(''));
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    if (!_searchActive) setState(() => _searchActive = true);
+    _searchBloc.add(SearchQueryChanged(value));
+  }
+
+  void _onSearchCancel() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() => _searchActive = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AddressCubit>(
       create: (_) => getIt<AddressCubit>()..loadAddresses(),
-      child: Scaffold(
-        backgroundColor: AppColors.navyDark,
-        body: Column(
-          children: [
-            // ── Navy header ──────────────────────────────────────────────
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: Row(
-                  children: [
-                    const Expanded(child: _DeliveringToSection()),
-                    const _NotificationBellButton(),
-                    const SizedBox(width: 8),
-                    const _AvatarButton(),
-                  ],
-                ),
-              ),
-            ),
+      child: BlocProvider<SearchBloc>.value(
+        value: _searchBloc,
+        child: Scaffold(
+          backgroundColor: AppColors.surfaceDark,
+          drawer: const AppDrawer(),
+          body: Column(
+            children: [
+              // ── Header ─────────────────────────────────────────────────
+              SafeArea(bottom: false, child: _HomeHeader()),
 
-            // ── White body ───────────────────────────────────────────────────
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: RefreshIndicator(
-                  color: AppColors.primary,
-                  backgroundColor: AppColors.surface,
-                  onRefresh: () async {
-                    final bloc = context.read<HomeBloc>();
-                    final future = bloc.stream.firstWhere(
-                      (state) => state is HomeLoaded || state is HomeError,
-                    );
-                    bloc.add(const HomeFetchRequested());
-                    await future;
-                  },
-                  child: BlocBuilder<HomeBloc, HomeState>(
-                    builder: (context, state) {
-                      if (state is HomeLoading || state is HomeInitial) {
-                        return _ShimmerBody();
-                      }
-                      if (state is HomeError) {
-                        return _ErrorBody(
-                          message: state.message,
-                          onRetry: () => context.read<HomeBloc>().add(
-                            const HomeFetchRequested(),
-                          ),
-                        );
-                      }
-                      if (state is HomeLoaded) {
-                        return _LoadedBody(outlets: state.outlets);
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
+              // ── Inline search bar ─────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: _InlineSearchField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  isActive: _searchActive,
+                  onChanged: _onSearchChanged,
+                  onCancel: _onSearchCancel,
                 ),
               ),
-            ),
-          ],
+
+              // ── White body ─────────────────────────────────────────────
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: _searchActive
+                      ? const SearchResultsView()
+                      : RefreshIndicator(
+                          color: AppColors.primary,
+                          backgroundColor: AppColors.surface,
+                          onRefresh: () async {
+                            final bloc = context.read<HomeBloc>();
+                            final future = bloc.stream.firstWhere(
+                              (state) =>
+                                  state is HomeLoaded || state is HomeError,
+                            );
+                            bloc.add(const HomeFetchRequested());
+                            await future;
+                          },
+                          child: BlocBuilder<HomeBloc, HomeState>(
+                            builder: (context, state) {
+                              if (state is HomeLoading || state is HomeInitial) {
+                                return _ShimmerBody();
+                              }
+                              if (state is HomeError) {
+                                return _ErrorBody(
+                                  message: state.message,
+                                  onRetry: () => context.read<HomeBloc>().add(
+                                    const HomeFetchRequested(),
+                                  ),
+                                );
+                              }
+                              if (state is HomeLoaded) {
+                                return _LoadedBody(outlets: state.outlets);
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Delivering-to section ────────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────────────────
 
-class _DeliveringToSection extends StatelessWidget {
-  const _DeliveringToSection();
-
+class _HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ShellBloc, ShellState>(
-      builder: (context, shellState) {
-        if (!shellState.isAuthenticated) {
-          return const _DeliveringToContent(
-            bottomText: AppStrings.deliveryAddress,
-            bottomColor: AppColors.textOnDark,
-          );
-        }
-
-        return BlocBuilder<AddressCubit, AddressState>(
-          builder: (context, addressState) {
-            if (addressState.isLoading) {
-              return const _DeliveringToShimmer();
-            }
-
-            final defaultAddress = addressState.defaultAddress;
-            final hasDefault = defaultAddress != null;
-
-            return _DeliveringToContent(
-              bottomText: hasDefault
-                  ? defaultAddress.addressLine
-                  : AppStrings.addDeliveryAddress,
-              bottomColor: hasDefault
-                  ? AppColors.textOnDark
-                  : AppColors.primary,
-              chevronColor: hasDefault
-                  ? AppColors.textOnDark
-                  : AppColors.primary,
-              onTap: () => context.push(RouteNames.manageAddresses).then((_) {
-                if (context.mounted) {
-                  context.read<AddressCubit>().loadAddresses();
-                }
-              }),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _DeliveringToContent extends StatelessWidget {
-  const _DeliveringToContent({
-    required this.bottomText,
-    required this.bottomColor,
-    this.chevronColor,
-    this.onTap,
-  });
-
-  final String bottomText;
-  final Color bottomColor;
-  final Color? chevronColor;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final column = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          AppStrings.deliveringTo,
-          style: TextStyle(
-            color: AppColors.textHint,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                bottomText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: bottomColor,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 20, 4),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Scaffold.of(context).openDrawer(),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(
+                Icons.menu_rounded,
+                color: AppColors.rscInk,
+                size: 26,
               ),
             ),
-            if (chevronColor != null)
-              Text(
-                '›',
-                style: TextStyle(
-                  color: chevronColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+          ),
+          Expanded(
+            child: Center(
+              child: Image.asset(
+                AppAssets.logo,
+                height: 32,
+                fit: BoxFit.contain,
               ),
-          ],
-        ),
-      ],
-    );
-
-    if (onTap == null) return column;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: column,
+            ),
+          ),
+          const _NotificationBellButton(),
+        ],
+      ),
     );
   }
 }
 
-class _DeliveringToShimmer extends StatelessWidget {
-  const _DeliveringToShimmer();
+// ── Inline search field ───────────────────────────────────────────────────────
+
+class _InlineSearchField extends StatelessWidget {
+  const _InlineSearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.isActive,
+    required this.onChanged,
+    required this.onCancel,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool isActive;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        const Text(
-          AppStrings.deliveringTo,
-          style: TextStyle(
-            color: AppColors.textHint,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
+        Expanded(
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.rscPanel,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: onChanged,
+              style: const TextStyle(fontSize: 14, color: AppColors.rscInk),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.transparent,
+                hintText: AppStrings.searchAcrossAllOutlets,
+                hintStyle: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.rscMuted,
+                ),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.asset(
+                    AppAssets.iconSearch,
+                    width: 18,
+                    height: 18,
+                    color: AppColors.rscMuted,
+                  ),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 5),
-        const ShimmerBox(height: 14, width: 140, radius: 4),
+        if (isActive) ...[
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: onCancel,
+            child: const Text(
+              AppStrings.cancel,
+              style: TextStyle(
+                color: AppColors.rscInk,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -259,8 +284,8 @@ class _NotificationBellButton extends StatelessWidget {
               children: [
                 const Center(
                   child: Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.white,
+                    Icons.notifications,
+                    color: AppColors.rscInk,
                     size: 24,
                   ),
                 ),
@@ -300,29 +325,6 @@ class _NotificationBellButton extends StatelessWidget {
   }
 }
 
-// ── Avatar button ────────────────────────────────────────────────────────────
-
-class _AvatarButton extends StatelessWidget {
-  const _AvatarButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      builder: (context, state) {
-        final profile = state.userProfile;
-        if (profile == null) {
-          return Image.asset(AppAssets.iconProfile, width: 40, height: 40);
-        }
-        return ProfileAvatar(
-          initials: profile.initials,
-          avatarUrl: profile.avatarUrl,
-          size: 40,
-        );
-      },
-    );
-  }
-}
-
 // ── Loaded body ──────────────────────────────────────────────────────────────
 
 class _LoadedBody extends StatelessWidget {
@@ -343,24 +345,39 @@ class _LoadedBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        // ── Promo banner ────────────────────────────────────────────────
-        BlocBuilder<NotificationsCubit, NotificationsState>(
-          builder: (context, notifState) {
-            return PromoBannerCarousel(notifications: notifState.notifications);
-          },
-        ),
-        const SizedBox(height: 20),
+        // ── Daily specials ──────────────────────────────────────────────
+        const DailySpecialsCarousel(),
 
         // ── Section heading ──────────────────────────────────────────────
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            AppStrings.rscFoodKitchens,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  AppStrings.ourOutlets,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              if (outlets.isNotEmpty)
+                GestureDetector(
+                  onTap: () =>
+                      context.push(RouteNames.outletList, extra: outlets),
+                  child: const Text(
+                    AppStrings.viewAll,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -369,20 +386,54 @@ class _LoadedBody extends StatelessWidget {
           const _EmptyOutletsState()
         else
           // ── Outlet cards ─────────────────────────────────────────────────
-          ...outlets.asMap().entries.map((entry) {
-            final index = entry.key;
-            final outlet = entry.value;
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: OutletCard(
-                outlet: outlet,
-                emoji: _emojis[index % _emojis.length],
-                cardColor: _colors[index % _colors.length],
-                onTap: () =>
-                    context.push('/outlet/${outlet.id}', extra: outlet),
+          SizedBox(
+            height: 220,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: outlets.length,
+              itemBuilder: (context, index) {
+                final outlet = outlets[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 180,
+                    child: OutletCard(
+                      outlet: outlet,
+                      emoji: _emojis[index % _emojis.length],
+                      cardColor: _colors[index % _colors.length],
+                      onTap: () =>
+                          context.push('/outlet/${outlet.id}', extra: outlet),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 20),
+
+        // ── Exclusive discounts ──────────────────────────────────────────
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            children: [
+              Text('🏷️', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  AppStrings.exclusiveDiscounts,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
-            );
-          }),
+            ],
+          ),
+        ),
+        const PromoBannerCarousel(),
       ],
     );
   }

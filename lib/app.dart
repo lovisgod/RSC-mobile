@@ -12,6 +12,7 @@ import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/cart/presentation/cubit/cart_cubit.dart';
+import 'features/favorites/presentation/cubit/favorites_cubit.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'features/profile/domain/usecases/get_order_by_id_usecase.dart';
 import 'features/profile/presentation/cubit/order_history_cubit.dart';
@@ -145,6 +146,9 @@ class _AppState extends State<App> with WidgetsBindingObserver {
         BlocProvider<OrderHistoryCubit>(
           create: (_) => getIt<OrderHistoryCubit>(),
         ),
+        BlocProvider<FavoritesCubit>(
+          create: (_) => getIt<FavoritesCubit>()..loadFavorites(),
+        ),
         BlocProvider<NotificationsCubit>(
           create: (_) => getIt<NotificationsCubit>(),
         ),
@@ -167,10 +171,12 @@ class _AppState extends State<App> with WidgetsBindingObserver {
           }
         },
         child: MaterialApp.router(
-          title: 'RSC',
+          title: 'DineOut NG',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: scaffoldMessengerKey,
           theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
           routerConfig: appRouter,
         ),
       ),

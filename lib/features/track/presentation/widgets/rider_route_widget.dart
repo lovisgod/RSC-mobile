@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
+
 class RiderRouteWidget extends StatefulWidget {
   const RiderRouteWidget({
     super.key,
@@ -47,7 +49,7 @@ class _RiderRouteWidgetState extends State<RiderRouteWidget> {
       height: 140,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
+        color: AppColors.rscPanel,
         borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.hardEdge,
@@ -79,7 +81,7 @@ class _RiderRouteWidgetState extends State<RiderRouteWidget> {
                       width: 14,
                       height: 14,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF141F3D),
+                        color: AppColors.rscInk,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -88,7 +90,7 @@ class _RiderRouteWidgetState extends State<RiderRouteWidget> {
                       'Kitchens',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF6B7280),
+                        color: AppColors.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -107,7 +109,7 @@ class _RiderRouteWidgetState extends State<RiderRouteWidget> {
                       'Your Home',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFFD4832A),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                       overflow: TextOverflow.clip,
@@ -117,7 +119,7 @@ class _RiderRouteWidgetState extends State<RiderRouteWidget> {
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD4832A),
+                        color: AppColors.primary,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                       ),

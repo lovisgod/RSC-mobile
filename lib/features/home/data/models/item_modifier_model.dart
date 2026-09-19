@@ -10,8 +10,12 @@ class ItemModifierModel {
   final String groupId;
   final String name;
   final double priceDelta;
+  final String currency;
   final bool isAvailable;
   final int sortOrder;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   const ItemModifierModel({
     required this.id,
@@ -19,8 +23,12 @@ class ItemModifierModel {
     required this.groupId,
     required this.name,
     required this.priceDelta,
+    required this.currency,
     required this.isAvailable,
     required this.sortOrder,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   factory ItemModifierModel.fromJson(Map<String, dynamic> json) {
@@ -30,18 +38,22 @@ class ItemModifierModel {
       groupId: json['groupId'] as String? ?? '',
       name: json['name'] as String? ?? '',
       priceDelta: ((json['priceDeltaMinor'] as num?)?.toDouble() ?? 0) / 100,
+      currency: json['currency'] as String? ?? 'NGN',
       isAvailable: json['isAvailable'] as bool? ?? true,
       sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
+      deletedAt: DateTime.tryParse(json['deletedAt'] as String? ?? ''),
     );
   }
 
   Modifier toEntity() => Modifier(
-        id: id,
-        groupId: groupId,
-        name: name,
-        priceDelta: priceDelta,
-        isAvailable: isAvailable,
-        sortOrder: sortOrder,
-        outletId: outletId,
-      );
+    id: id,
+    groupId: groupId,
+    name: name,
+    priceDelta: priceDelta,
+    isAvailable: isAvailable,
+    sortOrder: sortOrder,
+    outletId: outletId,
+  );
 }

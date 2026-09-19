@@ -1,194 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/shimmer_box.dart';
-import '../../../shell/presentation/bloc/shell_bloc.dart';
-import '../../../shell/presentation/bloc/shell_event.dart';
 import '../bloc/search_bloc.dart';
-import '../bloc/search_event.dart';
 import '../bloc/search_state.dart';
 import '../widgets/search_result_card.dart';
 
-class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+// ── Results view (shared by Home's inline search) ───────────────────────────
 
-  @override
-  State<SearchScreen> createState() => _SearchScreenState();
-}
-
-class _SearchScreenState extends State<SearchScreen> {
-  final _controller = TextEditingController();
-  final _focusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<SearchBloc>().add(const SearchQueryChanged(''));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _onChanged(String value) {
-    context.read<SearchBloc>().add(SearchQueryChanged(value));
-  }
-
-  void _onClear() {
-    _controller.clear();
-    context.read<SearchBloc>().add(const SearchCleared());
-    _focusNode.requestFocus();
-  }
+class SearchResultsView extends StatelessWidget {
+  const SearchResultsView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top bar ────────────────────────────────────────────────
-            _SearchTopBar(
-              controller: _controller,
-              focusNode: _focusNode,
-              onChanged: _onChanged,
-              onClear: _onClear,
-              onBack: () =>
-                  context.read<ShellBloc>().add(const ShellTabChanged(0)),
-            ),
-            const Divider(height: 1, color: AppColors.divider),
-
-            // ── Body ───────────────────────────────────────────────────
-            Expanded(
-              child: BlocBuilder<SearchBloc, SearchState>(
-                builder: (context, state) {
-                  if (state is SearchLoading) {
-                    return const _ShimmerResults();
-                  }
-                  if (state is SearchEmpty) {
-                    return _NoResults(query: state.query);
-                  }
-                  if (state is SearchLoaded) {
-                    return _ResultsList(state: state);
-                  }
-                  if (state is SearchError) {
-                    return _ErrorBody(message: state.message);
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Top bar ───────────────────────────────────────────────────────────────────
-
-class _SearchTopBar extends StatelessWidget {
-  const _SearchTopBar({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onClear,
-    required this.onBack,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Row(
-        children: [
-          // Back button
-          GestureDetector(
-            onTap: onBack,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 16,
-                color: AppColors.navyDark,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Search field
-          Expanded(
-            child: Container(
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(21),
-              ),
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: true,
-                onChanged: onChanged,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: AppStrings.searchAcrossAllOutlets,
-                  hintStyle: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textHint,
-                  ),
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Image.asset(
-                      AppAssets.iconSearch,
-                      width: 20,
-                      height: 20,
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: controller,
-                    builder: (_, value, _) {
-                      if (value.text.isEmpty) return const SizedBox.shrink();
-                      return GestureDetector(
-                        onTap: onClear,
-                        child: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
-                      );
-                    },
-                  ),
-                  border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return BlocBuilder<SearchBloc, SearchState>(
+      builder: (context, state) {
+        if (state is SearchLoading) {
+          return const _ShimmerResults();
+        }
+        if (state is SearchEmpty) {
+          return _NoResults(query: state.query);
+        }
+        if (state is SearchLoaded) {
+          return _ResultsList(state: state);
+        }
+        if (state is SearchError) {
+          return _ErrorBody(message: state.message);
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }

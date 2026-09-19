@@ -18,6 +18,7 @@ import '../../features/checkout/domain/repositories/payment_repository.dart';
 import '../../features/checkout/domain/repositories/preparation_suggestions_repository.dart';
 import '../../features/checkout/domain/services/pending_reorder_holder.dart';
 import '../../features/checkout/domain/usecases/build_payment_payload_usecase.dart';
+import '../../features/checkout/domain/usecases/calculate_delivery_fee_usecase.dart';
 import '../../features/checkout/domain/usecases/get_preparation_suggestions_usecase.dart';
 import '../../features/checkout/domain/usecases/get_platform_charges_usecase.dart';
 import '../../features/checkout/domain/usecases/initiate_payment_usecase.dart';
@@ -56,16 +57,21 @@ import '../../features/profile/domain/usecases/upload_avatar_usecase.dart';
 import '../../features/profile/domain/usecases/verify_profile_change_usecase.dart';
 import '../../features/profile/presentation/cubit/address_cubit.dart';
 import '../../features/profile/presentation/cubit/order_history_cubit.dart';
+import '../../features/favorites/presentation/cubit/favorites_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/profile/presentation/cubit/rating_cubit.dart';
 import '../../features/track/domain/usecases/get_rider_location_usecase.dart';
 import '../../features/track/presentation/cubit/track_cubit.dart';
 import '../../features/home/data/repositories/home_repository_impl.dart';
+import '../../features/home/data/repositories/outlets_daily_specials_repository.dart';
+import '../../features/home/data/repositories/promos_repository_impl.dart';
 import '../../features/search/data/repositories/search_repository_impl.dart';
 import '../../features/search/domain/repositories/search_repository.dart';
 import '../../features/search/domain/usecases/search_items_usecase.dart';
 import '../../features/search/presentation/bloc/search_bloc.dart';
 import '../../features/home/domain/repositories/home_repository.dart';
+import '../../features/home/domain/repositories/daily_specials_repository.dart';
+import '../../features/home/domain/repositories/promos_repository.dart';
 import '../../features/home/domain/usecases/get_outlet_menu_usecase.dart';
 import '../../features/home/domain/usecases/get_outlets_usecase.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
@@ -315,6 +321,9 @@ Future<void> configureDependencies(AppConfig appConfig) async {
         getIt<DeleteAccountUsecase>(),
         getIt<PersistCookieJar>(),
       ),
+    )
+    ..registerLazySingleton<FavoritesCubit>(
+      () => FavoritesCubit(getIt<LocalStorage>()),
     );
 
   // ── Home feature ───────────────────────────────────────────────────────────
@@ -323,6 +332,12 @@ Future<void> configureDependencies(AppConfig appConfig) async {
   getIt
     ..registerLazySingleton<HomeRepository>(
       () => HomeRepositoryImpl(getIt<DioClient>()),
+    )
+    ..registerLazySingleton<DailySpecialsRepository>(
+      () => OutletsDailySpecialsRepository(getIt<HomeRepository>()),
+    )
+    ..registerLazySingleton<PromosRepository>(
+      () => PromosRepositoryImpl(getIt<DioClient>()),
     )
     ..registerLazySingleton<GetOutletsUseCase>(
       () => GetOutletsUseCase(getIt<HomeRepository>()),
@@ -418,6 +433,9 @@ Future<void> configureDependencies(AppConfig appConfig) async {
     ..registerLazySingleton<BuildPaymentPayloadUseCase>(
       () => const BuildPaymentPayloadUseCase(),
     )
+    ..registerLazySingleton<CalculateDeliveryFeeUseCase>(
+      () => const CalculateDeliveryFeeUseCase(),
+    )
     ..registerLazySingleton<InitiatePaymentUseCase>(
       () => InitiatePaymentUseCase(getIt<PaymentRepository>()),
     )
@@ -445,6 +463,8 @@ Future<void> configureDependencies(AppConfig appConfig) async {
         getIt<ValidateAddressUseCase>(),
         getIt<GetPreparationSuggestionsUsecase>(),
         getIt<GetPlatformChargesUseCase>(),
+        getIt<HomeRepository>(),
+        getIt<CalculateDeliveryFeeUseCase>(),
         getIt<PendingReorderHolder>(),
       ),
     )
