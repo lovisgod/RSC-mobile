@@ -24,6 +24,8 @@ class PromoOffer {
   /// behavior used until this is defined.
   final String? deepLink;
   final String? imageUrl;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const PromoOffer({
     required this.id,
@@ -39,6 +41,8 @@ class PromoOffer {
     required this.isActive,
     this.deepLink,
     this.imageUrl,
+    this.createdAt,
+    this.updatedAt,
   });
 
   bool get isOutletScoped => scope == 'OUTLET' && outletId != null;

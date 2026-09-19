@@ -69,7 +69,7 @@ class _PromoBannerCarouselState extends State<PromoBannerCarousel> {
       child: Column(
         children: [
           SizedBox(
-            height: 100,
+            height: 136,
             child: PageView.builder(
               controller: _pageController,
               itemCount: _promos.length,

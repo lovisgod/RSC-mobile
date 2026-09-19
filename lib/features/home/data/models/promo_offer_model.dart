@@ -14,6 +14,8 @@ class PromoOfferModel {
   final bool isActive;
   final String? deepLink;
   final String? imageUrl;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const PromoOfferModel({
     required this.id,
@@ -29,6 +31,8 @@ class PromoOfferModel {
     required this.isActive,
     this.deepLink,
     this.imageUrl,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory PromoOfferModel.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,8 @@ class PromoOfferModel {
       isActive: json['isActive'] as bool? ?? true,
       deepLink: json['deepLink'] as String?,
       imageUrl: json['imageUrl'] as String?,
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      updatedAt: DateTime.tryParse(json['updatedAt'] as String? ?? ''),
     );
   }
 
@@ -63,5 +69,7 @@ class PromoOfferModel {
     isActive: isActive,
     deepLink: deepLink,
     imageUrl: imageUrl,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
   );
 }

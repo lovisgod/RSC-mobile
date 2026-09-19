@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../../../core/config/app_config.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../cubit/payment_cubit.dart';
 
@@ -23,10 +22,6 @@ class PaymentWebViewScreen extends StatefulWidget {
 }
 
 class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
-  /// Moment redirects here once the hosted checkout completes. Environment
-  /// specific — never hardcoded inline.
-  final String _momentRedirectBase = getIt<AppConfig>().paymentRedirectBase;
-
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasClosed = false;
@@ -61,7 +56,11 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
     final url = request.url;
     debugPrint('[RSC Payment] Navigating to: $url');
-    if (url.startsWith(_momentRedirectBase)) {
+    // Moment redirects here once the hosted checkout completes — this is the
+    // exact `returnUrl` sent in the /payments/initiate request body (see
+    // BuildPaymentPayloadUseCase), a custom scheme so the WebView never
+    // actually fetches it as a network request.
+    if (url.startsWith(AppConstants.paymentReturnUrl)) {
       final urlReference =
           Uri.parse(url).queryParameters['reference'] ?? widget.reference;
       debugPrint('[RSC Payment] ✅ Redirect intercepted: $url');

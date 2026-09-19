@@ -430,14 +430,6 @@ class _LoadedBody extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                AppStrings.viewAll,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.navy,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ],
           ),
         ),
