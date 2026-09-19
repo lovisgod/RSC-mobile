@@ -159,7 +159,7 @@ class _AuthLogo extends StatelessWidget {
       text: const TextSpan(
         children: [
           TextSpan(
-            text: 'RSC ',
+            text: 'DineOut ',
             style: TextStyle(
               fontSize: 42,
               fontWeight: FontWeight.w800,
@@ -168,7 +168,7 @@ class _AuthLogo extends StatelessWidget {
             ),
           ),
           TextSpan(
-            text: 'Food',
+            text: 'NG',
             style: TextStyle(
               fontSize: 42,
               fontWeight: FontWeight.w800,
