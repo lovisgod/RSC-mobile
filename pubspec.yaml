@@ -47,7 +47,8 @@ dependencies:
   # maps & location
   geolocator: ^11.0.0
   geocoding: ^4.0.0
-  google_maps_flutter: ^2.6.0
+  google_maps_flutter: ^2.9.0
+  flutter_dotenv: ^5.2.1
   url_launcher: ^6.3.0
   webview_flutter: ^4.8.0
 
@@ -103,3 +104,8 @@ flutter:
     - rsc-assets/icons/png/bust-in-silhouette_1f464.png
     - rsc-assets/images/confetti.png
     - rsc-assets/images/logo.png
+    - rsc-assets/images/dineout_logo_light.png
+    - assets/map_style/
+    - .env.development
+    - .env.staging
+    - .env.production

@@ -4,6 +4,9 @@ class RiderLocationEntity {
   final double latitude;
   final double longitude;
   final DateTime recordedAt;
+  final int? etaMinutes;
+  final double? distanceKm;
+  final String? etaProvider;
 
   const RiderLocationEntity({
     required this.riderId,
@@ -11,5 +14,8 @@ class RiderLocationEntity {
     required this.latitude,
     required this.longitude,
     required this.recordedAt,
+    this.etaMinutes,
+    this.distanceKm,
+    this.etaProvider,
   });
 }

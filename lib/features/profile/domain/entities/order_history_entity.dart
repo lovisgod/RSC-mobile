@@ -11,6 +11,8 @@ class OrderHistoryEntity {
   final String status;
   final String deliveryMode; // 'DELIVERY' | 'TAKEOUT'
   final String deliveryAddress;
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
   final double subtotal;
   final double deliveryFee;
   final double vat;
@@ -36,6 +38,8 @@ class OrderHistoryEntity {
     required this.status,
     required this.deliveryMode,
     required this.deliveryAddress,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
     required this.subtotal,
     required this.deliveryFee,
     required this.vat,
@@ -85,6 +89,8 @@ class OrderHistoryEntity {
       status: status ?? this.status,
       deliveryMode: deliveryMode,
       deliveryAddress: deliveryAddress,
+      deliveryLatitude: deliveryLatitude,
+      deliveryLongitude: deliveryLongitude,
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       vat: vat,

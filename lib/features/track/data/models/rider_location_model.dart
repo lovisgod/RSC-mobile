@@ -6,6 +6,9 @@ class RiderLocationModel {
   final double latitude;
   final double longitude;
   final DateTime recordedAt;
+  final int? etaMinutes;
+  final double? distanceKm;
+  final String? etaProvider;
 
   const RiderLocationModel({
     required this.riderId,
@@ -13,6 +16,9 @@ class RiderLocationModel {
     required this.latitude,
     required this.longitude,
     required this.recordedAt,
+    this.etaMinutes,
+    this.distanceKm,
+    this.etaProvider,
   });
 
   factory RiderLocationModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +30,9 @@ class RiderLocationModel {
       recordedAt:
           DateTime.tryParse(json['recordedAt'] as String? ?? '') ??
           DateTime.now(),
+      etaMinutes: (json['etaMinutes'] as num?)?.toInt(),
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      etaProvider: json['etaProvider'] as String?,
     );
   }
 
@@ -33,5 +42,8 @@ class RiderLocationModel {
     latitude: latitude,
     longitude: longitude,
     recordedAt: recordedAt,
+    etaMinutes: etaMinutes,
+    distanceKm: distanceKm,
+    etaProvider: etaProvider,
   );
 }

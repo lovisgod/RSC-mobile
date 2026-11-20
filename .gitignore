@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment config — never commit real keys
+.env.development
+.env.staging
+.env.production

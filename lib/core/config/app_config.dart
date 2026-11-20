@@ -18,22 +18,22 @@ class AppConfig {
 
   static const AppConfig development = AppConfig._(
     environment: 'development',
-    baseUrl: 'https://api-dev.rscdev.tech',
-    paymentRedirectBase: 'https://dev.rscdev.tech/tracking',
+    baseUrl: 'https://dev.dineout.com.ng',
+    paymentRedirectBase: 'https://dev.dineout.com.ng/tracking',
     appName: 'DineOut NG Dev',
   );
 
   static const AppConfig staging = AppConfig._(
     environment: 'staging',
-    baseUrl: 'https://api-staging.rscdev.tech',
-    paymentRedirectBase: 'https://staging.rscdev.tech/tracking',
+    baseUrl: 'https://staging.dineout.com.ng',
+    paymentRedirectBase: 'https://staging.dineout.com.ng/tracking',
     appName: 'DineOut NG Staging',
   );
 
   static const AppConfig production = AppConfig._(
     environment: 'production',
-    baseUrl: 'https://api.rscdev.tech',
-    paymentRedirectBase: 'https://rscdev.tech/tracking',
+    baseUrl: 'https://dineout.com.ng',
+    paymentRedirectBase: 'https://dineout.com.ng/tracking',
     appName: 'DineOut NG',
   );
 
