@@ -32,7 +32,7 @@ class AppConfig {
 
   static const AppConfig production = AppConfig._(
     environment: 'production',
-    baseUrl: 'https://dineout.com.ng',
+    baseUrl: 'https://dineout.ng',
     paymentRedirectBase: 'https://dineout.com.ng/tracking',
     appName: 'DineOut NG',
   );
