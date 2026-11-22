@@ -1,5 +1,5 @@
 abstract final class AppConstants {
-  static const String appName = 'RSC';
+  static const String appName = 'DineOut NG';
 
   static const int otpLength = 6;
   static const int otpResendSeconds = 60;

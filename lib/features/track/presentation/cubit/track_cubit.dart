@@ -270,6 +270,9 @@ class TrackCubit extends Cubit<TrackState> {
             recordedAt:
                 DateTime.tryParse(payload['recordedAt'] as String? ?? '') ??
                 DateTime.now(),
+            etaMinutes: (payload['etaMinutes'] as num?)?.toInt(),
+            distanceKm: (payload['distanceKm'] as num?)?.toDouble(),
+            etaProvider: payload['etaProvider'] as String?,
           ),
         ),
       );

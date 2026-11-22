@@ -18,23 +18,23 @@ class AppConfig {
 
   static const AppConfig development = AppConfig._(
     environment: 'development',
-    baseUrl: 'https://api-dev.rscdev.tech',
-    paymentRedirectBase: 'https://dev.rscdev.tech/tracking',
-    appName: 'RSC Dev',
+    baseUrl: 'https://dev.dineout.com.ng',
+    paymentRedirectBase: 'https://dev.dineout.com.ng/tracking',
+    appName: 'DineOut NG Dev',
   );
 
   static const AppConfig staging = AppConfig._(
     environment: 'staging',
-    baseUrl: 'https://api-staging.rscdev.tech',
-    paymentRedirectBase: 'https://staging.rscdev.tech/tracking',
-    appName: 'RSC Staging',
+    baseUrl: 'https://staging.dineout.com.ng',
+    paymentRedirectBase: 'https://staging.dineout.com.ng/tracking',
+    appName: 'DineOut NG Staging',
   );
 
   static const AppConfig production = AppConfig._(
     environment: 'production',
-    baseUrl: 'https://api.rscdev.tech',
-    paymentRedirectBase: 'https://rscdev.tech/tracking',
-    appName: 'RSC',
+    baseUrl: 'https://dineout.ng',
+    paymentRedirectBase: 'https://dineout.com.ng/tracking',
+    appName: 'DineOut NG',
   );
 
   bool get isDevelopment => environment == 'development';

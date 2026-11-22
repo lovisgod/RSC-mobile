@@ -28,7 +28,7 @@ import '../cubit/track_cubit.dart';
 import '../cubit/track_state.dart';
 import '../widgets/order_timeline_widget.dart';
 import '../widgets/rider_avatar.dart';
-import '../widgets/rider_route_widget.dart';
+import '../widgets/rider_map_widget.dart';
 
 class TrackScreen extends StatefulWidget {
   const TrackScreen({super.key});
@@ -39,17 +39,12 @@ class TrackScreen extends StatefulWidget {
 
 class _TrackScreenState extends State<TrackScreen>
     with TickerProviderStateMixin {
-  late final AnimationController _riderController;
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _riderController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    );
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -63,20 +58,8 @@ class _TrackScreenState extends State<TrackScreen>
 
   @override
   void dispose() {
-    _riderController.dispose();
     _pulseController.dispose();
     super.dispose();
-  }
-
-  void _onStatusChanged(String? status) {
-    switch (status) {
-      case 'OUT_FOR_DELIVERY':
-        _riderController.forward(from: 0.0);
-      case 'DELIVERED':
-        _riderController.value = 1.0;
-      default:
-        _riderController.value = 0.0;
-    }
   }
 
   Future<void> _onRefresh() => context.read<TrackCubit>().manualRefresh();
@@ -99,10 +82,7 @@ class _TrackScreenState extends State<TrackScreen>
   Widget _buildAuthenticated(BuildContext context) {
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
-    return BlocConsumer<TrackCubit, TrackState>(
-      listenWhen: (prev, curr) =>
-          prev.activeOrder?.status != curr.activeOrder?.status,
-      listener: (_, state) => _onStatusChanged(state.activeOrder?.status),
+    return BlocBuilder<TrackCubit, TrackState>(
       builder: (context, state) {
         final order = state.activeOrder;
         final orderIdDisplay = order?.displayOrderId ?? AppStrings.noOrderId;
@@ -114,7 +94,6 @@ class _TrackScreenState extends State<TrackScreen>
             outlets: state.outlets,
             trackedOrders: state.trackedOrders,
             orderEvents: state.orderEvents,
-            riderController: _riderController,
             pulseAnimation: _pulseAnimation,
             riderInfo: state.riderInfo,
             riderLocation: state.riderLocation,
@@ -447,7 +426,6 @@ class _ActiveOrderBody extends StatelessWidget {
     required this.outlets,
     required this.trackedOrders,
     required this.orderEvents,
-    required this.riderController,
     required this.pulseAnimation,
     required this.riderInfo,
     required this.riderLocation,
@@ -458,7 +436,6 @@ class _ActiveOrderBody extends StatelessWidget {
   final List<Outlet> outlets;
   final List<OrderHistoryEntity> trackedOrders;
   final List<OrderEventEntity> orderEvents;
-  final AnimationController riderController;
   final Animation<double> pulseAnimation;
   final RiderInfoEntity? riderInfo;
   final RiderLocationEntity? riderLocation;
@@ -474,7 +451,11 @@ class _ActiveOrderBody extends StatelessWidget {
       return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-        child: _EtaCard(order: order, pulseAnimation: pulseAnimation),
+        child: _EtaCard(
+          order: order,
+          pulseAnimation: pulseAnimation,
+          riderLocation: riderLocation,
+        ),
       );
     }
 
@@ -489,10 +470,14 @@ class _ActiveOrderBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _EtaCard(order: order, pulseAnimation: pulseAnimation),
+          _EtaCard(
+            order: order,
+            pulseAnimation: pulseAnimation,
+            riderLocation: riderLocation,
+          ),
           const SizedBox(height: 16),
 
-          // Rider route widget — animated in when out for delivery.
+          // Live rider map — animated in when out for delivery.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
             transitionBuilder: (child, animation) => FadeTransition(
@@ -506,13 +491,11 @@ class _ActiveOrderBody extends StatelessWidget {
               ),
             ),
             child: hasRider
-                ? AnimatedBuilder(
+                ? RiderMapWidget(
                     key: const ValueKey('route'),
-                    animation: riderController,
-                    builder: (_, child) => RiderRouteWidget(
-                      progress: riderController.value,
-                      hasLiveLocation: riderLocation != null,
-                    ),
+                    order: order,
+                    outlets: outlets,
+                    riderLocation: riderLocation,
                   )
                 : const SizedBox(key: ValueKey('no-route')),
           ),
@@ -731,7 +714,10 @@ class _StatusDisplay {
   final bool showConfetti;
 }
 
-_StatusDisplay _getStatusDisplay(String status) {
+_StatusDisplay _getStatusDisplay(
+  String status, {
+  RiderLocationEntity? riderLocation,
+}) {
   switch (status.toUpperCase()) {
     case 'PENDING_PAYMENT':
       return const _StatusDisplay(
@@ -768,9 +754,9 @@ _StatusDisplay _getStatusDisplay(String status) {
         titleColor: AppColors.navy,
       );
     case 'OUT_FOR_DELIVERY':
-      return const _StatusDisplay(
+      return _StatusDisplay(
         title: AppStrings.etaOnTheWay,
-        subtitle: AppStrings.riderOnTheWay,
+        subtitle: _riderEtaSubtitle(riderLocation),
         titleColor: AppColors.navy,
       );
     case 'DELIVERED':
@@ -799,15 +785,36 @@ _StatusDisplay _getStatusDisplay(String status) {
   }
 }
 
+// Falls back to the generic "on the way" copy when the backend hasn't
+// resolved an ETA yet (no route, no destination, or routing unavailable).
+String _riderEtaSubtitle(RiderLocationEntity? riderLocation) {
+  final etaMinutes = riderLocation?.etaMinutes;
+  if (etaMinutes == null) return AppStrings.riderOnTheWay;
+
+  final distanceKm = riderLocation?.distanceKm;
+  final distanceSuffix = distanceKm == null
+      ? ''
+      : ' (${distanceKm.toStringAsFixed(1)} km away)';
+  return 'Arriving in ~$etaMinutes min$distanceSuffix';
+}
+
 class _EtaCard extends StatelessWidget {
-  const _EtaCard({required this.order, required this.pulseAnimation});
+  const _EtaCard({
+    required this.order,
+    required this.pulseAnimation,
+    this.riderLocation,
+  });
 
   final OrderHistoryEntity order;
   final Animation<double> pulseAnimation;
+  final RiderLocationEntity? riderLocation;
 
   @override
   Widget build(BuildContext context) {
-    final display = _getStatusDisplay(order.status);
+    final display = _getStatusDisplay(
+      order.status,
+      riderLocation: riderLocation,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),

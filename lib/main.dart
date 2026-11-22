@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app.dart';
@@ -25,6 +26,8 @@ void main() async {
   final AppConfig appConfig = AppConfig.fromEnvironment();
   debugPrint('[RSC] Environment: ${appConfig.environment}');
   debugPrint('[RSC] Base URL: ${appConfig.baseUrl}');
+
+  await dotenv.load(fileName: '.env.${appConfig.environment}');
 
   try {
     await Firebase.initializeApp(

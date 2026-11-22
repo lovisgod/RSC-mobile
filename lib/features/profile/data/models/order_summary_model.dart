@@ -114,6 +114,8 @@ class OrderSummaryModel {
     status: status,
     deliveryMode: deliveryMode,
     deliveryAddress: deliveryAddress,
+    deliveryLatitude: deliveryLatitude,
+    deliveryLongitude: deliveryLongitude,
     subtotal: subtotal,
     deliveryFee: deliveryFee,
     vat: vat,

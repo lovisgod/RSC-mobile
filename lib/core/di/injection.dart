@@ -103,6 +103,7 @@ import '../network/session_interceptor.dart';
 import '../router/app_router.dart';
 import '../services/address_service.dart';
 import '../services/notification_service.dart';
+import '../services/routing_service.dart';
 import '../services/socket_service.dart';
 import '../storage/local_storage.dart';
 import 'injection.config.dart';
@@ -119,6 +120,8 @@ Future<void> configureDependencies(AppConfig appConfig) async {
 
   // ── Environment config — registered first so anything below can use it ─────
   getIt.registerSingleton<AppConfig>(appConfig);
+
+  getIt.registerLazySingleton<RoutingService>(() => RoutingService());
 
   // ── Local storage ──────────────────────────────────────────────────────────
   getIt.registerLazySingleton<LocalStorage>(

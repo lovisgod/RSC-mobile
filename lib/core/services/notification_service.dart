@@ -120,7 +120,7 @@ class NotificationService {
         android: AndroidNotificationDetails(
           _ordersChannelId,
           'Order Updates',
-          channelDescription: 'Notifications about your RSC food orders',
+          channelDescription: 'Notifications about your Dineout NG orders',
           importance: Importance.high,
           priority: Priority.high,
           playSound: true,
@@ -184,7 +184,7 @@ class NotificationService {
     const channel = AndroidNotificationChannel(
       _ordersChannelId,
       'Order Updates',
-      description: 'Notifications about your RSC food orders',
+      description: 'Notifications about your Dineout NG orders',
       importance: Importance.high,
       playSound: true,
       enableVibration: true,

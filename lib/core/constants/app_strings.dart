@@ -119,7 +119,7 @@ abstract final class AppStrings {
   static const String reorderEntireOrder = 'Re-order this entire order 🔄';
   static const String itemsOrdered = 'ITEMS ORDERED';
   static const String noOrdersYet = 'No orders yet';
-  static const String startOrdering = 'Start ordering from RSC Food Kitchens';
+  static const String startOrdering = 'Start ordering from Dineout NG Kitchens';
   static const String reorder = 'Re-order';
   static const String trackOrder = 'Track';
   static const String trackOrderCta = 'Track Order 🛵';
